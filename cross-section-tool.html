@@ -1,0 +1,1558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Survey Cross Section Studio</title>
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <!-- PapaParse CSV Reader & Writer -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <!-- Proj4js OSGB36 -> WGS84 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #f8f9fa;
+            --panel-bg: #ffffff;
+            --border-color: #cbd5e1;
+            --primary-color: #2563eb;
+            --text-color: #0f172a;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        header {
+            background-color: #0f172a;
+            color: #fff;
+            padding: 8px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .step-tabs {
+            display: flex;
+            gap: 4px;
+            background-color: #1e293b;
+            padding: 4px;
+            border-radius: 6px;
+        }
+
+        .step-tab {
+            padding: 6px 14px;
+            color: #94a3b8;
+            background: transparent;
+            border: none;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.82rem;
+            cursor: pointer;
+        }
+
+        .step-tab.active {
+            background-color: var(--primary-color);
+            color: #ffffff;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .tab-content {
+            display: none;
+            width: 100%;
+            height: 100%;
+        }
+
+        .tab-content.active {
+            display: flex;
+        }
+
+        .sidebar {
+            width: 360px;
+            background: var(--panel-bg);
+            border-right: 1px solid var(--border-color);
+            padding: 14px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .main-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #fff;
+            position: relative;
+        }
+
+        .control-box {
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            padding: 10px;
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        label {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        input[type="text"], input[type="number"], input[type="date"], input[type="file"], select, button {
+            padding: 7px 9px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 0.82rem;
+        }
+
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        button.btn-secondary { background-color: #64748b; }
+        button.btn-danger { background-color: #ef4444; }
+        button.btn-success { background-color: #16a34a; }
+        button:disabled { background-color: #cbd5e1; cursor: not-allowed; }
+        button:hover:not(:disabled) { opacity: 0.9; }
+
+        .btn-group { display: flex; gap: 6px; }
+        .btn-group button { flex: 1; }
+
+        .node-list {
+            flex: 1;
+            max-height: 280px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background: #fff;
+            position: relative;
+        }
+
+        .node-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 8px;
+            font-size: 0.78rem;
+            border-bottom: 1px solid #f1f5f9;
+            background: #fff;
+            box-sizing: border-box;
+            transition: border-color 0.1s ease;
+        }
+
+        .node-row.draggable {
+            cursor: grab;
+            user-select: none;
+        }
+
+        .node-row.draggable:active {
+            cursor: grabbing;
+        }
+
+        .node-row.drop-above {
+            border-top: 3px solid var(--primary-color) !important;
+        }
+
+        .node-row.drop-below {
+            border-bottom: 3px solid var(--primary-color) !important;
+        }
+
+        .drag-handle {
+            color: #94a3b8;
+            font-weight: bold;
+            padding: 0 4px;
+            cursor: grab;
+        }
+
+        .node-row:hover { background-color: #f8fafc; }
+
+        .xs-tag-badge {
+            font-size: 0.68rem;
+            padding: 2px 5px;
+            border-radius: 8px;
+            color: #fff;
+            font-weight: bold;
+        }
+
+        #map, #editor-map, #context-map {
+            width: 100%;
+            height: 100%;
+        }
+
+        .map-tool-bar {
+            position: absolute;
+            top: 10px;
+            left: 60px;
+            z-index: 1000;
+            background: white;
+            padding: 6px;
+            border-radius: 6px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .split-view-v {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+        }
+
+        .split-view-h {
+            display: flex;
+            width: 100%;
+            height: 100%;
+        }
+
+        .pane-half {
+            flex: 1;
+            height: 100%;
+            position: relative;
+        }
+
+        .number-marker {
+            background-color: #2563eb;
+            color: #ffffff;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+        }
+
+        .metric-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.74rem;
+            margin-top: 4px;
+        }
+
+        .metric-table td, .metric-table th {
+            border: 1px solid #cbd5e1;
+            padding: 4px 6px;
+            text-align: left;
+        }
+
+        .metric-table th {
+            background: #e2e8f0;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <h1 style="margin: 0; font-size: 1.05rem;">Survey Cross Section Studio</h1>
+        <div class="step-tabs">
+            <button class="step-tab active" id="tab-step1" onclick="switchStep(1)">1. Select & Assign</button>
+            <button class="step-tab" id="tab-step2" onclick="switchStep(2)">2. Edit & Reorder</button>
+            <button class="step-tab" id="tab-step3" onclick="switchStep(3)">3. Compare & Analysis</button>
+        </div>
+    </div>
+    <div class="header-actions">
+        <button class="btn-success" onclick="exportDataCSV()">Export Sorted Sections CSV</button>
+        <button class="btn-secondary" onclick="document.getElementById('import-file').click()">Import CSV</button>
+        <input type="file" id="import-file" accept=".csv" style="display:none;" onchange="importDataCSV(event)">
+    </div>
+</header>
+
+<!-- STEP 1: SELECT & ASSIGN -->
+<div id="step1-container" class="container tab-content active">
+    <div class="sidebar">
+        <div class="control-box">
+            <label>Load Survey Dataset</label>
+            <input type="file" id="csv-file" accept=".csv">
+            <label style="margin-top: 4px;">Survey Name (Auto / Editable)</label>
+            <input type="text" id="dataset-name" placeholder="Survey ID">
+            <label style="margin-top: 4px;">Survey Date (Auto / Editable)</label>
+            <input type="date" id="survey-date">
+        </div>
+
+        <div class="control-box">
+            <label>Cross Section Assignment</label>
+            <input type="text" id="xs-name-input" placeholder="e.g. XS1, XS2" value="XS1">
+            <button id="btn-assign" disabled onclick="assignSelectedNodes()">Assign Selected (<span id="sel-count-label">0</span>)</button>
+            <div class="btn-group">
+                <button id="btn-clear-sel" class="btn-secondary" onclick="clearSelection()">Clear Selection</button>
+                <button id="btn-unassign" class="btn-danger" onclick="unassignSelectedNodes()">Unassign</button>
+            </div>
+        </div>
+
+        <div class="control-box">
+            <label>Active Dataset Summary</label>
+            <div id="dataset-summary" style="font-size: 0.8rem; color: #475569;">
+                No survey loaded.
+            </div>
+        </div>
+
+        <div class="control-box" style="flex: 1; display: flex; flex-direction: column;">
+            <label>Survey Nodes (<span id="node-count">0</span>)</label>
+            <div class="node-list" id="node-list-container">
+                <em style="font-size: 0.8rem; color: #888; padding: 8px;">Load CSV survey points to list</em>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-panel">
+        <div class="map-tool-bar">
+            <button id="btn-lasso-toggle" class="btn-secondary" onclick="toggleMapLasso()">Draw Lasso / Area Select</button>
+            <button id="btn-lasso-clear" class="btn-danger" onclick="clearLassoPolygon()" style="display:none;">Clear Area</button>
+            <span id="lasso-hint" style="font-size: 0.75rem; color: #475569; display:none;">Click map corners to enclose points. Click 'Apply' when ready.</span>
+        </div>
+        <div id="map"></div>
+    </div>
+</div>
+
+<!-- STEP 2: EDIT & REORDER -->
+<div id="step2-container" class="container tab-content">
+    <div class="sidebar">
+        <div class="control-box">
+            <label>Select Cross Section to Edit</label>
+            <select id="editor-xs-select" onchange="loadXSIntoEditor()">
+                <option value="">-- Choose Section --</option>
+            </select>
+        </div>
+
+        <div class="control-box">
+            <label>Auto-Order by Base Point</label>
+            <select id="base-node-select">
+                <option value="">-- Select Base Point --</option>
+            </select>
+            <button class="btn-secondary" onclick="sortByDistanceFromBase()">Sort by Distance from Base</button>
+        </div>
+
+        <div class="control-box">
+            <label>Quick Tools</label>
+            <button class="btn-secondary" onclick="reverseCurrentSection()">Reverse Node Order</button>
+        </div>
+
+        <div class="control-box" style="flex: 1; display: flex; flex-direction: column;">
+            <label>Ordered Section Nodes (Slot In-Between)</label>
+            <div class="node-list" id="editor-node-list">
+                <em style="font-size: 0.8rem; color: #888; padding: 8px;">Select a cross section above</em>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-panel">
+        <div class="split-view-v">
+            <div class="pane-half" style="border-bottom: 2px solid var(--border-color);">
+                <div id="editor-map"></div>
+            </div>
+            <div class="pane-half">
+                <div id="editor-preview-chart" style="width:100%; height:100%;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- STEP 3: COMPARE & ANALYSIS -->
+<div id="step3-container" class="container tab-content">
+    <div class="sidebar">
+        <div class="control-box">
+            <label>Datasets & Surveys</label>
+            <div id="datasets-checklist" style="font-size: 0.8rem; max-height: 100px; overflow-y:auto;">
+                <em style="color:#64748b;">No datasets loaded.</em>
+            </div>
+        </div>
+
+        <div class="control-box">
+            <label>Sections to Plot</label>
+            <div id="compare-xs-checklist" style="font-size: 0.8rem; max-height: 110px; overflow-y:auto;">
+                <em style="color:#64748b;">Assign sections in Step 1 first.</em>
+            </div>
+        </div>
+
+        <!-- SPOT QUERY & EXTRAPOLATION -->
+        <div class="control-box">
+            <label>Spot Station Query & ΔZ Difference</label>
+            <div style="display:flex; gap:6px;">
+                <input type="number" id="spot-dist-input" step="0.1" placeholder="Chainage (m)" style="flex:1;">
+                <button onclick="querySpotElevation()">Query Spot</button>
+            </div>
+            <div id="spot-results"></div>
+            <small style="color:#64748b; font-size:0.7rem;">Tip: Click directly anywhere on the plot to query that chainage.</small>
+        </div>
+
+        <!-- AREA DIFFERENCE CALCULATOR -->
+        <div class="control-box">
+            <label>Cross-Sectional Area Difference</label>
+            <div style="font-size:0.72rem; color:#475569; font-weight:700;">BASELINE LINE</div>
+            <select id="area-ref-ds" onchange="updateAreaXSSelect('ref')"><option value="">-- Select Baseline Survey --</option></select>
+            <select id="area-ref-xs"><option value="">-- Select Baseline Section --</option></select>
+
+            <div style="font-size:0.72rem; color:#475569; font-weight:700; margin-top:2px;">COMPARISON LINE</div>
+            <select id="area-cmp-ds" onchange="updateAreaXSSelect('cmp')"><option value="">-- Select Comparison Survey --</option></select>
+            <select id="area-cmp-xs"><option value="">-- Select Comparison Section --</option></select>
+
+            <button class="btn-success" onclick="calculateAreaDifference()" style="margin-top:4px;">Calculate Area Difference</button>
+            <div id="area-results"></div>
+        </div>
+    </div>
+
+    <div class="main-panel">
+        <div class="split-view-h">
+            <div class="pane-half" style="flex:2;">
+                <div id="comparison-plot" style="width:100%; height:100%;"></div>
+            </div>
+            <div class="pane-half" style="border-left: 2px solid var(--border-color);">
+                <div id="context-map"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    proj4.defs("EPSG:27700", "+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +datum=OSGB36 +units=m +no_defs");
+
+    const COLOR_PALETTE = ['#2563eb', '#dc2626', '#16a34a', '#d97706', '#9333ea', '#0891b2', '#e11d48', '#059669'];
+
+    let datasets = {}; 
+    let activeDatasetId = '';
+
+    let map, editorMap, contextMap;
+    let mapMarkers = [], mapPolylines = [];
+    let editorMarkers = [], editorPolyline = null;
+    let contextPolylines = [];
+    
+    let isLassoActive = false;
+    let lassoPoints = [];
+    let lassoPolyline = null;
+    let lassoPolygonLayer = null;
+
+    let draggedNodeIndex = null;
+    let currentSpotLineChainage = null;
+
+    document.addEventListener("DOMContentLoaded", () => {
+        document.getElementById('survey-date').value = new Date().toISOString().split('T')[0];
+        initMaps();
+        initPlotlyCharts();
+        bindInputListeners();
+    });
+
+    function bindInputListeners() {
+        document.getElementById('dataset-name').addEventListener('input', (e) => {
+            if (!activeDatasetId || !datasets[activeDatasetId]) return;
+            datasets[activeDatasetId].name = e.target.value.trim() || 'Survey';
+            renderStep1();
+        });
+
+        document.getElementById('survey-date').addEventListener('change', (e) => {
+            if (!activeDatasetId || !datasets[activeDatasetId]) return;
+            datasets[activeDatasetId].date = e.target.value || new Date().toISOString().split('T')[0];
+            renderStep1();
+        });
+    }
+
+    function initMaps() {
+        const createBaseLayers = () => ({
+            "Esri Topo": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 22, maxNativeZoom: 18, attribution: '&copy; Esri Topo' }),
+            "Carto Light": L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 22, maxNativeZoom: 19, attribution: '&copy; CARTO' }),
+            "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 22, maxNativeZoom: 19, attribution: '&copy; OpenStreetMap' }),
+            "Esri Satellite": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 22, maxNativeZoom: 18, attribution: '&copy; Esri World' })
+        });
+
+        // Set Esri Topo as the default layer for all maps
+        const base1 = createBaseLayers();
+        map = L.map('map', { layers: [base1["Esri Topo"]], maxZoom: 22 }).setView([52.22, -3.93], 13);
+        L.control.layers(base1).addTo(map);
+
+        map.on('click', (e) => {
+            if (isLassoActive) {
+                lassoPoints.push([e.latlng.lat, e.latlng.lng]);
+                updateLassoDrawing();
+            }
+        });
+
+        const base2 = createBaseLayers();
+        editorMap = L.map('editor-map', { layers: [base2["Esri Topo"]], maxZoom: 22 }).setView([52.22, -3.93], 13);
+        L.control.layers(base2).addTo(editorMap);
+
+        const base3 = createBaseLayers();
+        contextMap = L.map('context-map', { layers: [base3["Esri Topo"]], maxZoom: 22 }).setView([52.22, -3.93], 13);
+        L.control.layers(base3).addTo(contextMap);
+    }
+
+    function initPlotlyCharts() {
+        Plotly.newPlot('editor-preview-chart', [], {
+            title: { text: 'Section Profile Preview', font: { size: 13 } },
+            xaxis: { title: 'Distance / Chainage (m)' },
+            yaxis: { title: 'Elevation (m)' },
+            margin: { l: 50, r: 30, t: 40, b: 40 }
+        }, { responsive: true });
+
+        Plotly.newPlot('comparison-plot', [], {
+            title: { text: 'Multi-Survey Cross Section Comparison', font: { size: 14 } },
+            xaxis: { title: 'Distance / Chainage (m)' },
+            yaxis: { title: 'Elevation (m)' },
+            hovermode: 'x',
+            margin: { l: 50, r: 30, t: 40, b: 40 }
+        }, { responsive: true });
+
+        const plotEl = document.getElementById('comparison-plot');
+        plotEl.on('plotly_click', (data) => {
+            if (data && data.points && data.points.length > 0) {
+                const clickedX = data.points[0].x;
+                document.getElementById('spot-dist-input').value = clickedX.toFixed(2);
+                querySpotElevation();
+            }
+        });
+    }
+
+    function switchStep(step) {
+        document.querySelectorAll('.step-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+        document.getElementById(`tab-step${step}`).classList.add('active');
+        document.getElementById(`step${step}-container`).classList.add('active');
+
+        if (step === 1) {
+            map.invalidateSize();
+        } else if (step === 2) {
+            populateEditorDropdown();
+            editorMap.invalidateSize();
+            Plotly.Plots.resize('editor-preview-chart');
+        } else if (step === 3) {
+            updateStep3ComparisonView();
+            contextMap.invalidateSize();
+            Plotly.Plots.resize('comparison-plot');
+        }
+    }
+
+    document.getElementById('csv-file').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const fileNameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
+        document.getElementById('dataset-name').value = fileNameWithoutExt;
+
+        Papa.parse(file, {
+            header: true,
+            dynamicTyping: true,
+            skipEmptyLines: true,
+            complete: (results) => {
+                let latestDate = null;
+                results.data.forEach(row => {
+                    const dateValStr = row.Date || row.date || row.Timestamp || row.timestamp || row.Time || row.time || row.Survey_Date || row.Created || row.created;
+                    if (dateValStr) {
+                        const parsedDate = new Date(dateValStr);
+                        if (!isNaN(parsedDate.getTime())) {
+                            if (!latestDate || parsedDate > latestDate) {
+                                latestDate = parsedDate;
+                            }
+                        }
+                    }
+                });
+
+                const dateVal = latestDate ? latestDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+                document.getElementById('survey-date').value = dateVal;
+
+                processCSVData(results.data, fileNameWithoutExt, dateVal);
+            }
+        });
+    });
+
+    function processCSVData(data, rawName, dateVal) {
+        const parsedNodes = [];
+        const sectionsObj = {};
+        const combinedId = `${rawName}_${dateVal}_${Date.now()}`;
+
+        data.forEach((row, idx) => {
+            let lat = row.Latitude || row.lat;
+            let lng = row.Longitude || row.lon || row.lng;
+
+            if ((!lat || !lng) && row.Easting && row.Northing) {
+                const conv = proj4("EPSG:27700", "EPSG:4326", [parseFloat(row.Easting), parseFloat(row.Northing)]);
+                lng = conv[0];
+                lat = conv[1];
+            }
+
+            const nodeObj = {
+                id: idx,
+                name: String(row.Node_Name || row.Name || idx + 1),
+                code: row.Code || '',
+                easting: parseFloat(row.Easting),
+                northing: parseFloat(row.Northing),
+                elevation: parseFloat(row.Elevation),
+                lat: parseFloat(lat),
+                lng: parseFloat(lng),
+                selected: false,
+                assignedXS: row.Assigned_XS || null
+            };
+
+            if (!isNaN(nodeObj.easting) && !isNaN(nodeObj.northing) && !isNaN(nodeObj.elevation)) {
+                parsedNodes.push(nodeObj);
+
+                if (row.Assigned_XS) {
+                    const xsName = String(row.Assigned_XS);
+                    if (!sectionsObj[xsName]) {
+                        const colorIdx = Object.keys(sectionsObj).length % COLOR_PALETTE.length;
+                        sectionsObj[xsName] = { color: COLOR_PALETTE[colorIdx], nodeIds: [] };
+                    }
+                    sectionsObj[xsName].nodeIds.push({ id: idx, order: parseInt(row.XS_Order) || 999 });
+                }
+            }
+        });
+
+        Object.keys(sectionsObj).forEach(xsKey => {
+            sectionsObj[xsKey].nodeIds.sort((a, b) => a.order - b.order);
+            sectionsObj[xsKey].nodeIds = sectionsObj[xsKey].nodeIds.map(item => item.id);
+        });
+
+        datasets[combinedId] = {
+            id: combinedId,
+            name: rawName,
+            date: dateVal,
+            nodes: parsedNodes,
+            sections: sectionsObj
+        };
+        
+        activeDatasetId = combinedId;
+
+        document.getElementById('btn-assign').disabled = false;
+        renderStep1();
+    }
+
+    function assignSelectedNodes() {
+        const ds = datasets[activeDatasetId];
+        if (!ds) return;
+
+        const xsName = document.getElementById('xs-name-input').value.trim();
+        if (!xsName) {
+            alert("Enter a cross section name.");
+            return;
+        }
+
+        const selectedNodes = ds.nodes.filter(n => n.selected);
+        if (selectedNodes.length === 0) {
+            alert("Select nodes first.");
+            return;
+        }
+
+        if (!ds.sections[xsName]) {
+            const colorIdx = Object.keys(ds.sections).length % COLOR_PALETTE.length;
+            ds.sections[xsName] = { color: COLOR_PALETTE[colorIdx], nodeIds: [] };
+        }
+
+        selectedNodes.forEach(n => {
+            n.assignedXS = xsName;
+            n.selected = false;
+            if (!ds.sections[xsName].nodeIds.includes(n.id)) {
+                ds.sections[xsName].nodeIds.push(n.id);
+            }
+        });
+
+        renderStep1();
+    }
+
+    function clearSelection() {
+        const ds = datasets[activeDatasetId];
+        if (ds) ds.nodes.forEach(n => n.selected = false);
+        renderStep1();
+    }
+
+    function unassignSelectedNodes() {
+        const ds = datasets[activeDatasetId];
+        if (!ds) return;
+
+        ds.nodes.filter(n => n.selected).forEach(n => {
+            if (n.assignedXS && ds.sections[n.assignedXS]) {
+                ds.sections[n.assignedXS].nodeIds = ds.sections[n.assignedXS].nodeIds.filter(id => id !== n.id);
+                if (ds.sections[n.assignedXS].nodeIds.length === 0) delete ds.sections[n.assignedXS];
+            }
+            n.assignedXS = null;
+            n.selected = false;
+        });
+
+        renderStep1();
+    }
+
+    function toggleNodeSelection(id) {
+        const ds = datasets[activeDatasetId];
+        if (!ds) return;
+        const n = ds.nodes.find(item => item.id === id);
+        if (n) {
+            n.selected = !n.selected;
+            renderStep1();
+        }
+    }
+
+    function renderStep1() {
+        const ds = datasets[activeDatasetId];
+        if (!ds) return;
+
+        const selectedCount = ds.nodes.filter(n => n.selected).length;
+        document.getElementById('sel-count-label').innerText = selectedCount;
+        document.getElementById('node-count').innerText = ds.nodes.length;
+        document.getElementById('dataset-summary').innerHTML = `<b>Survey Name:</b> ${ds.name}<br><b>Survey Date:</b> ${ds.date}<br><b>Assigned Sections:</b> ${Object.keys(ds.sections).length}`;
+
+        renderMapStep1();
+        renderNodeList();
+    }
+
+    function renderMapStep1() {
+        mapMarkers.forEach(m => map.removeLayer(m));
+        mapPolylines.forEach(p => map.removeLayer(p));
+        mapMarkers = [];
+        mapPolylines = [];
+
+        const ds = datasets[activeDatasetId];
+        if (!ds) return;
+
+        const bounds = L.latLngBounds();
+
+        Object.keys(ds.sections).forEach(xsKey => {
+            const sec = ds.sections[xsKey];
+            const pts = sec.nodeIds.map(id => ds.nodes.find(n => n.id === id)).filter(Boolean);
+            const lineCoords = pts.map(p => [p.lat, p.lng]).filter(c => !isNaN(c[0]) && !isNaN(c[1]));
+            if (lineCoords.length > 1) {
+                const poly = L.polyline(lineCoords, { color: sec.color, weight: 4 }).addTo(map);
+                mapPolylines.push(poly);
+            }
+        });
+
+        ds.nodes.forEach(n => {
+            if (isNaN(n.lat) || isNaN(n.lng)) return;
+
+            let color = '#94a3b8';
+            let radius = 5;
+
+            if (n.assignedXS && ds.sections[n.assignedXS]) {
+                color = ds.sections[n.assignedXS].color;
+                radius = 6;
+            }
+
+            if (n.selected) {
+                color = '#f59e0b';
+                radius = 8;
+            }
+
+            const marker = L.circleMarker([n.lat, n.lng], {
+                radius: radius,
+                color: n.selected ? '#b45309' : color,
+                fillColor: color,
+                fillOpacity: 0.85
+            }).addTo(map);
+
+            marker.bindTooltip(`<b>Node ${n.name}</b> (${n.code})<br>Elev: ${n.elevation.toFixed(3)}m`);
+            marker.on('click', () => toggleNodeSelection(n.id));
+
+            mapMarkers.push(marker);
+            bounds.extend([n.lat, n.lng]);
+        });
+
+        if (ds.nodes.length > 0 && bounds.isValid() && mapMarkers.length === ds.nodes.length) {
+            map.fitBounds(bounds, { padding: [30, 30] });
+        }
+    }
+
+    function renderNodeList() {
+        const ds = datasets[activeDatasetId];
+        const container = document.getElementById('node-list-container');
+        container.innerHTML = '';
+
+        ds.nodes.forEach(n => {
+            const row = document.createElement('div');
+            row.className = 'node-row';
+            if (n.selected) row.style.backgroundColor = '#fef3c7';
+
+            let badgeHtml = '';
+            if (n.assignedXS && ds.sections[n.assignedXS]) {
+                badgeHtml = `<span class="xs-tag-badge" style="background:${ds.sections[n.assignedXS].color}">${n.assignedXS}</span>`;
+            }
+
+            row.innerHTML = `
+                <input type="checkbox" ${n.selected ? 'checked' : ''} onchange="toggleNodeSelection(${n.id})">
+                <span style="flex:1; display:flex; justify-content:space-between;">
+                    <span><b>${n.name}</b> <small>(${n.code})</small> ${badgeHtml}</span>
+                    <span>Z: ${n.elevation.toFixed(2)}m</span>
+                </span>
+            `;
+            container.appendChild(row);
+        });
+    }
+
+    function toggleMapLasso() {
+        isLassoActive = !isLassoActive;
+        const btn = document.getElementById('btn-lasso-toggle');
+        const clearBtn = document.getElementById('btn-lasso-clear');
+        const hint = document.getElementById('lasso-hint');
+
+        if (isLassoActive) {
+            btn.innerText = 'Apply Lasso Selection';
+            btn.className = 'btn-success';
+            clearBtn.style.display = 'inline-block';
+            hint.style.display = 'inline';
+            lassoPoints = [];
+        } else {
+            btn.innerText = 'Draw Lasso / Area Select';
+            btn.className = 'btn-secondary';
+            hint.style.display = 'none';
+
+            if (lassoPoints.length >= 3) {
+                applyLassoSelection();
+            } else {
+                clearLassoPolygon();
+            }
+        }
+    }
+
+    function updateLassoDrawing() {
+        if (lassoPolyline) map.removeLayer(lassoPolyline);
+        if (lassoPolygonLayer) map.removeLayer(lassoPolygonLayer);
+
+        if (lassoPoints.length > 0) {
+            lassoPolyline = L.polyline(lassoPoints, { color: '#ef4444', weight: 2, dashArray: '4,4' }).addTo(map);
+        }
+        if (lassoPoints.length >= 3) {
+            lassoPolygonLayer = L.polygon(lassoPoints, { color: '#ef4444', fillColor: '#ef4444', fillOpacity: 0.2, weight: 2 }).addTo(map);
+        }
+    }
+
+    function clearLassoPolygon() {
+        if (lassoPolyline) map.removeLayer(lassoPolyline);
+        if (lassoPolygonLayer) map.removeLayer(lassoPolygonLayer);
+        lassoPolyline = null;
+        lassoPolygonLayer = null;
+        lassoPoints = [];
+
+        document.getElementById('btn-lasso-clear').style.display = 'none';
+        document.getElementById('lasso-hint').style.display = 'none';
+
+        if (isLassoActive) {
+            isLassoActive = false;
+            const btn = document.getElementById('btn-lasso-toggle');
+            btn.innerText = 'Draw Lasso / Area Select';
+            btn.className = 'btn-secondary';
+        }
+    }
+
+    function applyLassoSelection() {
+        const ds = datasets[activeDatasetId];
+        if (!ds) return;
+
+        ds.nodes.forEach(n => {
+            if (pointInPolygon([n.lat, n.lng], lassoPoints)) {
+                n.selected = true;
+            }
+        });
+
+        clearLassoPolygon();
+        renderStep1();
+    }
+
+    function pointInPolygon(point, vs) {
+        let x = point[0], y = point[1];
+        let inside = false;
+        for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+            let xi = vs[i][0], yi = vs[i][1];
+            let xj = vs[j][0], yj = vs[j][1];
+            let intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+            if (intersect) inside = !inside;
+        }
+        return inside;
+    }
+
+    function populateEditorDropdown() {
+        const select = document.getElementById('editor-xs-select');
+        select.innerHTML = '<option value="">-- Choose Section --</option>';
+
+        const ds = datasets[activeDatasetId];
+        if (!ds) return;
+
+        Object.keys(ds.sections).forEach(xsKey => {
+            const opt = document.createElement('option');
+            opt.value = xsKey;
+            opt.innerText = `${xsKey} (${ds.sections[xsKey].nodeIds.length} nodes)`;
+            select.appendChild(opt);
+        });
+
+        if (select.options.length > 1) {
+            select.selectedIndex = 1;
+            loadXSIntoEditor();
+        }
+    }
+
+    function loadXSIntoEditor() {
+        const xsKey = document.getElementById('editor-xs-select').value;
+        const container = document.getElementById('editor-node-list');
+        const baseSelect = document.getElementById('base-node-select');
+        container.innerHTML = '';
+        baseSelect.innerHTML = '<option value="">-- Select Base Point --</option>';
+
+        const ds = datasets[activeDatasetId];
+        if (!ds || !xsKey || !ds.sections[xsKey]) {
+            clearEditorMap();
+            Plotly.react('editor-preview-chart', []);
+            return;
+        }
+
+        const sec = ds.sections[xsKey];
+
+        sec.nodeIds.forEach((id, idx) => {
+            const n = ds.nodes.find(item => item.id === id);
+            if (!n) return;
+            const opt = document.createElement('option');
+            opt.value = id;
+            opt.innerText = `#${idx + 1}: Node ${n.name} (${n.code})`;
+            baseSelect.appendChild(opt);
+        });
+
+        sec.nodeIds.forEach((id, idx) => {
+            const n = ds.nodes.find(item => item.id === id);
+            if (!n) return;
+
+            const row = document.createElement('div');
+            row.className = 'node-row draggable';
+            row.draggable = true;
+
+            row.innerHTML = `
+                <span class="drag-handle">⋮⋮</span>
+                <span style="font-weight:bold; width:22px; color:${sec.color};">${idx + 1}.</span>
+                <span style="flex:1;"><b>${n.name}</b> (${n.code}) - Z: ${n.elevation.toFixed(2)}m</span>
+            `;
+
+            row.addEventListener('dragstart', (e) => {
+                draggedNodeIndex = idx;
+                e.dataTransfer.effectAllowed = 'move';
+                row.style.opacity = '0.4';
+            });
+
+            row.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+
+                const rect = row.getBoundingClientRect();
+                const midpoint = rect.top + rect.height / 2;
+                row.classList.remove('drop-above', 'drop-below');
+
+                if (e.clientY < midpoint) {
+                    row.classList.add('drop-above');
+                } else {
+                    row.classList.add('drop-below');
+                }
+            });
+
+            row.addEventListener('dragleave', () => {
+                row.classList.remove('drop-above', 'drop-below');
+            });
+
+            row.addEventListener('drop', (e) => {
+                e.preventDefault();
+                const isAbove = row.classList.contains('drop-above');
+                row.classList.remove('drop-above', 'drop-below');
+
+                if (draggedNodeIndex !== null && draggedNodeIndex !== idx) {
+                    let targetIdx = idx;
+                    if (!isAbove) {
+                        targetIdx = idx + 1;
+                    }
+
+                    const movedId = sec.nodeIds.splice(draggedNodeIndex, 1)[0];
+                    if (draggedNodeIndex < targetIdx) {
+                        targetIdx--;
+                    }
+
+                    sec.nodeIds.splice(targetIdx, 0, movedId);
+                    loadXSIntoEditor();
+                    renderStep1();
+                }
+            });
+
+            row.addEventListener('dragend', () => {
+                row.style.opacity = '1.0';
+                document.querySelectorAll('.node-row').forEach(r => r.classList.remove('drop-above', 'drop-below'));
+                draggedNodeIndex = null;
+            });
+
+            container.appendChild(row);
+        });
+
+        renderEditorMap(xsKey);
+        renderEditorPreviewChart(xsKey);
+    }
+
+    function sortByDistanceFromBase() {
+        const xsKey = document.getElementById('editor-xs-select').value;
+        const baseSelect = document.getElementById('base-node-select');
+        const ds = datasets[activeDatasetId];
+
+        if (!ds || !xsKey || !ds.sections[xsKey]) return;
+        const sec = ds.sections[xsKey];
+        if (sec.nodeIds.length < 2) return;
+
+        let baseId = baseSelect.value ? parseInt(baseSelect.value) : sec.nodeIds[0];
+        const baseNode = ds.nodes.find(n => n.id === baseId);
+        if (!baseNode) return;
+
+        const calcDistance = (n) => {
+            if (!isNaN(n.easting) && !isNaN(n.northing) && !isNaN(baseNode.easting) && !isNaN(baseNode.northing)) {
+                return Math.hypot(n.easting - baseNode.easting, n.northing - baseNode.northing);
+            } else if (!isNaN(n.lat) && !isNaN(n.lng) && !isNaN(baseNode.lat) && !isNaN(baseNode.lng)) {
+                return Math.hypot(n.lat - baseNode.lat, n.lng - baseNode.lng);
+            }
+            return 0;
+        };
+
+        sec.nodeIds.sort((aId, bId) => {
+            const nodeA = ds.nodes.find(n => n.id === aId);
+            const nodeB = ds.nodes.find(n => n.id === bId);
+            return calcDistance(nodeA) - calcDistance(nodeB);
+        });
+
+        loadXSIntoEditor();
+        renderStep1();
+    }
+
+    function clearEditorMap() {
+        editorMarkers.forEach(m => editorMap.removeLayer(m));
+        if (editorPolyline) editorMap.removeLayer(editorPolyline);
+        editorMarkers = [];
+        editorPolyline = null;
+    }
+
+    function renderEditorMap(xsKey) {
+        clearEditorMap();
+
+        const ds = datasets[activeDatasetId];
+        const sec = ds.sections[xsKey];
+        const pts = sec.nodeIds.map(id => ds.nodes.find(n => n.id === id)).filter(Boolean);
+
+        if (pts.length === 0) return;
+
+        const bounds = L.latLngBounds();
+        const lineCoords = [];
+
+        pts.forEach((n, idx) => {
+            lineCoords.push([n.lat, n.lng]);
+            bounds.extend([n.lat, n.lng]);
+
+            const customIcon = L.divIcon({
+                className: 'custom-number-icon',
+                html: `<div class="number-marker" style="background-color:${sec.color};">${idx + 1}</div>`,
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            });
+
+            const marker = L.marker([n.lat, n.lng], { icon: customIcon }).addTo(editorMap);
+            marker.bindTooltip(`<b>#${idx + 1}: ${n.name}</b> (${n.code})<br>Elev: ${n.elevation.toFixed(3)}m`);
+            editorMarkers.push(marker);
+        });
+
+        if (lineCoords.length > 1) {
+            editorPolyline = L.polyline(lineCoords, { color: sec.color, weight: 4 }).addTo(editorMap);
+        }
+
+        if (bounds.isValid()) {
+            editorMap.fitBounds(bounds, { padding: [40, 40] });
+        }
+    }
+
+    function reverseCurrentSection() {
+        const xsKey = document.getElementById('editor-xs-select').value;
+        const ds = datasets[activeDatasetId];
+        if (!ds || !xsKey || !ds.sections[xsKey]) return;
+
+        ds.sections[xsKey].nodeIds.reverse();
+        loadXSIntoEditor();
+        renderStep1();
+    }
+
+    function getProfileData(dsKey, xsKey) {
+        const ds = datasets[dsKey];
+        if (!ds || !ds.sections[xsKey]) return null;
+
+        const sec = ds.sections[xsKey];
+        const pts = sec.nodeIds.map(id => ds.nodes.find(n => n.id === id)).filter(Boolean);
+
+        let chainage = 0;
+        const xVal = [], yVal = [], textVal = [];
+
+        for (let i = 0; i < pts.length; i++) {
+            if (i > 0) {
+                chainage += Math.hypot(
+                    pts[i].easting - pts[i-1].easting,
+                    pts[i].northing - pts[i-1].northing
+                );
+            }
+            xVal.push(chainage);
+            yVal.push(pts[i].elevation);
+            textVal.push(`Pt: ${pts[i].name} (${pts[i].code})`);
+        }
+
+        return { xVal, yVal, textVal, pts, color: sec.color };
+    }
+
+    function renderEditorPreviewChart(xsKey) {
+        const profile = getProfileData(activeDatasetId, xsKey);
+        if (!profile) return;
+
+        Plotly.react('editor-preview-chart', [{
+            x: profile.xVal,
+            y: profile.yVal,
+            mode: 'lines+markers',
+            type: 'scatter',
+            name: xsKey,
+            text: profile.textVal,
+            marker: { size: 9, color: profile.color },
+            line: { color: profile.color, width: 3 },
+            hovertemplate: '<b>%{text}</b><br>Dist: %{x:.2f}m<br>Elev: %{y:.3f}m<extra></extra>'
+        }], {
+            title: { text: `Section Elevation Profile: ${xsKey}`, font: { size: 14 } },
+            xaxis: { title: 'Distance / Chainage (m)' },
+            yaxis: { title: 'Elevation (m)' }
+        });
+    }
+
+    function updateStep3ComparisonView() {
+        const dsContainer = document.getElementById('datasets-checklist');
+        dsContainer.innerHTML = '';
+
+        const dsKeys = Object.keys(datasets);
+        if (dsKeys.length === 0) {
+            dsContainer.innerHTML = '<em style="color:#64748b;">No datasets loaded.</em>';
+            return;
+        }
+
+        dsKeys.forEach(k => {
+            const ds = datasets[k];
+            const label = document.createElement('label');
+            label.style.display = 'block';
+            label.innerHTML = `<input type="checkbox" checked value="${k}" onchange="renderMultiComparisonPlot()"> <b>${ds.name}</b> (${ds.date})`;
+            dsContainer.appendChild(label);
+        });
+
+        populateCompareXSChecklist();
+        updateAreaDropdowns();
+        renderMultiComparisonPlot();
+    }
+
+    function populateCompareXSChecklist() {
+        const xsContainer = document.getElementById('compare-xs-checklist');
+        xsContainer.innerHTML = '';
+
+        const allXSKeys = new Set();
+        Object.keys(datasets).forEach(dKey => {
+            Object.keys(datasets[dKey].sections).forEach(xsKey => allXSKeys.add(xsKey));
+        });
+
+        if (allXSKeys.size === 0) {
+            xsContainer.innerHTML = '<em style="color:#64748b;">No sections assigned.</em>';
+            return;
+        }
+
+        allXSKeys.forEach(xsKey => {
+            const label = document.createElement('label');
+            label.style.display = 'block';
+            label.style.padding = '2px 0';
+            label.innerHTML = `<input type="checkbox" checked value="${xsKey}" onchange="renderMultiComparisonPlot()"> <b>Section ${xsKey}</b>`;
+            xsContainer.appendChild(label);
+        });
+    }
+
+    function updateAreaDropdowns() {
+        const refDSSelect = document.getElementById('area-ref-ds');
+        const cmpDSSelect = document.getElementById('area-cmp-ds');
+
+        refDSSelect.innerHTML = '<option value="">-- Select Baseline Survey --</option>';
+        cmpDSSelect.innerHTML = '<option value="">-- Select Comparison Survey --</option>';
+
+        Object.keys(datasets).forEach(k => {
+            const ds = datasets[k];
+            refDSSelect.innerHTML += `<option value="${k}">${ds.name} (${ds.date})</option>`;
+            cmpDSSelect.innerHTML += `<option value="${k}">${ds.name} (${ds.date})</option>`;
+        });
+
+        if (Object.keys(datasets).length > 0) {
+            if (!refDSSelect.value && refDSSelect.options.length > 1) refDSSelect.selectedIndex = 1;
+            if (!cmpDSSelect.value && cmpDSSelect.options.length > 1) {
+                cmpDSSelect.selectedIndex = cmpDSSelect.options.length > 2 ? 2 : 1;
+            }
+        }
+
+        updateAreaXSSelect('ref');
+        updateAreaXSSelect('cmp');
+    }
+
+    function updateAreaXSSelect(type) {
+        const dsKey = document.getElementById(type === 'ref' ? 'area-ref-ds' : 'area-cmp-ds').value;
+        const xsSelect = document.getElementById(type === 'ref' ? 'area-ref-xs' : 'area-cmp-xs');
+        xsSelect.innerHTML = `<option value="">-- Select ${type === 'ref' ? 'Baseline' : 'Comparison'} Section --</option>`;
+
+        if (dsKey && datasets[dsKey]) {
+            Object.keys(datasets[dsKey].sections).forEach(xsKey => {
+                xsSelect.innerHTML += `<option value="${xsKey}">Section ${xsKey}</option>`;
+            });
+            if (xsSelect.options.length > 1) xsSelect.selectedIndex = 1;
+        }
+    }
+
+    function renderMultiComparisonPlot() {
+        const activeDS = Array.from(document.querySelectorAll('#datasets-checklist input:checked')).map(c => c.value);
+        const activeXS = Array.from(document.querySelectorAll('#compare-xs-checklist input:checked')).map(c => c.value);
+
+        const traces = [];
+        contextPolylines.forEach(p => contextMap.removeLayer(p));
+        contextPolylines = [];
+
+        const bounds = L.latLngBounds();
+
+        activeXS.forEach(xsKey => {
+            activeDS.forEach(dsKey => {
+                const ds = datasets[dsKey];
+                if (!ds || !ds.sections[xsKey]) return;
+
+                const profile = getProfileData(dsKey, xsKey);
+                if (!profile) return;
+
+                const lineCoords = profile.pts.map(p => {
+                    bounds.extend([p.lat, p.lng]);
+                    return [p.lat, p.lng];
+                });
+
+                traces.push({
+                    x: profile.xVal,
+                    y: profile.yVal,
+                    mode: 'lines+markers',
+                    type: 'scatter',
+                    name: `${xsKey} (${ds.name}_${ds.date})`,
+                    marker: { size: 6 },
+                    text: profile.textVal.map(t => `Survey: ${ds.name} (${ds.date})<br>${t}`),
+                    hovertemplate: '<b>%{text}</b><br>Dist: %{x:.2f}m<br>Elev: %{y:.3f}m<extra></extra>'
+                });
+
+                if (lineCoords.length > 1) {
+                    const poly = L.polyline(lineCoords, { color: profile.color, weight: 3 }).addTo(contextMap);
+                    contextPolylines.push(poly);
+                }
+            });
+        });
+
+        if (bounds.isValid()) {
+            contextMap.fitBounds(bounds, { padding: [20, 20] });
+        }
+
+        const layout = {
+            title: { text: 'Multi-Survey Section Comparison', font: { size: 14 } },
+            xaxis: { title: 'Distance / Chainage (m)' },
+            yaxis: { title: 'Elevation (m)' },
+            hovermode: 'x',
+            shapes: []
+        };
+
+        if (currentSpotLineChainage !== null) {
+            layout.shapes.push({
+                type: 'line',
+                x0: currentSpotLineChainage,
+                x1: currentSpotLineChainage,
+                y0: 0,
+                y1: 1,
+                yref: 'paper',
+                line: { color: '#ef4444', width: 2, dash: 'dot' }
+            });
+        }
+
+        Plotly.react('comparison-plot', traces, layout);
+    }
+
+    /* INTERPOLATION / EXTRAPOLATION HELPER */
+    function interpolateElevation(targetX, xVals, yVals) {
+        if (!xVals || xVals.length === 0) return null;
+        if (xVals.length === 1) return { elev: yVals[0], isExtrapolated: targetX !== xVals[0] };
+
+        if (targetX <= xVals[0]) {
+            const dx = xVals[1] - xVals[0];
+            const dy = yVals[1] - yVals[0];
+            const slope = dx !== 0 ? dy / dx : 0;
+            return { elev: yVals[0] + slope * (targetX - xVals[0]), isExtrapolated: targetX < xVals[0] };
+        }
+
+        if (targetX >= xVals[xVals.length - 1]) {
+            const n = xVals.length;
+            const dx = xVals[n - 1] - xVals[n - 2];
+            const dy = yVals[n - 1] - yVals[n - 2];
+            const slope = dx !== 0 ? dy / dx : 0;
+            return { elev: yVals[n - 1] + slope * (targetX - xVals[n - 1]), isExtrapolated: targetX > xVals[n - 1] };
+        }
+
+        for (let i = 0; i < xVals.length - 1; i++) {
+            if (targetX >= xVals[i] && targetX <= xVals[i + 1]) {
+                const dx = xVals[i + 1] - xVals[i];
+                const dy = yVals[i + 1] - yVals[i];
+                const slope = dx !== 0 ? dy / dx : 0;
+                return { elev: yVals[i] + slope * (targetX - xVals[i]), isExtrapolated: false };
+            }
+        }
+        return null;
+    }
+
+    /* SPOT ELEVATION QUERY FUNCTION WITH DELTA-Z DIFFERENCE */
+    function querySpotElevation() {
+        const spotDistInput = document.getElementById('spot-dist-input').value;
+        if (spotDistInput === '' || isNaN(spotDistInput)) {
+            alert("Please enter a valid spot distance.");
+            return;
+        }
+        const targetX = parseFloat(spotDistInput);
+        currentSpotLineChainage = targetX;
+
+        const activeDS = Array.from(document.querySelectorAll('#datasets-checklist input:checked')).map(c => c.value);
+        const activeXS = Array.from(document.querySelectorAll('#compare-xs-checklist input:checked')).map(c => c.value);
+
+        let evaluatedList = [];
+
+        activeXS.forEach(xsKey => {
+            activeDS.forEach(dsKey => {
+                const ds = datasets[dsKey];
+                if (!ds || !ds.sections[xsKey]) return;
+                const profile = getProfileData(dsKey, xsKey);
+                if (!profile || profile.xVal.length === 0) return;
+
+                const res = interpolateElevation(targetX, profile.xVal, profile.yVal);
+                if (res) {
+                    evaluatedList.push({
+                        dsName: ds.name,
+                        xsKey: xsKey,
+                        elev: res.elev,
+                        isExtrapolated: res.isExtrapolated
+                    });
+                }
+            });
+        });
+
+        if (evaluatedList.length === 0) {
+            document.getElementById('spot-results').innerHTML = `<em style="color:#64748b; font-size:0.75rem;">No matching profiles selected.</em>`;
+            renderMultiComparisonPlot();
+            return;
+        }
+
+        const baselineElev = evaluatedList[0].elev;
+        let html = `<table class="metric-table"><thead><tr><th>Profile</th><th>Elev (m)</th><th>ΔZ Baseline</th><th>Type</th></tr></thead><tbody>`;
+
+        evaluatedList.forEach((item, idx) => {
+            const diffVal = item.elev - baselineElev;
+            let diffStr = '-';
+            if (idx > 0) {
+                const sign = diffVal >= 0 ? '+' : '';
+                const color = diffVal >= 0 ? '#16a34a' : '#dc2626';
+                diffStr = `<span style="color:${color}; font-weight:bold;">${sign}${diffVal.toFixed(3)}m</span>`;
+            }
+
+            const statusTag = item.isExtrapolated ? '<span style="color:#d97706; font-weight:bold;">Extrapolated</span>' : '<span style="color:#16a34a;">Interpolated</span>';
+            html += `<tr><td>${item.dsName} (${item.xsKey})</td><td><b>${item.elev.toFixed(3)}m</b></td><td>${diffStr}</td><td>${statusTag}</td></tr>`;
+        });
+
+        html += `</tbody></table>`;
+
+        if (evaluatedList.length === 2) {
+            const dZ = evaluatedList[1].elev - evaluatedList[0].elev;
+            const sign = dZ >= 0 ? '+' : '';
+            html += `<div style="margin-top:6px; font-size:0.74rem; background:#e0f2fe; padding:4px 6px; border-radius:4px; border:1px solid #bae6fd; color:#0369a1;">
+                <b>Spot Elevation Diff (ΔZ):</b> ${sign}${dZ.toFixed(3)} m (${Math.abs(dZ).toFixed(3)} m abs)
+            </div>`;
+        }
+
+        document.getElementById('spot-results').innerHTML = html;
+        renderMultiComparisonPlot();
+    }
+
+    /* AREA DIFFERENCE CALCULATOR FOR INDEPENDENT SECTIONS & SURVEYS */
+    function calculateAreaDifference() {
+        const refDSKey = document.getElementById('area-ref-ds').value;
+        const refXSKey = document.getElementById('area-ref-xs').value;
+        const cmpDSKey = document.getElementById('area-cmp-ds').value;
+        const cmpXSKey = document.getElementById('area-cmp-xs').value;
+
+        if (!refDSKey || !refXSKey || !cmpDSKey || !cmpXSKey) {
+            alert("Please select both Baseline and Comparison surveys and cross sections.");
+            return;
+        }
+
+        if (refDSKey === cmpDSKey && refXSKey === cmpXSKey) {
+            alert("Please select two different cross sections or surveys for comparison.");
+            return;
+        }
+
+        const refProfile = getProfileData(refDSKey, refXSKey);
+        const cmpProfile = getProfileData(cmpDSKey, cmpXSKey);
+
+        if (!refProfile || !cmpProfile || refProfile.xVal.length === 0 || cmpProfile.xVal.length === 0) {
+            alert("Missing profile data for selected survey/section combo.");
+            return;
+        }
+
+        const minX = Math.max(refProfile.xVal[0], cmpProfile.xVal[0]);
+        const maxX = Math.min(refProfile.xVal[refProfile.xVal.length - 1], cmpProfile.xVal[cmpProfile.xVal.length - 1]);
+
+        if (minX >= maxX) {
+            alert("No overlapping chainage range found between the selected cross sections.");
+            return;
+        }
+
+        const step = 0.05;
+        let cutArea = 0;
+        let fillArea = 0;
+
+        for (let x = minX; x < maxX; x += step) {
+            const xNext = Math.min(x + step, maxX);
+            const segmentLength = xNext - x;
+            const xMid = x + segmentLength / 2;
+
+            const refElev = interpolateElevation(xMid, refProfile.xVal, refProfile.yVal).elev;
+            const cmpElev = interpolateElevation(xMid, cmpProfile.xVal, cmpProfile.yVal).elev;
+
+            const diff = cmpElev - refElev;
+            if (diff > 0) {
+                cutArea += diff * segmentLength;
+            } else {
+                fillArea += Math.abs(diff) * segmentLength;
+            }
+        }
+
+        const netArea = cutArea - fillArea;
+        const totalDiffArea = cutArea + fillArea;
+
+        const refLabel = `${datasets[refDSKey].name} (${refXSKey})`;
+        const cmpLabel = `${datasets[cmpDSKey].name} (${cmpXSKey})`;
+
+        document.getElementById('area-results').innerHTML = `
+            <table class="metric-table">
+                <tr><th>Overlap Domain</th><td>${minX.toFixed(2)}m to ${maxX.toFixed(2)}m (${(maxX - minX).toFixed(2)}m)</td></tr>
+                <tr><th>Cut Area (${cmpLabel} > ${refLabel})</th><td style="color:#16a34a; font-weight:bold;">+${cutArea.toFixed(3)} m²</td></tr>
+                <tr><th>Fill Area (${cmpLabel} < ${refLabel})</th><td style="color:#dc2626; font-weight:bold;">-${fillArea.toFixed(3)} m²</td></tr>
+                <tr><th>Net Area Diff (Cut - Fill)</th><td><b>${netArea >= 0 ? '+' : ''}${netArea.toFixed(3)} m²</b></td></tr>
+                <tr><th>Total Absolute Area Diff</th><td><b>${totalDiffArea.toFixed(3)} m²</b></td></tr>
+            </table>
+        `;
+    }
+
+    function exportDataCSV() {
+        const exportRows = [];
+
+        Object.keys(datasets).forEach(dsKey => {
+            const ds = datasets[dsKey];
+            const surveyNameWithDate = `${ds.name}_${ds.date}`;
+
+            Object.keys(ds.sections).forEach(xsKey => {
+                const sec = ds.sections[xsKey];
+                sec.nodeIds.forEach((nodeId, idx) => {
+                    const n = ds.nodes.find(item => item.id === nodeId);
+                    if (n) {
+                        exportRows.push({
+                            Survey_Name: surveyNameWithDate,
+                            Survey_Date: ds.date,
+                            Assigned_XS: xsKey,
+                            XS_Order: idx + 1,
+                            Node_Name: n.name,
+                            Code: n.code,
+                            Easting: n.easting,
+                            Northing: n.northing,
+                            Elevation: n.elevation,
+                            Latitude: n.lat,
+                            Longitude: n.lng
+                        });
+                    }
+                });
+            });
+        });
+
+        if (exportRows.length === 0) {
+            alert("No sorted cross sections found to export. Make sure nodes are assigned to cross sections first.");
+            return;
+        }
+
+        const csvString = Papa.unparse(exportRows);
+        const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        const fileDate = new Date().toISOString().split('T')[0];
+        link.setAttribute("href", url);
+        link.setAttribute("download", `sorted_cross_sections_${fileDate}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    function importDataCSV(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        Papa.parse(file, {
+            header: true,
+            dynamicTyping: true,
+            skipEmptyLines: true,
+            complete: (results) => {
+                const rows = results.data;
+                const groupedBySurvey = {};
+
+                rows.forEach(r => {
+                    const sName = r.Survey_Name || r.Dataset || 'Survey-Imported';
+                    if (!groupedBySurvey[sName]) groupedBySurvey[sName] = [];
+                    groupedBySurvey[sName].push(r);
+                });
+
+                Object.keys(groupedBySurvey).forEach(sName => {
+                    const sample = groupedBySurvey[sName][0];
+                    let dateVal = sample.Survey_Date || new Date().toISOString().split('T')[0];
+                    let rawName = sName;
+                    
+                    if (sName.includes('_')) {
+                        const parts = sName.split('_');
+                        if (parts[parts.length - 1].match(/^\d{4}-\d{2}-\d{2}$/)) {
+                            dateVal = parts.pop();
+                            rawName = parts.join('_');
+                        }
+                    }
+                    
+                    document.getElementById('dataset-name').value = rawName;
+                    document.getElementById('survey-date').value = dateVal;
+                    processCSVData(groupedBySurvey[sName], rawName, dateVal);
+                });
+
+                renderStep1();
+                alert(`Successfully imported ${rows.length} records into sorted cross sections!`);
+            }
+        });
+    }
+</script>
+</body>
+</html>

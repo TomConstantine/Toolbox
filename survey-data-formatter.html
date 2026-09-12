@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Survey Point Mapper</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.2/proj4.js"></script>
+<style>
+:root{--ink:#141d19;--stone:#233128;--stone-2:#2c3b32;--moss:#7ea187;--water:#8fc0c9;--brass:#c9944e;--parchment:#ece6d6;--parchment-dim:#b9b3a1;--rule:rgba(236,230,214,.14);--danger:#d47a6b}
+*{box-sizing:border-box} html,body{margin:0;padding:0} body{background:var(--ink);color:var(--parchment);font-family:Inter,sans-serif;min-height:100vh}
+header{padding:28px clamp(18px,4vw,48px) 18px;border-bottom:1px solid var(--rule);position:relative}
+.eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--moss);display:flex;align-items:center;gap:10px}.eyebrow:before{content:"";width:7px;height:7px;border-radius:50%;background:var(--brass)}
+h1{font-family:Fraunces,serif;font-weight:500;font-size:clamp(28px,4vw,42px);margin:8px 0 14px}
+.meta-strip{display:flex;flex-wrap:wrap;gap:22px 34px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--parchment-dim)}.meta-strip span{color:var(--moss);text-transform:uppercase;letter-spacing:.08em;font-size:10.5px}.meta-strip b{display:block;color:var(--parchment);font-size:13px;margin-top:2px}
+.actions{position:absolute;top:28px;right:clamp(18px,4vw,48px);display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+.btn{background:var(--brass);color:var(--ink);border:0;padding:10px 16px;font-family:'IBM Plex Mono',monospace;font-size:12px;text-transform:uppercase;font-weight:500;border-radius:4px;cursor:pointer}.btn:hover{background:#e0a75f}.btn.secondary{background:transparent;color:var(--parchment);border:1px solid var(--rule)}.btn:disabled{opacity:.4;cursor:not-allowed}#csvUpload{display:none}
+main{display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:1px;background:var(--rule);min-height:calc(100vh - 170px)}@media(max-width:980px){header{padding-bottom:78px}.actions{top:auto;bottom:18px;left:clamp(18px,4vw,48px);right:auto}main{grid-template-columns:1fr}}
+.map-panel{background:var(--ink);padding:clamp(16px,2.4vw,28px);min-width:0}.side-panel{background:var(--stone);padding:clamp(16px,2.4vw,28px);display:flex;flex-direction:column;gap:16px;min-width:0}
+.panel-label{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--moss);display:flex;justify-content:space-between;gap:12px}
+#map{width:100%;height:calc(100vh - 245px);min-height:480px;border-radius:10px;border:1px solid var(--rule);filter:saturate(.9);z-index:1}
+.legend{display:flex;gap:14px;align-items:center;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--parchment-dim);margin-top:12px}.dot{width:10px;height:10px;border-radius:50%;background:var(--water);border:2px solid white}.dot.selected{background:var(--brass)}
+.upload-zone{border:1px dashed var(--rule);border-radius:9px;padding:18px;background:rgba(0,0,0,.12)}.upload-zone strong{font-family:Fraunces,serif;font-size:18px;font-weight:500}.upload-zone p{color:var(--parchment-dim);font-size:12px;line-height:1.55;margin:8px 0 0}
+.search{width:100%;background:var(--ink);border:1px solid var(--rule);border-radius:5px;color:var(--parchment);padding:11px 12px;font:12px 'IBM Plex Mono',monospace;outline:none}.search:focus{border-color:var(--moss)}
+.table-wrap{border:1px solid var(--rule);border-radius:9px;overflow:auto;flex:1;min-height:250px;max-height:calc(100vh - 410px);background:rgba(0,0,0,.12)}table{width:100%;border-collapse:collapse;font-size:11px}th{position:sticky;top:0;background:var(--stone-2);color:var(--moss);font:10px 'IBM Plex Mono',monospace;letter-spacing:.08em;text-transform:uppercase;text-align:left;padding:10px 8px;z-index:2}td{padding:9px 8px;border-top:1px solid var(--rule);white-space:nowrap;color:var(--parchment-dim)}tr{cursor:pointer}tr:hover td{background:rgba(255,255,255,.04)}tr.selected td{background:rgba(201,148,78,.18);color:var(--parchment)}.check{accent-color:var(--brass)}
+.detail{border-top:1px dashed var(--rule);padding-top:14px;font-family:'IBM Plex Mono',monospace;font-size:12px;line-height:1.8;color:var(--parchment-dim)}.detail b{color:var(--parchment);font-weight:500}.detail .name{font-family:Fraunces,serif;font-size:18px;color:var(--parchment);line-height:1.35;margin-bottom:6px}.empty{padding:30px 15px;text-align:center;color:var(--parchment-dim);font-size:12px;line-height:1.6}
+footer{padding:20px clamp(18px,4vw,48px) 32px;font:11px 'IBM Plex Mono',monospace;color:var(--parchment-dim);letter-spacing:.03em}
+.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--stone-2);color:var(--parchment)}.popup-title{font-family:Fraunces,serif;font-size:17px}.popup-meta{font:11px 'IBM Plex Mono',monospace;color:var(--parchment-dim);line-height:1.6}.point-icon{background:transparent;border:0}.point-marker{width:9px;height:9px;border-radius:50%;background:var(--water);border:1.5px solid white;box-shadow:0 1px 3px rgba(0,0,0,.55)}.point-marker.selected{transform:scale(1.45);border-color:#fff;box-shadow:0 0 0 2px rgba(201,148,78,.7),0 1px 4px rgba(0,0,0,.6)}
+</style>
+</head>
+<body>
+<header>
+<div class="eyebrow">Survey data · interactive map</div>
+<h1>Survey Point Mapper</h1>
+<div class="actions">
+<label for="csvUpload" class="btn">Upload Survey CSV</label>
+<input id="csvUpload" type="file" accept=".csv,text/csv">
+<button id="exportBtn" class="btn secondary" disabled>Export for AMX</button>
+<button id="clearBtn" class="btn secondary" disabled>Clear Data</button>
+</div>
+<div class="meta-strip">
+<span>Dataset<b id="datasetName">No data loaded</b></span>
+<span>Points<b id="pointCount">0</b></span>
+<span>Selected<b id="selectedCount">0</b></span>
+<span>Coordinate source<b id="coordSource">Awaiting upload</b></span>
+</div>
+</header>
+<main>
+<section class="map-panel">
+<div class="panel-label"><span>Survey location</span><span id="mapStatus">Default view</span></div>
+<div id="map"></div>
+<div class="legend"><span class="dot"></span> Survey point <span class="dot selected"></span> Selected point · click points or linework to select</div>
+</section>
+<aside class="side-panel">
+<div class="upload-zone">
+<strong>Load survey data</strong>
+<p>Upload a CSV in the same format as the supplied survey export. Repeated <b>Line</b>, <b>Line ID</b>, <b>Feature</b>, <b>Code</b> or <b>Name</b> values are interpreted as linework and joined in CSV order. The app recognises <b>Name</b>, <b>Easting</b>, <b>Northing</b>, <b>Elevation</b>, <b>Longitude</b> and <b>Latitude</b>. The map starts blank and data remains in your browser.</p>
+</div>
+<input id="search" class="search" type="search" placeholder="Filter by name or description…" disabled>
+<div class="panel-label"><span>Survey points</span><span id="visibleCount">0 shown</span></div>
+<div class="table-wrap"><table><thead><tr><th><input id="selectAll" class="check" type="checkbox" disabled></th><th>Name</th><th>Easting</th><th>Northing</th><th>Elevation</th></tr></thead><tbody id="tbody"><tr><td colspan="5" class="empty">Upload a survey CSV to plot points and select records.</td></tr></tbody></table></div>
+<div class="detail" id="detail"><div class="name">No point selected</div>Select a row or map marker to inspect it. Tick one or more records, then use <b>Export for AMX</b>.</div>
+</aside>
+</main>
+<footer>Client-side survey viewer. Map positions use Latitude/Longitude when present; otherwise British National Grid Easting/Northing values are converted to WGS84 for display. AMX export contains only selected points, or all points when none are selected.</footer>
+<script>
+const DEFAULT=[51.507351,-0.127758];
+const map=L.map('map').setView(DEFAULT,11);
+
+// CARTO Voyager Tile Layer (Clean vector cartography option)
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+  maxZoom: 20,
+  subdomains: 'abcd',
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+}).addTo(map);
+
+proj4.defs('EPSG:27700','+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +towgs84=446.448,-125.157,542.06,0.1502,0.247,0.8421,-20.4894 +units=m +no_defs');
+let points=[], markers=[], lineLayers=[], selected=new Set(), activeId=null;
+const $=id=>document.getElementById(id);
+function norm(s){return String(s||'').trim().toLowerCase().replace(/[\s_-]+/g,'')}
+function val(row,...names){const keys=Object.keys(row);for(const n of names){const k=keys.find(x=>norm(x)===norm(n));if(k!==undefined&&row[k]!==''&&row[k]!=null)return row[k]}return ''}
+function num(x){const n=parseFloat(String(x).replace(',','.'));return Number.isFinite(n)?n:null}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function featureColour(p){const t=((p.description||'')+' '+(p.lineKey||'')+' '+(p.name||'')).toLowerCase();if(t.includes('wall'))return '#ffd400';if(t.includes('embankment'))return '#8b5a2b';if(t.includes('high ground')||t.includes('highground'))return '#2f8f3a';return '#111111'}
+function markerIcon(on,p){const c=featureColour(p);return L.divIcon({className:'point-icon',html:`<div class="point-marker ${on?'selected':''}" style="background:${c}"></div>`,iconSize:[9,9],iconAnchor:[4.5,4.5]})}
+function parseRows(rows){
+points=rows.map((r,i)=>{
+ const name=val(r,'Name','Point ID','PointID','Point');
+ const e=num(val(r,'Easting','Eastings','E'));
+ const n=num(val(r,'Northing','Northings','N'));
+ const z=num(val(r,'Elevation','Level','RL','Height'));
+ let lon=num(val(r,'Longitude','Lon','Long'));
+ let lat=num(val(r,'Latitude','Lat'));
+ if((lat==null||lon==null)&&e!=null&&n!=null){try{[lon,lat]=proj4('EPSG:27700','EPSG:4326',[e,n])}catch(err){}}
+ const lineKey=String(val(r,'Line','Line ID','LineID','String','Feature','Code','Name')||'').trim();
+ return {id:i,name:String(name||`Point ${i+1}`),e,n,z,lat,lon,description:val(r,'Description','Code description','Point Description','Code'),lineKey,raw:r};
+}).filter(p=>p.lat!=null&&p.lon!=null&&p.lat>=-90&&p.lat<=90&&p.lon>=-180&&p.lon<=180);
+}
+function clearMarkers(){markers.forEach(m=>map.removeLayer(m));markers=[];lineLayers.forEach(x=>map.removeLayer(x.layer));lineLayers=[]}
+function plot(){
+clearMarkers();
+points.forEach(p=>{
+ const m=L.marker([p.lat,p.lon],{icon:markerIcon(selected.has(p.id),p)}).addTo(map);
+ m.bindPopup(`<div class="popup-title">${esc(p.name)}</div><div class="popup-meta">E ${p.e??'—'}<br>N ${p.n??'—'}<br>Elevation ${p.z??'—'}${p.description?`<br>${esc(p.description)}`:''}</div>`);
+ m.on('click',()=>{toggle(p.id,!selected.has(p.id));setActive(p.id,true)});markers[p.id]=m;
+ });
+ const groups=new Map(); points.forEach(p=>{if(!p.lineKey)return; if(!groups.has(p.lineKey))groups.set(p.lineKey,[]); groups.get(p.lineKey).push(p)});
+ groups.forEach((pts,key)=>{if(pts.length<2)return; const ids=pts.map(p=>p.id); const colour=featureColour(pts[0]); const layer=L.polyline(pts.map(p=>[p.lat,p.lon]),{color:colour,weight:3,opacity:.9}).addTo(map); layer.bindTooltip(key,{sticky:true}); layer.on('click',()=>toggleGroup(ids)); lineLayers.push({key,ids,layer,colour});});
+ if(points.length){const bounds=L.latLngBounds(points.map(p=>[p.lat,p.lon]));map.fitBounds(bounds.pad(.12));$('mapStatus').textContent=`Survey extent · ${lineLayers.length} line${lineLayers.length===1?'':'s'}`;}
+}
+function render(){
+const q=$('search').value.trim().toLowerCase();
+const shown=points.filter(p=>!q||(p.name+' '+p.description).toLowerCase().includes(q));
+$('visibleCount').textContent=`${shown.length} shown`;
+$('tbody').innerHTML=shown.length?shown.map(p=>`<tr class="${selected.has(p.id)?'selected':''}" data-id="${p.id}"><td><input class="check rowcheck" data-id="${p.id}" type="checkbox" ${selected.has(p.id)?'checked':''}></td><td>${esc(p.name)}</td><td>${p.e??'—'}</td><td>${p.n??'—'}</td><td>${p.z??'—'}</td></tr>`).join(''):`<tr><td colspan="5" class="empty">No points match the current filter.</td></tr>`;
+document.querySelectorAll('.rowcheck').forEach(c=>c.addEventListener('click',e=>{e.stopPropagation();toggle(+c.dataset.id,c.checked)}));
+document.querySelectorAll('#tbody tr[data-id]').forEach(r=>r.addEventListener('click',()=>setActive(+r.dataset.id,true)));
+$('pointCount').textContent=points.length;$('selectedCount').textContent=selected.size;$('exportBtn').disabled=!points.length;$('clearBtn').disabled=!points.length;$('search').disabled=!points.length;$('selectAll').disabled=!points.length;
+$('selectAll').checked=points.length>0&&selected.size===points.length;$('selectAll').indeterminate=selected.size>0&&selected.size<points.length;
+}
+function updateLineStyles(){lineLayers.forEach(x=>{const all=x.ids.every(id=>selected.has(id));const any=x.ids.some(id=>selected.has(id));x.layer.setStyle({color:x.colour,weight:all?5:any?4:3,opacity:all?1:.9})})}
+function toggle(id,on){if(on)selected.add(id);else selected.delete(id);if(markers[id])markers[id].setIcon(markerIcon(on,points.find(p=>p.id===id)));updateLineStyles();render()}
+function toggleGroup(ids){const all=ids.every(id=>selected.has(id));ids.forEach(id=>{if(all)selected.delete(id);else selected.add(id);if(markers[id])markers[id].setIcon(markerIcon(!all,points.find(p=>p.id===id)))});updateLineStyles();render()}
+function setActive(id,open){
+activeId=id;const p=points.find(x=>x.id===id);if(!p)return;
+$('detail').innerHTML=`<div class="name">${esc(p.name)}</div><div><b>Easting</b> ${p.e??'—'} &nbsp; <b>Northing</b> ${p.n??'—'}</div><div><b>Elevation</b> ${p.z??'—'}</div><div><b>Description</b> ${esc(p.description||'—')}</div><div><b>Lat/Lon</b> ${p.lat.toFixed(7)}, ${p.lon.toFixed(7)}</div>`;
+map.panTo([p.lat,p.lon]);if(open)markers[id].openPopup();
+}
+$('csvUpload').addEventListener('change',e=>{
+const f=e.target.files[0];if(!f)return;
+Papa.parse(f,{header:true,skipEmptyLines:true,dynamicTyping:false,complete:r=>{
+ selected.clear();activeId=null;parseRows(r.data);plot();$('datasetName').textContent=f.name;$('coordSource').textContent=points.length?'CSV / BNG conversion':'No valid coordinates';$('search').value='';render();
+ if(!points.length){$('tbody').innerHTML='<tr><td colspan="5" class="empty">No valid mappable points found. Check the CSV headers and coordinate values.</td></tr>';}
+}});
+});
+$('search').addEventListener('input',render);
+$('selectAll').addEventListener('change',e=>{if(e.target.checked)points.forEach(p=>selected.add(p.id));else selected.clear();points.forEach(p=>markers[p.id]?.setIcon(markerIcon(selected.has(p.id))));updateLineStyles();render()});
+$('clearBtn').addEventListener('click',()=>{points=[];selected.clear();activeId=null;clearMarkers();$('datasetName').textContent='No data loaded';$('pointCount').textContent='0';$('selectedCount').textContent='0';$('coordSource').textContent='Awaiting upload';$('mapStatus').textContent='Default view';$('search').value='';$('detail').innerHTML='<div class="name">No point selected</div>Select a row or map marker to inspect it. Tick one or more records, then use <b>Export for AMX</b>.';map.setView(DEFAULT,11);render();$('csvUpload').value=''});
+$('exportBtn').addEventListener('click',()=>{
+const suggested=prompt('Name the AMX export file:', 'AMX_Export'); if(suggested===null)return; let fileName=suggested.trim()||'AMX_Export'; if(!/\.csv$/i.test(fileName))fileName+='.csv';
+const out=(selected.size?points.filter(p=>selected.has(p.id)):points).map(p=>({'Point ID':p.name,'Eastings':p.e??'','Northings':p.n??'','Point Description':p.z??''}));
+const csv=Papa.unparse(out,{newline:'\r\n'});const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=fileName;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500);
+});
+</script>
+</body></html>

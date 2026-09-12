@@ -12,6 +12,7 @@
       --stone-2: #1e3327;
       --moss: #2bb673;
       --water: #008d96;
+      --brass: #c9944e;
       --parchment: #e6f2eb;
       --parchment-dim: #9ebdb0;
       --rule: rgba(158, 189, 176, 0.16);
@@ -50,7 +51,7 @@
     }
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
       gap: 20px;
     }
     .card {
@@ -77,6 +78,7 @@
       color: var(--water);
       margin-bottom: 12px;
     }
+    .card-tag.amber { color: var(--brass); }
     .card h2 {
       font-family: 'Fraunces', serif;
       font-size: 20px;
@@ -107,22 +109,22 @@
 
 <main>
   <div class="grid">
-    <!-- Tool Card 1 -->
+    <!-- Tool 1: 360 Viewer -->
     <a href="360-field-record.html" class="card">
       <div>
         <div class="card-tag">Spatial Viewer</div>
         <h2>360° Field Record</h2>
-        <p>Interactive panoramic image viewer, drone telemetry plotter, and spatial survey comparison tool.</p>
+        <p>Interactive panoramic photo viewer, drone telemetry plotter, and spatial multi-date comparison tool.</p>
       </div>
       <div class="card-btn">Launch Tool &rarr;</div>
     </a>
 
-    <!-- Tool Card 2 -->
-    <a href="image-converter.html" class="card">
+    <!-- Tool 2: Survey Data Formatter -->
+    <a href="survey-data-formatter.html" class="card">
       <div>
-        <div class="card-tag">Utility</div>
-        <h2>EXIF & Image Batch Tool</h2>
-        <p>Extract GPS tags, clean image metadata, and batch format drone captures locally.</p>
+        <div class="card-tag amber">CSV & Mapping</div>
+        <h2>Survey Data Formatter</h2>
+        <p>Plot BNG Easting/Northing points & linework, convert coordinates to WGS84, and export formatted CSVs for AMX.</p>
       </div>
       <div class="card-btn">Launch Tool &rarr;</div>
     </a>

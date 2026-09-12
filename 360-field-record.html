@@ -1,0 +1,1551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>360° & Drone Field Record</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- Leaflet CSS & JS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<!-- EXIF JS -->
+<script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
+<!-- Pannellum 360 Viewer CSS & JS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css"/>
+<script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
+
+<style>
+  :root{
+    /* Dark Slate Woodland & Water Palette */
+    --ink: #0d1712;                /* Deep Slate Woodland Dark */
+    --stone: #15241b;              /* Dark Slate Green Panel */
+    --stone-2: #1e3327;            /* Card / Item Background */
+    --forest-green: #008542;       /* Slate Green Accent */
+    --moss: #2bb673;               /* Fresh Leaf / Primary Accent */
+    --water: #008d96;              /* River Teal Accent */
+    --highlight: #22d3ee;          /* Vibrant Cyan/Teal for Active state */
+    --parchment: #e6f2eb;          /* Clean Pale Tint Text */
+    --parchment-dim: #9ebdb0;      /* Muted Slate Text */
+    --rule: rgba(158, 189, 176, 0.16); /* Subtle Glass Borders */
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--ink);
+    color:var(--parchment);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+  }
+
+  /* ---------- header ---------- */
+  header{
+    padding:28px clamp(18px,4vw,48px) 18px;
+    border-bottom:1px solid var(--rule);
+    position: relative;
+    background: linear-gradient(180deg, rgba(0,133,66,0.12) 0%, transparent 100%);
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    letter-spacing:.16em;
+    text-transform:uppercase;
+    color:var(--moss);
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-weight: 500;
+  }
+  .eyebrow::before{
+    content:"";
+    width:8px;height:8px;
+    border-radius:50%;
+    background:var(--moss);
+    display:inline-block;
+    box-shadow: 0 0 8px var(--moss);
+  }
+  h1{
+    font-family:'Fraunces',serif;
+    font-weight:500;
+    font-size:clamp(28px,4vw,42px);
+    margin:8px 0 14px;
+    letter-spacing:-0.01em;
+    color: #ffffff;
+  }
+  .meta-strip{
+    display:flex;
+    flex-wrap:wrap;
+    gap:22px 34px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12.5px;
+    color:var(--parchment-dim);
+  }
+  .meta-strip span b{
+    display:block;
+    color:var(--parchment);
+    font-size:13px;
+    margin-top:2px;
+  }
+  .meta-strip span{ color:var(--moss); text-transform:uppercase; letter-spacing:.08em; font-size:10.5px;}
+
+  /* ---------- header controls ---------- */
+  .header-actions {
+    position: absolute;
+    top: 28px;
+    right: clamp(18px,4vw,48px);
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .upload-btn {
+    background: var(--moss);
+    color: var(--ink);
+    border: none;
+    padding: 10px 18px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    font-weight: 600;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(43, 182, 115, 0.25);
+  }
+  .upload-btn:hover { 
+    background: #34cf84; 
+    box-shadow: 0 4px 12px rgba(43, 182, 115, 0.4);
+  }
+  .upload-btn.secondary {
+    background: transparent;
+    border: 1px solid var(--water);
+    color: #38bdf8;
+    box-shadow: none;
+  }
+  .upload-btn.secondary:hover {
+    background: rgba(0, 141, 150, 0.2);
+    border-color: #38bdf8;
+  }
+  #imageUpload { display: none; }
+
+  /* ---------- layout ---------- */
+  main{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) 380px;
+    gap:1px;
+    background:var(--rule);
+  }
+  @media (max-width:900px){
+    main{ grid-template-columns:1fr; }
+    .header-actions { position: relative; top: 0; right: 0; margin-top: 15px; }
+  }
+
+  /* ---------- viewer ---------- */
+  .viewer-panel{
+    background:var(--ink);
+    padding:clamp(16px,2.4vw,28px);
+  }
+
+  .viewer-box {
+    position:relative;
+    width:100%;
+    aspect-ratio:16/10;
+    background:radial-gradient(circle at 50% 40%, #15271d, #09120e);
+    border-radius:10px;
+    overflow:hidden;
+    border:1px solid var(--rule);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .viewer-box .box-tag {
+    position: absolute;
+    top: 10px; left: 10px;
+    z-index: 10;
+    background: rgba(13, 23, 18, 0.85);
+    border: 1px solid var(--rule);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    color: var(--highlight);
+  }
+
+  .panorama-frame { width: 100%; height: 100%; }
+  .flat-frame {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #060b08;
+    display: none;
+  }
+
+  .caption{
+    margin-top:14px;
+    display:flex;
+    justify-space:space-between;
+    align-items: center;
+    gap:16px;
+    flex-wrap:wrap;
+    font-size:13px;
+    color:var(--parchment-dim);
+  }
+
+  /* ---------- map panel ---------- */
+  .map-panel{
+    background:var(--stone);
+    padding:clamp(16px,2.4vw,28px);
+    display:flex;
+    flex-direction:column;
+    gap:16px;
+  }
+  .panel-label{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--moss);
+    display:flex;
+    justify-space:space-between;
+    align-items: center;
+  }
+  #map{
+    width:100%;
+    height:260px;
+    border-radius:10px;
+    border:1px solid var(--rule);
+    filter:contrast(0.95) saturate(0.85);
+    z-index: 1;
+    transition: height 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  #map.expanded-compare {
+    height: 500px;
+  }
+
+  .map-legend {
+    display: flex;
+    gap: 16px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--parchment-dim);
+    background: rgba(0,0,0,0.2);
+    padding: 6px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--rule);
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .legend-badge {
+    width: 10px;
+    height: 10px;
+    display: inline-block;
+  }
+  .legend-badge.type-360 {
+    background: var(--moss);
+    border-radius: 50%;
+    box-shadow: 0 0 4px var(--moss);
+  }
+  .legend-badge.type-flat {
+    background: var(--water);
+    border-radius: 2px;
+  }
+
+  .coord-card{
+    border-top:1px dashed var(--rule);
+    padding-top:14px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12.5px;
+    line-height:1.9;
+    color:var(--parchment-dim);
+  }
+  .coord-card b{ color:var(--parchment); font-weight:500; }
+  .coord-card .place{
+    font-family:'Fraunces',serif;
+    font-size:17px;
+    color:var(--parchment);
+    margin-bottom:8px;
+    line-height:1.35;
+  }
+  .card-actions {
+    margin-top: 10px;
+  }
+
+  /* ---------- filter & node list ---------- */
+  .node-list-panel {
+    border-top: 1px dashed var(--rule);
+    padding-top: 12px;
+  }
+  .filter-bar {
+    display: flex;
+    gap: 4px;
+    background: var(--stone-2);
+    padding: 3px;
+    border-radius: 6px;
+    border: 1px solid var(--rule);
+    margin-bottom: 10px;
+  }
+  .filter-btn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--parchment-dim);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    padding: 5px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s ease;
+  }
+  .filter-btn.active {
+    background: var(--moss);
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  /* Survey Date panel */
+  .date-panel {
+    margin-bottom: 10px;
+  }
+  .date-panel-head {
+    display: flex;
+    justify-space: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .date-panel-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--moss);
+  }
+  .compare-toggle-btn {
+    background: var(--stone-2);
+    border: 1px solid var(--rule);
+    color: var(--parchment-dim);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9.5px;
+    padding: 4px 9px;
+    border-radius: 12px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s ease;
+  }
+  .compare-toggle-btn.active {
+    background: var(--highlight);
+    border-color: var(--highlight);
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .date-chip-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .date-chip {
+    background: var(--stone-2);
+    border: 1px solid var(--rule);
+    color: var(--parchment-dim);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+  }
+  .date-chip:hover { border-color: var(--moss); }
+  .date-chip.active {
+    background: rgba(0, 141, 150, 0.25);
+    border-color: var(--water);
+    color: #ffffff;
+  }
+
+  .subfilter-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--parchment-dim);
+    flex-wrap: wrap;
+  }
+  .subfilter-row .subfilter-label {
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--moss);
+  }
+  .subfilter-btn {
+    background: var(--stone-2);
+    border: 1px solid var(--rule);
+    color: var(--parchment-dim);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    padding: 4px 9px;
+    border-radius: 12px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s ease;
+  }
+  .subfilter-btn.active {
+    background: rgba(43, 182, 115, 0.2);
+    border-color: var(--moss);
+    color: var(--moss);
+  }
+
+  .node-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  .node-item {
+    padding: 8px 12px;
+    border-radius: 6px;
+    background: var(--stone-2);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--parchment-dim);
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid transparent;
+    transition: all 0.2s ease;
+  }
+  .node-item:hover { border-color: var(--moss); color: var(--parchment); }
+  .node-item.active {
+    border-color: var(--water);
+    color: #ffffff;
+    background: rgba(0, 141, 150, 0.25);
+    box-shadow: inset 3px 0 0 var(--water);
+  }
+  .node-item.active-secondary {
+    border-color: var(--highlight);
+    color: #ffffff;
+    background: rgba(34, 211, 238, 0.15);
+    box-shadow: inset 3px 0 0 var(--highlight);
+  }
+  .node-item .node-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .node-badge {
+    font-size: 9px;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-weight: 500;
+  }
+  .node-badge.type-360 {
+    background: rgba(43, 182, 115, 0.2);
+    color: var(--moss);
+  }
+  .node-badge.type-flat {
+    background: rgba(0, 141, 150, 0.2);
+    color: #38bdf8;
+  }
+  .node-delete-btn {
+    background: transparent;
+    border: none;
+    color: var(--parchment-dim);
+    cursor: pointer;
+    padding: 2px 6px;
+    font-size: 12px;
+    border-radius: 3px;
+    transition: all 0.2s ease;
+  }
+  .node-delete-btn:hover {
+    background: rgba(239, 68, 68, 0.25);
+    color: #ef4444;
+  }
+
+  /* ---------- modals ---------- */
+  .modal-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(13, 23, 18, 0.88);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+  }
+  .modal-content {
+    background: var(--stone);
+    border: 1px solid var(--rule);
+    border-radius: 12px;
+    padding: 24px 28px;
+    width: min(520px, 92vw);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .modal-content h3 {
+    font-family: 'Fraunces', serif;
+    margin: 0 0 10px;
+    color: #ffffff;
+    font-size: 22px;
+  }
+  .modal-desc {
+    font-size: 12.5px;
+    color: var(--parchment-dim);
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+  .form-group {
+    margin-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .form-group label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    color: var(--moss);
+    letter-spacing: .08em;
+  }
+  .form-group select, .form-group input[type="text"], .form-group input[type="number"] {
+    background: var(--stone-2);
+    border: 1px solid var(--rule);
+    color: var(--parchment);
+    padding: 9px 12px;
+    border-radius: 6px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13.5px;
+    outline: none;
+  }
+  .form-group select:focus, .form-group input:focus {
+    border-color: var(--moss);
+  }
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+  }
+
+  /* ---------- Full-Screen Dual Viewer Popup ---------- */
+  .compare-modal-window {
+    background: var(--ink);
+    border: 1px solid var(--rule);
+    border-radius: 16px;
+    width: 95vw;
+    height: 92vh;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    box-shadow: 0 25px 60px rgba(0,0,0,0.85);
+  }
+  .compare-modal-header {
+    display: flex;
+    justify-space: between;
+    align-items: center;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .compare-modal-title {
+    font-family: 'Fraunces', serif;
+    font-size: 20px;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .compare-modal-body {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    min-height: 0;
+  }
+
+  /* Guided Compare Floating Step Bar */
+  .step-floating-bar {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--stone);
+    border: 1px solid var(--highlight);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+    padding: 10px 22px;
+    border-radius: 30px;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--parchment);
+  }
+  .step-badge {
+    background: var(--highlight);
+    color: var(--ink);
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 11px;
+  }
+
+  /* ---------- leaflet markers & subtle black arrows ---------- */
+  .marker-wrap {
+    position: relative;
+    width: 30px;
+    height: 30px;
+  }
+  .custom-marker {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    box-shadow: 0 0 6px rgba(0,0,0,0.6);
+    transition: all 0.2s ease;
+    border: 2px solid #ffffff;
+  }
+  .custom-marker.type-360 {
+    width: 14px; height: 14px;
+    background-color: var(--moss);
+    border-radius: 50%;
+  }
+  .custom-marker.type-flat {
+    width: 12px; height: 12px;
+    background-color: var(--water);
+    border-radius: 3px;
+  }
+  .custom-marker.active {
+    transform: translate(-50%,-50%) scale(1.4);
+    box-shadow: 0 0 12px var(--highlight);
+    border-color: #ffffff;
+  }
+  .custom-marker.active-secondary {
+    transform: translate(-50%,-50%) scale(1.3);
+    box-shadow: 0 0 12px var(--moss);
+    border-color: var(--moss);
+  }
+
+  /* Subtle Uniform Black Heading Arrow System */
+  .heading-pivot {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 0; height: 0;
+    transform-origin: 0 0;
+    pointer-events: none;
+  }
+  .heading-arrow {
+    position: absolute;
+    left: -4px; top: -16px;
+    width: 0; height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-bottom: 9px solid rgba(0, 0, 0, 0.85); /* Subtle dark slate/black arrow */
+    opacity: 0.9;
+    filter: drop-shadow(0 1px 2px rgba(255,255,255,0.4));
+  }
+
+  .view-cone {
+    position: absolute;
+    left: -5px; top: -24px;
+    width: 0; height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-bottom: 14px solid var(--highlight);
+    opacity: 0.85;
+    filter: drop-shadow(0 0 4px var(--highlight));
+  }
+
+  footer{
+    padding:20px clamp(18px,4vw,48px) 32px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:var(--parchment-dim);
+    letter-spacing:.03em;
+    border-top: 1px solid var(--rule);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">Field Survey · Drone & Camera Spatial Viewer</div>
+  <h1 id="main-title">360° Field Record</h1>
+  
+  <div class="header-actions">
+    <button id="saveBtn" class="upload-btn secondary">Save All Images to File</button>
+    <label for="imageUpload" class="upload-btn">Upload Images</label>
+    <input type="file" id="imageUpload" accept="image/jpeg, image/png" multiple>
+  </div>
+
+  <div class="meta-strip">
+    <span id="meta-date">Captured<b>No image loaded</b></span>
+    <span id="meta-device">Device<b>N/A</b></span>
+    <span id="meta-orientation">Pitch / Heading<b>N/A</b></span>
+    <span id="meta-alt">Altitude<b>N/A</b></span>
+    <span id="meta-coords">Coordinates<b>N/A</b></span>
+  </div>
+</header>
+
+<main>
+  <section class="viewer-panel">
+    <!-- Main Viewer Frame -->
+    <div class="viewer-box" id="box-primary" style="aspect-ratio: 16/10;">
+      <span class="box-tag" id="tag-primary">Primary Node</span>
+      <div id="panorama-primary" class="panorama-frame"></div>
+      <img id="flat-primary" class="flat-frame" alt="Primary Preview" />
+    </div>
+
+    <div class="caption">
+      <span id="captionText">Interactive preview. Drag to rotate, scroll to zoom.</span>
+    </div>
+  </section>
+
+  <section class="map-panel">
+    <div class="panel-label">
+      <span>Capture location</span>
+      <span id="nodeCountLabel">0 Nodes</span>
+    </div>
+
+    <!-- Map Type Legend -->
+    <div class="map-legend">
+      <div class="legend-item"><span class="legend-badge type-360"></span> 360° Photo</div>
+      <div class="legend-item"><span class="legend-badge type-flat"></span> Flat Photo</div>
+    </div>
+
+    <div id="map"></div>
+    
+    <div class="coord-card">
+      <div class="place" id="placeName">Field Site (Default)</div>
+      <div id="coord-latlon"><b>Lat</b> 52.415300 &nbsp; <b>Lon</b> −4.082900</div>
+      <div id="coord-orientation"><b>Orientation</b> Heading: --, Pitch: --</div>
+      <div id="coord-source"><b>Source</b> Default Location</div>
+      <div class="card-actions">
+        <button id="editMetadataBtn" class="upload-btn secondary" style="width:100%; font-size:10px; padding:6px 10px;">Edit Metadata & Location</button>
+      </div>
+    </div>
+
+    <!-- Filter & Node List Quick-Selector -->
+    <div class="node-list-panel">
+      <div class="date-panel">
+        <div class="date-panel-head">
+          <span class="date-panel-label">Survey Date</span>
+          <button class="compare-toggle-btn" id="compareToggleBtn" title="Launch 2-Step Comparison Tool">Compare Dates</button>
+        </div>
+        <div class="date-chip-row" id="dateChipRow">
+          <button class="date-chip active" data-date="all">All Dates</button>
+        </div>
+      </div>
+      <div class="filter-bar">
+        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="360">360°</button>
+        <button class="filter-btn" data-filter="flat">Flat</button>
+      </div>
+      <div class="subfilter-row">
+        <span class="subfilter-label">Source</span>
+        <button class="subfilter-btn active" data-source="all">All</button>
+        <button class="subfilter-btn" data-source="gps">GPS Tagged</button>
+        <button class="subfilter-btn" data-source="manual">Manual</button>
+      </div>
+      <div class="node-list" id="nodeContainer"></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  Locations plotted from embedded GPS and XMP telemetry. Multi-date dual viewer synchronizes viewing angles client-side.
+</footer>
+
+<!-- Floating Compare Step Bar -->
+<div id="compareStepBar" class="step-floating-bar" style="display:none;">
+  <span class="step-badge" id="compareStepBadge">STEP 1 OF 2</span>
+  <span id="compareStepText">Select <b>Primary Image (Left Viewer)</b> from Map or List</span>
+  <button id="cancelCompareStepBtn" class="upload-btn secondary" style="padding:4px 10px; font-size:10px; border-color:var(--parchment-dim); color:var(--parchment);">Exit Compare</button>
+</div>
+
+<!-- Initial Date Selection Popup Modal -->
+<div id="compareSetupModal" class="modal-overlay" style="display:none;">
+  <div class="modal-content">
+    <h3>Compare Survey Datasets</h3>
+    <div class="modal-desc">Select two dates to compare. The guided step picker will expand the map to let you choose individual images.</div>
+    
+    <div class="form-group">
+      <label for="compareDatePrimarySelect">Primary Dataset (Left Viewer)</label>
+      <select id="compareDatePrimarySelect"></select>
+    </div>
+
+    <div class="form-group">
+      <label for="compareDateSecondarySelect">Comparison Dataset (Right Viewer)</label>
+      <select id="compareDateSecondarySelect"></select>
+    </div>
+
+    <div class="modal-actions">
+      <button id="cancelCompareSetupBtn" class="upload-btn secondary">Cancel</button>
+      <button id="start2StepCompareBtn" class="upload-btn">Start 2-Step Select</button>
+    </div>
+  </div>
+</div>
+
+<!-- Large Full-Screen Compare Popup View -->
+<div id="compareFullModal" class="modal-overlay" style="display:none;">
+  <div class="compare-modal-window">
+    <div class="compare-modal-header">
+      <div class="compare-modal-title">
+        <span>🔍 Side-by-Side Survey Compare View</span>
+      </div>
+      <button id="closeFullCompareBtn" class="upload-btn secondary" style="font-size:10px; padding:6px 14px;">Close Fullscreen Compare</button>
+    </div>
+
+    <div class="compare-modal-body">
+      <!-- Left Viewer Box -->
+      <div class="viewer-box" id="box-compare-left" style="height:100%;">
+        <span class="box-tag" id="tag-compare-left">Left Node</span>
+        <div id="panorama-compare-left" class="panorama-frame"></div>
+        <img id="flat-compare-left" class="flat-frame" alt="Left Preview" />
+      </div>
+
+      <!-- Right Viewer Box -->
+      <div class="viewer-box" id="box-compare-right" style="height:100%;">
+        <span class="box-tag" id="tag-compare-right" style="color:var(--moss);">Right Node</span>
+        <div id="panorama-compare-right" class="panorama-frame"></div>
+        <img id="flat-compare-right" class="flat-frame" alt="Right Preview" />
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Metadata & Location Modal -->
+<div id="editModal" class="modal-overlay" style="display:none;">
+  <div class="modal-content">
+    <h3>Edit Node Metadata</h3>
+    
+    <div class="form-group">
+      <label for="editTitle">Node Title / Name</label>
+      <input type="text" id="editTitle">
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="editDate">Captured Date</label>
+        <input type="text" id="editDate">
+      </div>
+      <div class="form-group">
+        <label for="editDevice">Camera Device</label>
+        <input type="text" id="editDevice">
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="editLat">Latitude</label>
+        <input type="number" step="any" id="editLat">
+      </div>
+      <div class="form-group">
+        <label for="editLon">Longitude</label>
+        <input type="number" step="any" id="editLon">
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="editHeading">Heading (° True North)</label>
+        <input type="number" step="any" min="0" max="359" id="editHeading" placeholder="e.g. 180">
+      </div>
+      <div class="form-group">
+        <label for="editPitch">Pitch (° -90 to +90)</label>
+        <input type="number" step="any" min="-90" max="90" id="editPitch" placeholder="e.g. -90">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="editSurveyDate">Survey Date</label>
+      <input type="date" id="editSurveyDate" style="background:var(--stone-2); border:1px solid var(--rule); color:var(--parchment); padding:9px 12px; border-radius:6px; font-family:'Inter',sans-serif; font-size:13.5px; outline:none;">
+    </div>
+
+    <div class="modal-actions">
+      <button id="cancelEditBtn" class="upload-btn secondary">Cancel</button>
+      <button id="saveEditBtn" class="upload-btn">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const SAVED_PROJECT_TITLE = "";
+  const SAVED_BASE_NODES = [];
+
+  const DEFAULT_LAT = 52.415300;
+  const DEFAULT_LON = -4.082900;
+
+  let projectTitle = "360° Field Record";
+  let nodes = [];
+  let selectedNodeId = null;
+  let secondaryNodeId = null;
+  
+  let activeFilter = 'all'; 
+  let sourceFilter = 'all'; 
+  let dateFilterMode = 'single'; 
+  let activeDateKey = 'all'; 
+  
+  // Guided Compare state
+  let compareStep = 0; // 0 = standard, 1 = picking primary, 2 = picking secondary
+  let comparePrimaryDate = null;
+  let compareSecondaryDate = null;
+  
+  let pViewerPrimary = null;
+  let pViewerLeft = null;
+  let pViewerRight = null;
+  let isSyncingViewers = false;
+  let yawPollTimer = null;
+
+  // Map Setup using Esri World Imagery (No HTTP 403 / strict Referer restrictions on local file:// execution)
+  let map = L.map('map').setView([DEFAULT_LAT, DEFAULT_LON], 10);
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+  }).addTo(map);
+
+  function parseXmpMetadata(arrayBuffer) {
+    const text = new TextDecoder('utf-8', { fatal: false }).decode(new Uint8Array(arrayBuffer));
+    const pitchMatch = text.match(/drone-dji:GimbalPitchDegree="([^"]+)"/) || text.match(/<drone-dji:GimbalPitchDegree>([^<]+)<\/drone-dji:GimbalPitchDegree>/) || text.match(/GCamera:Pitch="([^"]+)"/);
+    const yawMatch = text.match(/drone-dji:GimbalYawDegree="([^"]+)"/) || text.match(/<drone-dji:GimbalYawDegree>([^<]+)<\/drone-dji:GimbalYawDegree>/) || text.match(/drone-dji:FlightYawDegree="([^"]+)"/);
+    return {
+      pitch: pitchMatch ? parseFloat(pitchMatch[1]) : null,
+      yaw: yawMatch ? parseFloat(yawMatch[1]) : null
+    };
+  }
+
+  function deriveDateKey(rawExifDateStr) {
+    if (!rawExifDateStr || rawExifDateStr === "Unknown Date") return null;
+    const datePart = rawExifDateStr.trim().split(' ')[0];
+    const bits = datePart.split(':');
+    if (bits.length === 3 && bits[0].length === 4) {
+      return `${bits[0]}-${bits[1].padStart(2, '0')}-${bits[2].padStart(2, '0')}`;
+    }
+    return null;
+  }
+
+  function prettifyDateKey(key) {
+    if (!key || key === 'undated') return 'Undated';
+    const bits = key.split('-');
+    if (bits.length !== 3) return key;
+    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const mi = parseInt(bits[1], 10) - 1;
+    return `${parseInt(bits[2], 10)} ${months[mi] || bits[1]} ${bits[0]}`;
+  }
+
+  function renderViewers() {
+    const primaryNode = nodes.find(n => n.id === selectedNodeId);
+    const secondaryNode = nodes.find(n => n.id === secondaryNodeId);
+
+    stopYawPolling();
+
+    if (pViewerPrimary) { pViewerPrimary.destroy(); pViewerPrimary = null; }
+    if (pViewerLeft) { pViewerLeft.destroy(); pViewerLeft = null; }
+    if (pViewerRight) { pViewerRight.destroy(); pViewerRight = null; }
+
+    if (dateFilterMode === 'compare' && compareStep === 0 && primaryNode && secondaryNode) {
+      document.getElementById('compareFullModal').style.display = 'flex';
+      setupViewerInstance('compare-left', primaryNode, 'left');
+      setupViewerInstance('compare-right', secondaryNode, 'right');
+    } else {
+      document.getElementById('compareFullModal').style.display = 'none';
+      if (primaryNode) {
+        setupViewerInstance('primary', primaryNode, 'primary');
+      }
+    }
+
+    yawPollTimer = setInterval(() => {
+      const activeViewer = pViewerPrimary || pViewerLeft;
+      if (!activeViewer || typeof activeViewer.getYaw !== 'function') return;
+      try {
+        const yaw = activeViewer.getYaw();
+        if (primaryNode && primaryNode.marker) {
+          primaryNode.marker.setIcon(createMarkerIcon(primaryNode, true, false, yaw));
+        }
+      } catch (err) {}
+    }, 150);
+  }
+
+  function setupViewerInstance(targetPrefix, node, role) {
+    const panoEl = document.getElementById(`panorama-${targetPrefix}`);
+    const flatEl = document.getElementById(`flat-${targetPrefix}`);
+    const tagEl = document.getElementById(`tag-${targetPrefix}`);
+
+    tagEl.innerText = `${node.title} (${node.dateKeyLabel})`;
+
+    if (node.is360) {
+      flatEl.style.display = 'none';
+      panoEl.style.display = 'block';
+
+      const viewer = pannellum.viewer(`panorama-${targetPrefix}`, {
+        type: 'equirectangular',
+        panorama: node.url,
+        autoLoad: true,
+        compass: false,
+        showZoomCtrl: false,
+        showFullscreenCtrl: false
+      });
+
+      if (role === 'primary') pViewerPrimary = viewer;
+      if (role === 'left') pViewerLeft = viewer;
+      if (role === 'right') pViewerRight = viewer;
+
+      viewer.on('onrendered', () => {
+        if (isSyncingViewers) return;
+        const otherViewer = role === 'left' ? pViewerRight : (role === 'right' ? pViewerLeft : null);
+        if (!otherViewer) return;
+
+        isSyncingViewers = true;
+        try {
+          otherViewer.setPitch(viewer.getPitch());
+          otherViewer.setYaw(viewer.getYaw());
+          otherViewer.setHfov(viewer.getHfov());
+        } catch(e){}
+        isSyncingViewers = false;
+      });
+
+    } else {
+      if (role === 'primary' && pViewerPrimary) { pViewerPrimary.destroy(); pViewerPrimary = null; }
+      if (role === 'left' && pViewerLeft) { pViewerLeft.destroy(); pViewerLeft = null; }
+      if (role === 'right' && pViewerRight) { pViewerRight.destroy(); pViewerRight = null; }
+      panoEl.style.display = 'none';
+      flatEl.src = node.url;
+      flatEl.style.display = 'block';
+    }
+  }
+
+  function stopYawPolling() {
+    if (yawPollTimer) { clearInterval(yawPollTimer); yawPollTimer = null; }
+  }
+
+  // Uniform Subtle Black Heading Arrow Marker Generator
+  function createMarkerIcon(node, isActive, isSecondary, viewingYaw) {
+    const is360 = node.is360;
+    const typeClass = is360 ? 'type-360' : 'type-flat';
+    
+    let activeClass = '';
+    if (isActive) activeClass = 'active';
+    else if (isSecondary) activeClass = 'active-secondary';
+
+    const dotClasses = `custom-marker ${typeClass} ${activeClass}`;
+    let headingHtml = '';
+
+    if (node.hasHeading && typeof node.heading === 'number') {
+      headingHtml = `
+        <div class="heading-pivot" style="transform: rotate(${node.heading}deg);">
+          <div class="heading-arrow"></div>
+        </div>`;
+    }
+
+    let viewConeHtml = '';
+    if (is360 && isActive && typeof viewingYaw === 'number') {
+      const baseHeading = node.hasHeading ? node.heading : 0;
+      const bearing = ((baseHeading + viewingYaw) % 360 + 360) % 360;
+      viewConeHtml = `<div class="heading-pivot" style="transform: rotate(${bearing}deg);"><div class="view-cone"></div></div>`;
+    }
+
+    return L.divIcon({
+      className: '',
+      html: `<div class="marker-wrap">${headingHtml}${viewConeHtml}<div class="${dotClasses}"></div></div>`,
+      iconSize: [30, 30],
+      iconAnchor: [15, 15]
+    });
+  }
+
+  function buildPopupHtml(node) {
+    const dateLabel = node.dateKeyLabel ? `<br><span style="color:#9ebdb0;">${node.dateKeyLabel}</span>` : '';
+    const pitchText = (typeof node.pitch === 'number' ? ` | Pitch: ${Math.round(node.pitch)}°` : '');
+    const headingLabel = (node.hasHeading && typeof node.heading === 'number') ? `<br>Heading: ${Math.round(node.heading)}°` : '';
+    return `<b>${node.title}</b>${dateLabel}${headingLabel}${pitchText}<br>Click to select node`;
+  }
+
+  function addNode(nodeData) {
+    if (!nodeData.dateKey) nodeData.dateKey = 'undated';
+    if (!nodeData.dateKeyLabel) nodeData.dateKeyLabel = prettifyDateKey(nodeData.dateKey);
+
+    const marker = L.marker([nodeData.lat, nodeData.lon], {
+      icon: createMarkerIcon(nodeData, false, false),
+      draggable: false
+    }).addTo(map);
+
+    marker.bindPopup(buildPopupHtml(nodeData));
+    marker.on('click', () => handleNodeClick(nodeData.id));
+
+    nodeData.marker = marker;
+    nodes.push(nodeData);
+
+    applyFilterAndRender();
+    updateMapBounds();
+
+    if (nodes.length === 1) handleNodeClick(nodeData.id);
+  }
+
+  function handleNodeClick(id) {
+    if (compareStep === 1) {
+      selectedNodeId = id;
+      compareStep = 2;
+      
+      const secNodes = nodes.filter(n => (n.dateKey || 'undated') === compareSecondaryDate);
+      if (secNodes.length) secondaryNodeId = secNodes[0].id;
+
+      updateStepBarUI();
+      applyFilterAndRender();
+      updateMapBounds();
+      return;
+    } 
+    
+    if (compareStep === 2) {
+      secondaryNodeId = id;
+      compareStep = 0;
+      dateFilterMode = 'compare';
+      
+      updateStepBarUI();
+      applyFilterAndRender();
+      renderViewers();
+      return;
+    }
+
+    selectedNodeId = id;
+    selectNode(selectedNodeId);
+  }
+
+  function selectNode(id) {
+    selectedNodeId = id;
+    const primary = nodes.find(n => n.id === selectedNodeId);
+    if (!primary) return;
+
+    renderViewers();
+
+    document.getElementById('meta-device').innerHTML = `Device<b>${primary.device}</b>`;
+    document.getElementById('meta-date').innerHTML = `Captured<b>${primary.date}</b>`;
+    document.getElementById('meta-alt').innerHTML = `Altitude<b>${primary.alt}</b>`;
+    document.getElementById('meta-coords').innerHTML = `Coordinates<b>${Math.abs(primary.lat).toFixed(4)}°, ${Math.abs(primary.lon).toFixed(4)}°</b>`;
+    
+    const pitchText = (typeof primary.pitch === 'number') ? `${Math.round(primary.pitch)}°` : 'N/A';
+    const yawText = primary.hasHeading ? `${Math.round(primary.heading)}°` : 'N/A';
+    document.getElementById('meta-orientation').innerHTML = `Pitch / Heading<b>P: ${pitchText} | H: ${yawText}</b>`;
+
+    document.getElementById('placeName').innerText = primary.title;
+    document.getElementById('coord-latlon').innerHTML = `<b>Lat</b> ${primary.lat.toFixed(6)} &nbsp; <b>Lon</b> ${primary.lon.toFixed(6)}`;
+    document.getElementById('coord-orientation').innerHTML = `<b>Orientation</b> Heading: ${yawText}, Pitch: ${pitchText}`;
+    document.getElementById('coord-source').innerHTML = `<b>Source</b> ${primary.hasGps ? 'EXIF GPS Data' : 'Manual Location'} &nbsp;·&nbsp; <b>Date</b> ${primary.dateKeyLabel}`;
+
+    map.panTo([primary.lat, primary.lon]);
+
+    nodes.forEach(n => {
+      if (n.marker) {
+        n.marker.setIcon(createMarkerIcon(n, n.id === selectedNodeId, n.id === secondaryNodeId));
+      }
+    });
+
+    applyFilterAndRender();
+  }
+
+  function deleteNode(id, event) {
+    if (event) event.stopPropagation();
+    const idx = nodes.findIndex(n => n.id === id);
+    if (idx === -1) return;
+
+    const [deleted] = nodes.splice(idx, 1);
+    if (deleted.marker) map.removeLayer(deleted.marker);
+
+    if (selectedNodeId === id) selectedNodeId = nodes.length ? nodes[0].id : null;
+    if (secondaryNodeId === id) secondaryNodeId = null;
+
+    applyFilterAndRender();
+    updateMapBounds();
+  }
+
+  document.getElementById('imageUpload').addEventListener('change', function(e) {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+
+    files.forEach((file) => {
+      const reader = new FileReader();
+
+      reader.onload = function(event) {
+        const arrayBuffer = event.target.result;
+        const xmpData = parseXmpMetadata(arrayBuffer);
+
+        const blobReader = new FileReader();
+        blobReader.onload = function(imgEvt) {
+          const imageUrl = imgEvt.target.result;
+          const img = new Image();
+
+          img.onload = function() {
+            const aspect = img.width / img.height;
+            const is360 = Math.abs(aspect - 2.0) < 0.25;
+
+            EXIF.getData(file, function() {
+              const make = EXIF.getTag(this, "Make") || "";
+              const model = EXIF.getTag(this, "Model") || "";
+              const device = (make || model) ? `${make} ${model}`.trim() : "Camera / Drone";
+
+              const rawDate = EXIF.getTag(this, "DateTimeOriginal") || EXIF.getTag(this, "DateTime") || "Unknown Date";
+              
+              let alt = EXIF.getTag(this, "GPSAltitude");
+              if (alt && typeof alt === 'object' && alt.numerator) alt = (alt.numerator / alt.denominator).toFixed(1);
+              alt = alt ? `${alt} m` : "Unknown";
+
+              const lat = EXIF.getTag(this, "GPSLatitude");
+              const lon = EXIF.getTag(this, "GPSLongitude");
+              const latRef = EXIF.getTag(this, "GPSLatitudeRef") || "N";
+              const lonRef = EXIF.getTag(this, "GPSLongitudeRef") || "W";
+
+              let latDec = DEFAULT_LAT + (Math.random() - 0.5) * 0.01;
+              let lonDec = DEFAULT_LON + (Math.random() - 0.5) * 0.01;
+              let hasGps = false;
+
+              if (lat && lon) {
+                latDec = (lat[0].numerator/lat[0].denominator) + (lat[1].numerator/lat[1].denominator)/60 + (lat[2].numerator/lat[2].denominator)/3600;
+                if (latRef === "S") latDec = -latDec;
+                lonDec = (lon[0].numerator/lon[0].denominator) + (lon[1].numerator/lon[1].denominator)/60 + (lon[2].numerator/lon[2].denominator)/3600;
+                if (lonRef === "W") lonDec = -lonDec;
+                hasGps = true;
+              }
+
+              let heading = EXIF.getTag(this, "GPSImgDirection");
+              if (heading && typeof heading === 'object') heading = heading.numerator / heading.denominator;
+              if (heading === undefined || heading === null) heading = xmpData.yaw;
+
+              const hasHeading = typeof heading === 'number' && !isNaN(heading);
+              const dateKey = deriveDateKey(rawDate) || 'undated';
+
+              const nodeData = {
+                id: 'node_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                title: file.name.replace(/\.[^/.]+$/, ""),
+                url: imageUrl,
+                device: device,
+                date: rawDate,
+                alt: alt,
+                lat: latDec,
+                lon: lonDec,
+                hasGps: hasGps,
+                is360: is360,
+                heading: hasHeading ? ((heading % 360) + 360) % 360 : null,
+                pitch: xmpData.pitch,
+                hasHeading: hasHeading,
+                dateKey: dateKey,
+                dateKeyLabel: prettifyDateKey(dateKey)
+              };
+
+              addNode(nodeData);
+            });
+          };
+          img.src = imageUrl;
+        };
+        blobReader.readAsDataURL(file);
+      };
+      reader.readAsArrayBuffer(file);
+    });
+  });
+
+  // Filter UI
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      e.target.classList.add('active');
+      activeFilter = e.target.getAttribute('data-filter');
+      applyFilterAndRender();
+    });
+  });
+
+  document.querySelectorAll('.subfilter-row .subfilter-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      document.querySelectorAll('.subfilter-row .subfilter-btn').forEach(b => b.classList.remove('active'));
+      e.target.classList.add('active');
+      sourceFilter = e.target.getAttribute('data-source');
+      applyFilterAndRender();
+    });
+  });
+
+  // Compare Launch Flow
+  document.getElementById('compareToggleBtn').addEventListener('click', () => {
+    if (dateFilterMode === 'compare' || compareStep > 0) {
+      exitCompareMode();
+      return;
+    }
+    openCompareSetupModal();
+  });
+
+  function openCompareSetupModal() {
+    const dates = Array.from(new Set(nodes.map(n => n.dateKey || 'undated'))).sort();
+    if (dates.length < 2) {
+      alert("At least two survey dates or photos are required to launch split comparison.");
+      return;
+    }
+
+    const sel1 = document.getElementById('compareDatePrimarySelect');
+    const sel2 = document.getElementById('compareDateSecondarySelect');
+    sel1.innerHTML = '';
+    sel2.innerHTML = '';
+
+    dates.forEach((d) => {
+      const opt1 = document.createElement('option');
+      opt1.value = d;
+      opt1.innerText = `${prettifyDateKey(d)} (${nodes.filter(n => (n.dateKey||'undated')===d).length} photos)`;
+      sel1.appendChild(opt1);
+
+      const opt2 = document.createElement('option');
+      opt2.value = d;
+      opt2.innerText = `${prettifyDateKey(d)} (${nodes.filter(n => (n.dateKey||'undated')===d).length} photos)`;
+      sel2.appendChild(opt2);
+    });
+
+    if (dates.length > 1) sel2.selectedIndex = 1;
+
+    document.getElementById('compareSetupModal').style.display = 'flex';
+  }
+
+  document.getElementById('cancelCompareSetupBtn').addEventListener('click', () => {
+    document.getElementById('compareSetupModal').style.display = 'none';
+  });
+
+  document.getElementById('start2StepCompareBtn').addEventListener('click', () => {
+    comparePrimaryDate = document.getElementById('compareDatePrimarySelect').value;
+    compareSecondaryDate = document.getElementById('compareDateSecondarySelect').value;
+    document.getElementById('compareSetupModal').style.display = 'none';
+
+    compareStep = 1;
+    dateFilterMode = 'compare';
+    document.getElementById('compareToggleBtn').classList.add('active');
+
+    updateStepBarUI();
+    applyFilterAndRender();
+    updateMapBounds();
+  });
+
+  document.getElementById('cancelCompareStepBtn').addEventListener('click', exitCompareMode);
+
+  document.getElementById('closeFullCompareBtn').addEventListener('click', () => {
+    exitCompareMode();
+  });
+
+  function exitCompareMode() {
+    dateFilterMode = 'single';
+    compareStep = 0;
+    comparePrimaryDate = null;
+    compareSecondaryDate = null;
+    secondaryNodeId = null;
+    document.getElementById('compareToggleBtn').classList.remove('active');
+    document.getElementById('compareFullModal').style.display = 'none';
+
+    updateStepBarUI();
+    applyFilterAndRender();
+    renderViewers();
+  }
+
+  function updateStepBarUI() {
+    const bar = document.getElementById('compareStepBar');
+    const badge = document.getElementById('compareStepBadge');
+    const text = document.getElementById('compareStepText');
+    const mapEl = document.getElementById('map');
+
+    if (compareStep === 1) {
+      bar.style.display = 'flex';
+      badge.innerText = 'STEP 1 OF 2';
+      text.innerHTML = `Select <b>Primary Photo (${prettifyDateKey(comparePrimaryDate)})</b> on Map or List`;
+      mapEl.classList.add('expanded-compare');
+    } else if (compareStep === 2) {
+      bar.style.display = 'flex';
+      badge.innerText = 'STEP 2 OF 2';
+      text.innerHTML = `Select <b>Comparison Photo (${prettifyDateKey(compareSecondaryDate)})</b> on Map or List`;
+      mapEl.classList.add('expanded-compare');
+    } else {
+      bar.style.display = 'none';
+      mapEl.classList.remove('expanded-compare');
+    }
+
+    setTimeout(() => map.invalidateSize(), 300);
+  }
+
+  function renderDateChips() {
+    const row = document.getElementById('dateChipRow');
+    row.innerHTML = '';
+    const distinctKeys = Array.from(new Set(nodes.map(n => n.dateKey || 'undated'))).sort();
+
+    if (dateFilterMode === 'single') {
+      const allBtn = document.createElement('button');
+      allBtn.className = `date-chip ${activeDateKey === 'all' ? 'active' : ''}`;
+      allBtn.setAttribute('data-date', 'all');
+      allBtn.innerText = 'All Dates';
+      allBtn.addEventListener('click', () => { activeDateKey = 'all'; applyFilterAndRender(); });
+      row.appendChild(allBtn);
+    }
+
+    distinctKeys.forEach(key => {
+      const count = nodes.filter(n => (n.dateKey || 'undated') === key).length;
+      const btn = document.createElement('button');
+      btn.setAttribute('data-date', key);
+      btn.innerText = `${prettifyDateKey(key)} (${count})`;
+
+      if (dateFilterMode === 'compare') {
+        const isPri = key === comparePrimaryDate;
+        const isSec = key === compareSecondaryDate;
+        btn.className = 'date-chip' + (isPri ? ' active' : isSec ? ' active-secondary' : '');
+      } else {
+        btn.className = `date-chip ${activeDateKey === key ? 'active' : ''}`;
+        btn.addEventListener('click', () => { activeDateKey = key; applyFilterAndRender(); });
+      }
+      row.appendChild(btn);
+    });
+  }
+
+  function applyFilterAndRender() {
+    renderDateChips();
+    const container = document.getElementById('nodeContainer');
+    container.innerHTML = '';
+
+    const filtered = nodes.filter(n => {
+      const key = n.dateKey || 'undated';
+      let dateOk = true;
+
+      if (compareStep === 1) {
+        dateOk = (key === comparePrimaryDate);
+      } else if (compareStep === 2) {
+        dateOk = (key === compareSecondaryDate);
+      } else if (dateFilterMode === 'compare') {
+        dateOk = (key === comparePrimaryDate || key === compareSecondaryDate);
+      } else {
+        dateOk = (activeDateKey === 'all' || key === activeDateKey);
+      }
+
+      const typeOk = (activeFilter === 'all') || (activeFilter === '360' && n.is360) || (activeFilter === 'flat' && !n.is360);
+      const srcOk = (sourceFilter === 'all') || (sourceFilter === 'gps' && n.hasGps) || (sourceFilter === 'manual' && !n.hasGps);
+      return dateOk && typeOk && srcOk;
+    });
+
+    document.getElementById('nodeCountLabel').innerText = `${filtered.length} / ${nodes.length} Nodes`;
+
+    nodes.forEach(n => {
+      if (!n.marker) return;
+      const isVisible = filtered.includes(n);
+      if (isVisible) {
+        if (!map.hasLayer(n.marker)) map.addLayer(n.marker);
+        n.marker.setIcon(createMarkerIcon(n, n.id === selectedNodeId, n.id === secondaryNodeId));
+      } else {
+        if (map.hasLayer(n.marker)) map.removeLayer(n.marker);
+      }
+    });
+
+    filtered.forEach((n, idx) => {
+      const item = document.createElement('div');
+      let activeCls = n.id === selectedNodeId ? 'active' : (n.id === secondaryNodeId ? 'active-secondary' : '');
+      item.className = `node-item ${activeCls}`;
+
+      const pitchTag = typeof n.pitch === 'number' ? ` <span style="color:var(--parchment-dim);">(${Math.round(n.pitch)}°)</span>` : '';
+      item.innerHTML = `<span class="node-info"><b>#${idx + 1}</b> ${n.title} <span class="node-badge ${n.is360 ? 'type-360' : 'type-flat'}">${n.is360 ? '360°' : 'Flat'}</span>${pitchTag}</span>`;
+      
+      const delBtn = document.createElement('button');
+      delBtn.className = 'node-delete-btn';
+      delBtn.innerHTML = '&#10005;';
+      delBtn.addEventListener('click', (e) => deleteNode(n.id, e));
+
+      item.appendChild(delBtn);
+      item.addEventListener('click', () => handleNodeClick(n.id));
+      container.appendChild(item);
+    });
+  }
+
+  function updateMapBounds() {
+    const activeNodes = nodes.filter(n => map.hasLayer(n.marker));
+    if (!activeNodes.length) return;
+    const bounds = L.latLngBounds(activeNodes.map(n => [n.lat, n.lon]));
+    map.fitBounds(bounds, { padding: [35, 35] });
+  }
+
+  // Edit Metadata
+  document.getElementById('editMetadataBtn').addEventListener('click', () => {
+    const node = nodes.find(n => n.id === selectedNodeId);
+    if (!node) return;
+
+    document.getElementById('editTitle').value = node.title;
+    document.getElementById('editDate').value = node.date;
+    document.getElementById('editDevice').value = node.device;
+    document.getElementById('editLat').value = node.lat.toFixed(6);
+    document.getElementById('editLon').value = node.lon.toFixed(6);
+    document.getElementById('editHeading').value = node.hasHeading ? Math.round(node.heading) : '';
+    document.getElementById('editPitch').value = typeof node.pitch === 'number' ? Math.round(node.pitch) : '';
+    document.getElementById('editSurveyDate').value = (node.dateKey && node.dateKey !== 'undated') ? node.dateKey : '';
+
+    document.getElementById('editModal').style.display = 'flex';
+  });
+
+  document.getElementById('saveEditBtn').addEventListener('click', () => {
+    const node = nodes.find(n => n.id === selectedNodeId);
+    if (!node) return;
+
+    node.title = document.getElementById('editTitle').value.trim() || node.title;
+    node.date = document.getElementById('editDate').value.trim() || node.date;
+    node.device = document.getElementById('editDevice').value.trim() || node.device;
+    node.lat = parseFloat(document.getElementById('editLat').value) || node.lat;
+    node.lon = parseFloat(document.getElementById('editLon').value) || node.lon;
+
+    const h = parseFloat(document.getElementById('editHeading').value);
+    node.hasHeading = !isNaN(h);
+    node.heading = node.hasHeading ? ((h % 360) + 360) % 360 : null;
+
+    const p = parseFloat(document.getElementById('editPitch').value);
+    node.pitch = !isNaN(p) ? p : null;
+
+    const sDate = document.getElementById('editSurveyDate').value;
+    node.dateKey = sDate || 'undated';
+    node.dateKeyLabel = prettifyDateKey(node.dateKey);
+
+    document.getElementById('editModal').style.display = 'none';
+    selectNode(node.id);
+  });
+
+  document.getElementById('cancelEditBtn').addEventListener('click', () => {
+    document.getElementById('editModal').style.display = 'none';
+  });
+
+  // Save/Export Logic
+  document.getElementById('saveBtn').addEventListener('click', () => {
+    if (!nodes.length) { alert("Upload images first!"); return; }
+    const processed = nodes.map(n => {
+      const copy = {...n};
+      delete copy.marker;
+      return copy;
+    });
+
+    let htmlString = document.documentElement.outerHTML;
+    htmlString = htmlString.replace(/const SAVED_PROJECT_TITLE = ".*?";/, `const SAVED_PROJECT_TITLE = ${JSON.stringify(projectTitle)};`);
+    htmlString = htmlString.replace(/const SAVED_BASE_NODES = \[[\s\S]*?\];/, `const SAVED_BASE_NODES = ${JSON.stringify(processed)};`);
+
+    const blob = new Blob(['<!DOCTYPE html>\n' + htmlString], { type: 'text/html' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'Field_Record_360.html';
+    link.click();
+  });
+
+  window.addEventListener('DOMContentLoaded', () => {
+    if (SAVED_PROJECT_TITLE) {
+      projectTitle = SAVED_PROJECT_TITLE;
+      document.title = projectTitle;
+      document.getElementById('main-title').innerText = projectTitle;
+    }
+    if (SAVED_BASE_NODES && SAVED_BASE_NODES.length) {
+      SAVED_BASE_NODES.forEach(n => addNode(n));
+    }
+  });
+</script>
+</body>
+</html>

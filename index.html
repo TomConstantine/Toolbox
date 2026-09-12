@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Field Survey Tools Suite</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500&family=IBM+Plex+Mono:wght@500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink: #0d1712;
+      --stone: #15241b;
+      --stone-2: #1e3327;
+      --moss: #2bb673;
+      --water: #008d96;
+      --parchment: #e6f2eb;
+      --parchment-dim: #9ebdb0;
+      --rule: rgba(158, 189, 176, 0.16);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 0;
+      background: var(--ink);
+      color: var(--parchment);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      padding: 40px clamp(18px, 5vw, 60px) 20px;
+      border-bottom: 1px solid var(--rule);
+      background: linear-gradient(180deg, rgba(0,133,66,0.12) 0%, transparent 100%);
+    }
+    .eyebrow {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--moss);
+    }
+    h1 {
+      font-family: 'Fraunces', serif;
+      font-size: clamp(32px, 5vw, 48px);
+      margin: 10px 0 0;
+      color: #ffffff;
+    }
+    main {
+      padding: 40px clamp(18px, 5vw, 60px);
+      flex: 1;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+    }
+    .card {
+      background: var(--stone);
+      border: 1px solid var(--rule);
+      border-radius: 10px;
+      padding: 24px;
+      text-decoration: none;
+      color: inherit;
+      transition: all 0.25s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .card:hover {
+      border-color: var(--moss);
+      transform: translateY(-3px);
+      box-shadow: 0 10px 20px rgba(0,0,0,0.4);
+    }
+    .card-tag {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      text-transform: uppercase;
+      color: var(--water);
+      margin-bottom: 12px;
+    }
+    .card h2 {
+      font-family: 'Fraunces', serif;
+      font-size: 20px;
+      margin: 0 0 10px;
+      color: #ffffff;
+    }
+    .card p {
+      font-size: 13px;
+      color: var(--parchment-dim);
+      line-height: 1.5;
+      margin: 0 0 20px;
+    }
+    .card-btn {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      text-transform: uppercase;
+      color: var(--moss);
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">Spatial Toolkit</div>
+  <h1>Field Tools Directory</h1>
+</header>
+
+<main>
+  <div class="grid">
+    <!-- Tool Card 1 -->
+    <a href="360-field-record.html" class="card">
+      <div>
+        <div class="card-tag">Spatial Viewer</div>
+        <h2>360° Field Record</h2>
+        <p>Interactive panoramic image viewer, drone telemetry plotter, and spatial survey comparison tool.</p>
+      </div>
+      <div class="card-btn">Launch Tool &rarr;</div>
+    </a>
+
+    <!-- Tool Card 2 -->
+    <a href="image-converter.html" class="card">
+      <div>
+        <div class="card-tag">Utility</div>
+        <h2>EXIF & Image Batch Tool</h2>
+        <p>Extract GPS tags, clean image metadata, and batch format drone captures locally.</p>
+      </div>
+      <div class="card-btn">Launch Tool &rarr;</div>
+    </a>
+  </div>
+</main>
+
+</body>
+</html>

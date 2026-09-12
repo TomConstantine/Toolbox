@@ -173,6 +173,25 @@
     color: var(--highlight);
   }
 
+  .fullscreen-box-btn {
+    position: absolute;
+    top: 10px; right: 10px;
+    z-index: 20;
+    background: rgba(13, 23, 18, 0.85);
+    border: 1px solid var(--rule);
+    color: var(--parchment);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    text-transform: uppercase;
+  }
+  .fullscreen-box-btn:hover {
+    border-color: var(--moss);
+    color: var(--moss);
+  }
+
   .panorama-frame { width: 100%; height: 100%; }
   .flat-frame {
     width: 100%;
@@ -557,7 +576,7 @@
   }
   .compare-modal-header {
     display: flex;
-    justify-space: between;
+    justify-content: space-between;
     align-items: center;
     margin-bottom: 14px;
     padding-bottom: 10px;
@@ -570,6 +589,10 @@
     display: flex;
     align-items: center;
     gap: 12px;
+  }
+  .compare-header-actions {
+    display: flex;
+    gap: 10px;
   }
   .compare-modal-body {
     flex: 1;
@@ -656,7 +679,7 @@
     width: 0; height: 0;
     border-left: 4px solid transparent;
     border-right: 4px solid transparent;
-    border-bottom: 9px solid rgba(0, 0, 0, 0.85); /* Subtle dark slate/black arrow */
+    border-bottom: 9px solid rgba(0, 0, 0, 0.85);
     opacity: 0.9;
     filter: drop-shadow(0 1px 2px rgba(255,255,255,0.4));
   }
@@ -708,6 +731,7 @@
     <!-- Main Viewer Frame -->
     <div class="viewer-box" id="box-primary" style="aspect-ratio: 16/10;">
       <span class="box-tag" id="tag-primary">Primary Node</span>
+      <button class="fullscreen-box-btn" onclick="toggleElementFullscreen('box-primary')">Fullscreen</button>
       <div id="panorama-primary" class="panorama-frame"></div>
       <img id="flat-primary" class="flat-frame" alt="Primary Preview" />
     </div>
@@ -802,6 +826,33 @@
   </div>
 </div>
 
+<!-- Download HTML Configuration Modal -->
+<div id="exportConfigModal" class="modal-overlay" style="display:none;">
+  <div class="modal-content">
+    <h3>Save Field Record HTML</h3>
+    <div class="modal-desc">Configure output file name and image quality before generating the standalone HTML file.</div>
+    
+    <div class="form-group">
+      <label for="exportFilename">Output Filename</label>
+      <input type="text" id="exportFilename" value="Field_Record_360.html">
+    </div>
+
+    <div class="form-group">
+      <label for="exportResolution">Image Quality & Resolution</label>
+      <select id="exportResolution">
+        <option value="original">Original Full Quality (Unchanged)</option>
+        <option value="2048">2048px Max Dimension (Balanced)</option>
+        <option value="1280">1280px Max Dimension (Compressed / Faster)</option>
+      </select>
+    </div>
+
+    <div class="modal-actions">
+      <button id="cancelExportConfigBtn" class="upload-btn secondary">Cancel</button>
+      <button id="confirmExportConfigBtn" class="upload-btn">Generate & Save HTML</button>
+    </div>
+  </div>
+</div>
+
 <!-- Large Full-Screen Compare Popup View -->
 <div id="compareFullModal" class="modal-overlay" style="display:none;">
   <div class="compare-modal-window">
@@ -809,13 +860,17 @@
       <div class="compare-modal-title">
         <span>🔍 Side-by-Side Survey Compare View</span>
       </div>
-      <button id="closeFullCompareBtn" class="upload-btn secondary" style="font-size:10px; padding:6px 14px;">Close Fullscreen Compare</button>
+      <div class="compare-header-actions">
+        <button id="printCompareJpgBtn" class="upload-btn" style="font-size:10px; padding:6px 14px;">Print Comparison (Export JPG)</button>
+        <button id="closeFullCompareBtn" class="upload-btn secondary" style="font-size:10px; padding:6px 14px;">Close Fullscreen Compare</button>
+      </div>
     </div>
 
     <div class="compare-modal-body">
       <!-- Left Viewer Box -->
       <div class="viewer-box" id="box-compare-left" style="height:100%;">
         <span class="box-tag" id="tag-compare-left">Left Node</span>
+        <button class="fullscreen-box-btn" onclick="toggleElementFullscreen('box-compare-left')">Fullscreen</button>
         <div id="panorama-compare-left" class="panorama-frame"></div>
         <img id="flat-compare-left" class="flat-frame" alt="Left Preview" />
       </div>
@@ -823,6 +878,7 @@
       <!-- Right Viewer Box -->
       <div class="viewer-box" id="box-compare-right" style="height:100%;">
         <span class="box-tag" id="tag-compare-right" style="color:var(--moss);">Right Node</span>
+        <button class="fullscreen-box-btn" onclick="toggleElementFullscreen('box-compare-right')">Fullscreen</button>
         <div id="panorama-compare-right" class="panorama-frame"></div>
         <img id="flat-compare-right" class="flat-frame" alt="Right Preview" />
       </div>
@@ -903,7 +959,7 @@
   let activeDateKey = 'all'; 
   
   // Guided Compare state
-  let compareStep = 0; // 0 = standard, 1 = picking primary, 2 = picking secondary
+  let compareStep = 0;
   let comparePrimaryDate = null;
   let compareSecondaryDate = null;
   
@@ -913,12 +969,50 @@
   let isSyncingViewers = false;
   let yawPollTimer = null;
 
-  // Map Setup using Esri World Imagery (No HTTP 403 / strict Referer restrictions on local file:// execution)
+  // Map Setup with Multiple Esri & OpenStreetMap Basemaps
   let map = L.map('map').setView([DEFAULT_LAT, DEFAULT_LON], 10);
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+
+  const esriImagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
       maxZoom: 19,
       attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
-  }).addTo(map);
+  });
+
+  const esriTopo = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), and the GIS User Community'
+  });
+
+  const esriStreet = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      attribution: 'Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, Intermap, iPC, NRCAN, Esri Japan, METI, Esri China (Hong Kong)'
+  });
+
+  const osmMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+  });
+
+  esriImagery.addTo(map);
+
+  const baseMaps = {
+    "Esri Satellite Imagery": esriImagery,
+    "Esri Topographic": esriTopo,
+    "Esri Street Map": esriStreet,
+    "OpenStreetMap": osmMap
+  };
+
+  L.control.layers(baseMaps).addTo(map);
+
+  function toggleElementFullscreen(elementId) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    if (!document.fullscreenElement) {
+      if (el.requestFullscreen) el.requestFullscreen();
+      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    } else {
+      if (document.exitFullscreen) document.exitFullscreen();
+    }
+  }
 
   function parseXmpMetadata(arrayBuffer) {
     const text = new TextDecoder('utf-8', { fatal: false }).decode(new Uint8Array(arrayBuffer));
@@ -998,8 +1092,8 @@
         panorama: node.url,
         autoLoad: true,
         compass: false,
-        showZoomCtrl: false,
-        showFullscreenCtrl: false
+        showZoomCtrl: true,
+        showFullscreenCtrl: true
       });
 
       if (role === 'primary') pViewerPrimary = viewer;
@@ -1034,7 +1128,6 @@
     if (yawPollTimer) { clearInterval(yawPollTimer); yawPollTimer = null; }
   }
 
-  // Uniform Subtle Black Heading Arrow Marker Generator
   function createMarkerIcon(node, isActive, isSecondary, viewingYaw) {
     const is360 = node.is360;
     const typeClass = is360 ? 'type-360' : 'type-flat';
@@ -1516,24 +1609,119 @@
     document.getElementById('editModal').style.display = 'none';
   });
 
-  // Save/Export Logic
+  // Save/Export Logic with Options Prompt
   document.getElementById('saveBtn').addEventListener('click', () => {
     if (!nodes.length) { alert("Upload images first!"); return; }
-    const processed = nodes.map(n => {
+    document.getElementById('exportConfigModal').style.display = 'flex';
+  });
+
+  document.getElementById('cancelExportConfigBtn').addEventListener('click', () => {
+    document.getElementById('exportConfigModal').style.display = 'none';
+  });
+
+  document.getElementById('confirmExportConfigBtn').addEventListener('click', async () => {
+    let filename = document.getElementById('exportFilename').value.trim() || 'Field_Record_360.html';
+    if (!filename.endsWith('.html')) filename += '.html';
+    const resMode = document.getElementById('exportResolution').value;
+
+    document.getElementById('exportConfigModal').style.display = 'none';
+
+    // Process nodes with optional canvas resizing
+    const processedNodes = await Promise.all(nodes.map(async (n) => {
       const copy = {...n};
       delete copy.marker;
+
+      if (resMode !== 'original' && copy.url.startsWith('data:image')) {
+        copy.url = await resizeDataUrl(copy.url, parseInt(resMode, 10));
+      }
       return copy;
-    });
+    }));
 
     let htmlString = document.documentElement.outerHTML;
     htmlString = htmlString.replace(/const SAVED_PROJECT_TITLE = ".*?";/, `const SAVED_PROJECT_TITLE = ${JSON.stringify(projectTitle)};`);
-    htmlString = htmlString.replace(/const SAVED_BASE_NODES = \[[\s\S]*?\];/, `const SAVED_BASE_NODES = ${JSON.stringify(processed)};`);
+    htmlString = htmlString.replace(/const SAVED_BASE_NODES = \[[\s\S]*?\];/, `const SAVED_BASE_NODES = ${JSON.stringify(processedNodes)};`);
 
     const blob = new Blob(['<!DOCTYPE html>\n' + htmlString], { type: 'text/html' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = 'Field_Record_360.html';
+    link.download = filename;
     link.click();
+  });
+
+  function resizeDataUrl(dataUrl, maxDim) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width;
+        let h = img.height;
+        if (w <= maxDim && h <= maxDim) { resolve(dataUrl); return; }
+
+        if (w > h) {
+          h = Math.round((h * maxDim) / w);
+          w = maxDim;
+        } else {
+          w = Math.round((w * maxDim) / h);
+          h = maxDim;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
+      };
+      img.src = dataUrl;
+    });
+  }
+
+  // Print Side-by-Side Comparison to JPG
+  document.getElementById('printCompareJpgBtn').addEventListener('click', async () => {
+    const nodeLeft = nodes.find(n => n.id === selectedNodeId);
+    const nodeRight = nodes.find(n => n.id === secondaryNodeId);
+    if (!nodeLeft || !nodeRight) { alert("Select both primary and secondary nodes first."); return; }
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    const w = 1200;
+    const h = 800;
+    const headerH = 90;
+
+    canvas.width = w * 2 + 20;
+    canvas.height = h + headerH;
+
+    // Dark Background
+    ctx.fillStyle = '#0d1712';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const loadImg = (url) => new Promise(res => { const img = new Image(); img.onload = () => res(img); img.src = url; });
+    const [imgL, imgR] = await Promise.all([loadImg(nodeLeft.url), loadImg(nodeRight.url)]);
+
+    // Header Left
+    ctx.fillStyle = '#2bb673';
+    ctx.font = 'bold 22px sans-serif';
+    ctx.fillText(`PRIMARY: ${nodeLeft.title}`, 20, 36);
+    ctx.fillStyle = '#9ebdb0';
+    ctx.font = '16px monospace';
+    ctx.fillText(`Date: ${nodeLeft.dateKeyLabel}  |  Lat: ${nodeLeft.lat.toFixed(5)} Lon: ${nodeLeft.lon.toFixed(5)}`, 20, 68);
+
+    // Header Right
+    ctx.fillStyle = '#22d3ee';
+    ctx.font = 'bold 22px sans-serif';
+    ctx.fillText(`COMPARISON: ${nodeRight.title}`, w + 40, 36);
+    ctx.fillStyle = '#9ebdb0';
+    ctx.font = '16px monospace';
+    ctx.fillText(`Date: ${nodeRight.dateKeyLabel}  |  Lat: ${nodeRight.lat.toFixed(5)} Lon: ${nodeRight.lon.toFixed(5)}`, w + 40, 68);
+
+    // Draw Images
+    ctx.drawImage(imgL, 0, headerH, w, h);
+    ctx.drawImage(imgR, w + 20, headerH, w, h);
+
+    const a = document.createElement('a');
+    a.download = `Survey_Comparison_${nodeLeft.dateKey}_vs_${nodeRight.dateKey}.jpg`;
+    a.href = canvas.toDataURL('image/jpeg', 0.92);
+    a.click();
   });
 
   window.addEventListener('DOMContentLoaded', () => {

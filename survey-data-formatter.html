@@ -30,6 +30,7 @@ main{display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:1px;background:v
 .detail{border-top:1px dashed var(--rule);padding-top:14px;font-family:'IBM Plex Mono',monospace;font-size:12px;line-height:1.8;color:var(--parchment-dim)}.detail b{color:var(--parchment);font-weight:500}.detail .name{font-family:Fraunces,serif;font-size:18px;color:var(--parchment);line-height:1.35;margin-bottom:6px}.empty{padding:30px 15px;text-align:center;color:var(--parchment-dim);font-size:12px;line-height:1.6}
 footer{padding:20px clamp(18px,4vw,48px) 32px;font:11px 'IBM Plex Mono',monospace;color:var(--parchment-dim);letter-spacing:.03em}
 .leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--stone-2);color:var(--parchment)}.popup-title{font-family:Fraunces,serif;font-size:17px}.popup-meta{font:11px 'IBM Plex Mono',monospace;color:var(--parchment-dim);line-height:1.6}.point-icon{background:transparent;border:0}.point-marker{width:9px;height:9px;border-radius:50%;background:var(--water);border:1.5px solid white;box-shadow:0 1px 3px rgba(0,0,0,.55)}.point-marker.selected{transform:scale(1.45);border-color:#fff;box-shadow:0 0 0 2px rgba(201,148,78,.7),0 1px 4px rgba(0,0,0,.6)}
+.leaflet-container { background: #15241b !important; }
 </style>
 </head>
 <body>
@@ -58,7 +59,7 @@ footer{padding:20px clamp(18px,4vw,48px) 32px;font:11px 'IBM Plex Mono',monospac
 <aside class="side-panel">
 <div class="upload-zone">
 <strong>Load survey data</strong>
-<p>Upload a CSV in the same format as the supplied survey export. Repeated <b>Line</b>, <b>Line ID</b>, <b>Feature</b>, <b>Code</b> or <b>Name</b> values are interpreted as linework and joined in CSV order. The app recognises <b>Name</b>, <b>Easting</b>, <b>Northing</b>, <b>Elevation</b>, <b>Longitude</b> and <b>Latitude</b>. The map starts blank and data remains in your browser.</p>
+<p>Upload a CSV in the same format as the supplied survey export. Repeated <b>Line</b>, <b>Line ID</b>, <b>Feature</b>, <b>Code</b> or <b>Name</b> values are interpreted as linework and joined in CSV order. The app recognises <b>Name</b>, <b>Easting</b>, <b>Northing</b>, <b>Elevation</b>, <b>Longitude</b> and <b>Latitude</b>.</p>
 </div>
 <input id="search" class="search" type="search" placeholder="Filter by name or description…" disabled>
 <div class="panel-label"><span>Survey points</span><span id="visibleCount">0 shown</span></div>
@@ -66,17 +67,38 @@ footer{padding:20px clamp(18px,4vw,48px) 32px;font:11px 'IBM Plex Mono',monospac
 <div class="detail" id="detail"><div class="name">No point selected</div>Select a row or map marker to inspect it. Tick one or more records, then use <b>Export for AMX</b>.</div>
 </aside>
 </main>
-<footer>Client-side survey viewer. Map positions use Latitude/Longitude when present; otherwise British National Grid Easting/Northing values are converted to WGS84 for display. AMX export contains only selected points, or all points when none are selected.</footer>
+<footer>Client-side survey viewer with Esri Basemaps. Positions use Latitude/Longitude when present; otherwise British National Grid Easting/Northing values are converted to WGS84 for display.</footer>
 <script>
 const DEFAULT=[51.507351,-0.127758];
 const map=L.map('map').setView(DEFAULT,11);
 
-// CARTO Voyager Tile Layer (Clean vector cartography option)
-L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-  maxZoom: 20,
-  subdomains: 'abcd',
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-}).addTo(map);
+// Esri & OpenStreetMap Basemap Layer Options (No API Keys Required)
+const esriTopo = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+  maxZoom: 19, attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), and the GIS User Community'
+});
+
+const esriImagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+  maxZoom: 19, attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+});
+
+const esriStreet = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+  maxZoom: 19, attribution: 'Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, Intermap, iPC, NRCAN, Esri Japan, METI, Esri China (Hong Kong)'
+});
+
+const osmMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
+});
+
+esriTopo.addTo(map);
+
+const baseMaps = {
+  "Esri Topographic": esriTopo,
+  "Esri Satellite Imagery": esriImagery,
+  "Esri Street Map": esriStreet,
+  "OpenStreetMap": osmMap
+};
+
+L.control.layers(baseMaps).addTo(map);
 
 proj4.defs('EPSG:27700','+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +towgs84=446.448,-125.157,542.06,0.1502,0.247,0.8421,-20.4894 +units=m +no_defs');
 let points=[], markers=[], lineLayers=[], selected=new Set(), activeId=null;

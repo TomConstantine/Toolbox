@@ -1,0 +1,1334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Edge &amp; Erosion Monitor</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+<style>
+  :root{
+    --bg: #0f172a;
+    --panel: #16213a;
+    --panel2: #1c2947;
+    --border: #2a3a5c;
+    --text: #e6ecf5;
+    --muted: #92a1c1;
+    --accent: #38bdf8;
+    --a: #06b6d4;
+    --b: #f59e0b;
+    --pos: #22c55e;
+    --neg: #ef4444;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--text);}
+  #app{display:flex;flex-direction:column;height:100vh;}
+  header{
+    display:flex;align-items:center;gap:12px;padding:10px 16px;
+    background:linear-gradient(90deg,#0b1220,#122043);
+    border-bottom:1px solid var(--border);
+    flex-shrink:0;
+  }
+  header h1{font-size:16px;margin:0;font-weight:600;letter-spacing:.2px;}
+  header h1 span{color:var(--accent);}
+  header .sub{color:var(--muted);font-size:12px;margin-left:4px;}
+  #statusText{margin-left:auto;font-size:12px;color:var(--muted);max-width:46%;text-align:right;}
+  #main{flex:1;display:flex;min-height:0;position:relative;}
+  #sidebar{
+    width:360px;flex-shrink:0;background:var(--panel);border-right:1px solid var(--border);
+    display:flex;flex-direction:column;overflow:hidden;
+  }
+  .tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0;}
+  .tab-btn{
+    flex:1;padding:10px 4px;background:none;border:none;color:var(--muted);
+    font-size:12px;cursor:pointer;border-bottom:2px solid transparent;
+  }
+  .tab-btn.active{color:var(--text);border-bottom-color:var(--accent);background:var(--panel2);}
+  .panel{display:none;padding:14px;overflow-y:auto;flex:1;}
+  .panel.active{display:block;}
+  h3{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:18px 0 8px;}
+  h3:first-child{margin-top:2px;}
+  .survey-card{border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:12px;background:var(--panel2);}
+  .survey-title{display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px;margin-bottom:8px;}
+  .swatch{width:10px;height:10px;border-radius:50%;display:inline-block;}
+  .field{margin-bottom:8px;}
+  .field label{display:block;font-size:11px;color:var(--muted);margin-bottom:3px;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+  .row4{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+  input[type="text"],input[type="number"],input[type="date"],select{
+    width:100%;padding:6px 7px;background:#0e1730;border:1px solid var(--border);
+    border-radius:5px;color:var(--text);font-size:12px;
+  }
+  input[type="file"]{font-size:11px;color:var(--muted);width:100%;}
+  input[type="range"]{width:100%;}
+  .radio-row{display:flex;gap:14px;font-size:12px;margin-bottom:8px;}
+  .radio-row label{display:flex;align-items:center;gap:5px;color:var(--muted);cursor:pointer;}
+  .btn{
+    background:#1e2c50;border:1px solid var(--border);color:var(--text);
+    padding:7px 10px;border-radius:6px;font-size:12px;cursor:pointer;width:100%;margin-top:4px;
+  }
+  .btn:hover{background:#26355e;}
+  .btn-primary{background:linear-gradient(90deg,#0891b2,#0369a1);border:none;font-weight:600;}
+  .btn-primary:hover{filter:brightness(1.1);}
+  .btn-row{display:flex;gap:6px;}
+  .btn-row .btn{margin-top:0;}
+  .status-line{font-size:11px;color:var(--muted);margin-top:6px;line-height:1.5;min-height:14px;}
+  .checkbox-row{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);margin:6px 0;}
+  .hint{font-size:10.5px;color:var(--muted);margin-top:3px;line-height:1.4;}
+  #detectProgressBar{width:100%;height:7px;border-radius:4px;background:#0e1730;border:1px solid var(--border);overflow:hidden;}
+  #detectProgressFill{height:100%;width:0%;background:linear-gradient(90deg,#0891b2,#38bdf8);transition:width .18s ease;}
+  .divider{height:1px;background:var(--border);margin:14px 0;}
+  #notesPanel p{font-size:12px;line-height:1.6;color:#c7d2e6;}
+  #notesPanel b{color:var(--text);}
+  #map{flex:1;background:#0a1120;}
+  #resultsDrawer{
+    position:absolute;left:360px;right:0;bottom:0;height:0;overflow:hidden;
+    background:#0e162c;border-top:1px solid var(--border);transition:height .22s ease;
+    display:flex;flex-direction:column;z-index:500;
+  }
+  #resultsDrawer.open{height:38%;}
+  .drawer-head{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid var(--border);flex-shrink:0;}
+  .drawer-head b{font-size:12px;}
+  #statsSummary{font-size:12px;color:var(--muted);}
+  .drawer-close{margin-left:auto;background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;}
+  .drawer-body{flex:1;overflow:auto;padding:0 14px 14px;}
+  table{width:100%;border-collapse:collapse;font-size:12px;}
+  th,td{padding:5px 8px;text-align:right;border-bottom:1px solid var(--border);}
+  th:first-child,td:first-child{text-align:left;}
+  th{color:var(--muted);font-weight:500;position:sticky;top:0;background:#0e162c;}
+  td.pos{color:var(--pos);}
+  td.neg{color:var(--neg);}
+  #drawerHandle{
+    position:absolute;left:360px;right:0;bottom:0;z-index:499;display:flex;justify-content:center;
+    pointer-events:none;
+  }
+  #drawerHandle button{
+    pointer-events:auto;background:#122043;border:1px solid var(--border);border-bottom:none;
+    color:var(--muted);font-size:11px;padding:3px 14px;border-radius:6px 6px 0 0;cursor:pointer;
+  }
+  .leaflet-tooltip{font-size:11px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>Edge &amp; Erosion <span>Monitor</span></h1>
+    <span class="sub">orthophoto / GeoTIFF edge detection &amp; change tracking</span>
+    <div id="statusText">Load an orthophoto to begin.</div>
+  </header>
+
+  <div id="main">
+    <div id="sidebar">
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="data">1&nbsp;· Imagery</button>
+        <button class="tab-btn" data-tab="detect">2&nbsp;· Detect</button>
+        <button class="tab-btn" data-tab="monitor">3&nbsp;· Monitor</button>
+        <button class="tab-btn" data-tab="notes">Notes</button>
+      </div>
+
+      <!-- ============ TAB: DATA ============ -->
+      <div class="panel active" id="panel-data">
+        <div id="survey-card-A" class="survey-card">
+          <div class="survey-title"><span class="swatch" id="swatch-A"></span> Survey A</div>
+
+          <div class="radio-row">
+            <label><input type="radio" name="fmt-A" value="geotiff" checked> GeoTIFF</label>
+            <label><input type="radio" name="fmt-A" value="image"> Image (JPG/PNG)</label>
+          </div>
+
+          <div id="geotiff-fields-A">
+            <div class="field"><label>GeoTIFF file (.tif)</label>
+              <input type="file" id="file-geotiff-A" accept=".tif,.tiff,image/tiff">
+            </div>
+          </div>
+          <div id="image-fields-A" style="display:none;">
+            <div class="field"><label>Image file</label>
+              <input type="file" id="file-image-A" accept="image/*">
+            </div>
+            <div class="field"><label>North‑West corner (lat, lng)</label>
+              <div class="row2">
+                <input type="number" step="any" id="bounds-N-A" placeholder="lat">
+                <input type="number" step="any" id="bounds-W-A" placeholder="lng">
+              </div>
+            </div>
+            <div class="field"><label>South‑East corner (lat, lng)</label>
+              <div class="row2">
+                <input type="number" step="any" id="bounds-S-A" placeholder="lat">
+                <input type="number" step="any" id="bounds-E-A" placeholder="lng">
+              </div>
+            </div>
+            <div class="hint">Assumes a north‑up, unrotated image. For rotated exports, use GeoTIFF instead.</div>
+          </div>
+
+          <div class="field"><label>Survey date</label>
+            <input type="date" id="date-A">
+          </div>
+          <button class="btn btn-primary" id="load-btn-A">Load Survey A</button>
+          <div class="status-line" id="status-A">Not loaded.</div>
+
+          <div class="field" style="margin-top:8px;"><label>Opacity</label>
+            <input type="range" id="opacity-A" min="0" max="1" step="0.05" value="0.9">
+          </div>
+          <div class="checkbox-row"><input type="checkbox" id="visible-A" checked> <label for="visible-A">Visible on map</label></div>
+        </div>
+
+        <button class="btn" id="btn-show-survey-b" style="margin-bottom:12px;">+ Add Survey B (compare two dates)</button>
+
+        <div id="survey-card-B" class="survey-card" style="display:none;">
+          <div class="survey-title">
+            <span class="swatch" id="swatch-B"></span> Survey B
+            <button id="btn-remove-survey-b" style="margin-left:auto;background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;">✕ remove</button>
+          </div>
+
+          <div class="radio-row">
+            <label><input type="radio" name="fmt-B" value="geotiff" checked> GeoTIFF</label>
+            <label><input type="radio" name="fmt-B" value="image"> Image (JPG/PNG)</label>
+          </div>
+
+          <div id="geotiff-fields-B">
+            <div class="field"><label>GeoTIFF file (.tif)</label>
+              <input type="file" id="file-geotiff-B" accept=".tif,.tiff,image/tiff">
+            </div>
+          </div>
+          <div id="image-fields-B" style="display:none;">
+            <div class="field"><label>Image file</label>
+              <input type="file" id="file-image-B" accept="image/*">
+            </div>
+            <div class="field"><label>North‑West corner (lat, lng)</label>
+              <div class="row2">
+                <input type="number" step="any" id="bounds-N-B" placeholder="lat">
+                <input type="number" step="any" id="bounds-W-B" placeholder="lng">
+              </div>
+            </div>
+            <div class="field"><label>South‑East corner (lat, lng)</label>
+              <div class="row2">
+                <input type="number" step="any" id="bounds-S-B" placeholder="lat">
+                <input type="number" step="any" id="bounds-E-B" placeholder="lng">
+              </div>
+            </div>
+            <div class="hint">Assumes a north‑up, unrotated image. For rotated exports, use GeoTIFF instead.</div>
+          </div>
+
+          <div class="field"><label>Survey date</label>
+            <input type="date" id="date-B">
+          </div>
+          <button class="btn btn-primary" id="load-btn-B">Load Survey B</button>
+          <div class="status-line" id="status-B">Not loaded.</div>
+
+          <div class="field" style="margin-top:8px;"><label>Opacity</label>
+            <input type="range" id="opacity-B" min="0" max="1" step="0.05" value="0.9">
+          </div>
+          <div class="checkbox-row"><input type="checkbox" id="visible-B" checked> <label for="visible-B">Visible on map</label></div>
+        </div>
+
+        <div class="hint">Survey B is optional — load just Survey A to detect edges on a single orthophoto. Load both, with different dates, to measure change in Monitor.</div>
+      </div>
+
+      <!-- ============ TAB: DETECT ============ -->
+      <div class="panel" id="panel-detect">
+        <h3>Active survey</h3>
+        <div class="btn-row">
+          <button class="btn" id="btn-active-A">● Survey A</button>
+          <button class="btn" id="btn-active-B">● Survey B</button>
+        </div>
+        <div class="hint">Detection runs on the active survey and adds edge lines tagged with its colour.</div>
+
+        <h3>Area of interest (optional)</h3>
+        <div class="field"><label>AOI shape</label>
+          <select id="aoiShapeSelect">
+            <option value="rectangle">Rectangle</option>
+            <option value="polygon">Polygon (click points)</option>
+            <option value="freehand">Freehand (click &amp; drag)</option>
+          </select>
+        </div>
+        <div class="btn-row">
+          <button class="btn" id="btn-draw-aoi">Draw AOI</button>
+          <button class="btn" id="btn-clear-aoi">Clear AOI</button>
+        </div>
+        <div class="hint">Restrict analysis to this area for faster, higher‑detail processing on large orthomosaics. Polygon: click to add points, click the first point (or double‑click) to close it. Freehand: click and drag to sketch the boundary, release to close it.</div>
+
+        <h3>Method</h3>
+        <div class="field">
+          <select id="methodSelect">
+            <option value="canny">Canny edge detector — bare scarp / cliff face break‑line</option>
+            <option value="vegetation">Vegetation line (Excess Green + Otsu) — bank/cliff‑top trim‑line</option>
+            <option value="water">Water / land line (HSV value + Otsu) — river or shoreline edge</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Pre‑blur (Gaussian σ, noise suppression)</label>
+          <input type="range" id="blurSigma" min="0" max="3" step="0.1" value="1.4">
+        </div>
+
+        <div id="canny-params">
+          <div class="checkbox-row"><input type="checkbox" id="autoThreshold" checked> <label for="autoThreshold">Auto thresholds (Otsu)</label></div>
+          <div class="row2">
+            <div class="field"><label>Low threshold</label><input type="number" id="lowThresh" value="20"></div>
+            <div class="field"><label>High threshold</label><input type="number" id="highThresh" value="50"></div>
+          </div>
+        </div>
+
+        <div id="threshold-params" style="display:none;">
+          <div class="checkbox-row"><input type="checkbox" id="invertMask"> <label for="invertMask">Invert (foreground is darker/lower side)</label></div>
+        </div>
+
+        <div class="row2">
+          <div class="field"><label>Min segment length (px)</label><input type="number" id="minChainLen" value="15"></div>
+          <div class="field"><label>Simplify (m)</label><input type="number" id="simplifyMeters" value="1" step="0.5"></div>
+        </div>
+        <div class="field"><label>Max processing size (px, longest side)</label>
+          <select id="maxDimSelect">
+            <option value="800">800 — fast</option>
+            <option value="1200">1200</option>
+            <option value="1600" selected>1600 — balanced</option>
+            <option value="2400">2400 — detailed</option>
+            <option value="4000">4000 — high detail</option>
+            <option value="0">Native (Full Resolution)</option>
+          </select>
+        </div>
+
+        <button class="btn btn-primary" id="btn-run-detect">Run detection</button>
+        <div id="detectProgressWrap" style="display:none;margin-top:8px;">
+          <div id="detectProgressBar"><div id="detectProgressFill"></div></div>
+          <div class="status-line" id="detectProgressLabel"></div>
+        </div>
+        <div class="status-line" id="detectResultText"></div>
+
+        <div class="divider"></div>
+        <h3>Manual edges</h3>
+        <button class="btn" id="btn-draw-edge">Draw / add edge line</button>
+        <div class="hint">Useful where vegetation or shadow hides the true edge and auto‑detection is unreliable — digitise it by eye instead. Use the map's edit tool (top‑right) to reshape or delete any line.</div>
+        <div class="btn-row" style="margin-top:8px;">
+          <button class="btn" id="btn-clear-auto-edges">Clear auto edges</button>
+          <button class="btn" id="btn-clear-all-edges">Clear all edges</button>
+        </div>
+      </div>
+
+      <!-- ============ TAB: MONITOR ============ -->
+      <div class="panel" id="panel-monitor">
+        <h3>Baseline</h3>
+        <div class="btn-row">
+          <button class="btn" id="btn-draw-baseline">Draw baseline</button>
+          <button class="btn" id="btn-clear-baseline">Clear</button>
+        </div>
+        <div class="hint">Draw one line on the stable, landward (or otherwise fixed) side of the feature. Transects are cast perpendicular to it, DSAS‑style, and measured out to each edge line.</div>
+
+        <h3>Transects</h3>
+        <div class="row2">
+          <div class="field"><label>Spacing (m)</label><input type="number" id="transectSpacing" value="10"></div>
+          <div class="field"><label>Length (m)</label><input type="number" id="transectLength" value="40"></div>
+        </div>
+        <button class="btn btn-primary" id="btn-calc-change">Generate transects &amp; calculate change</button>
+        <div class="status-line" id="statsSummary"></div>
+        <div class="hint">Needs: a baseline, plus at least one edge line tagged Survey A and one tagged Survey B.</div>
+
+        <div class="divider"></div>
+        <h3>Export</h3>
+        <button class="btn" id="btn-export-edges">Export edge lines (GeoJSON)</button>
+        <button class="btn" id="btn-export-transects">Export transects (GeoJSON)</button>
+        <button class="btn" id="btn-export-csv">Export results (CSV)</button>
+      </div>
+
+      <!-- ============ TAB: NOTES ============ -->
+      <div class="panel" id="panel-notes">
+        <div id="notesPanel">
+          <p><b>Canny + Otsu thresholding</b> — the classic approach for pulling a coastline or cliff break‑line out of optical imagery (adaptive‑threshold Canny coastline extraction goes back to Liu &amp; Jezek 2004, and the same combination shows up repeatedly in recent UAV cliff‑erosion work). Good for a sharp, bare‑earth scarp edge.</p>
+          <p><b>Excess Green (2G−R−B) + Otsu</b> — a standard RGB‑only substitute for NDVI (no near‑infrared sensor needed, so it works with an ordinary drone camera). Traces the vegetation trim‑line, which is often a more stable, trackable proxy than the true bank toe when overhanging vegetation obscures it — the same trade‑off noted in UAV riverbank studies (e.g. the Buëch river monitoring work), which combined automated extraction on open banks with manual digitising under tree cover. That's why manual edge digitising is offered alongside the automatic methods here.</p>
+          <p><b>HSV Value channel + Otsu</b> — water shows up as a patch of unusually uniform brightness, which is the basis of recent histogram‑based UAV river‑coastline detectors. Works best where the water's edge isn't hidden by overhanging vegetation.</p>
+          <p><b>Transect / DSAS method</b> — the standard way shoreline and cliff‑top retreat is measured between two dated surveys (USGS's Digital Shoreline Analysis System): a baseline, regularly spaced perpendicular transects, and the distance from baseline to each dated edge line along every transect. Used this way in published cliff‑top retreat studies comparing historic and recent orthophotos.</p>
+          <p><b>Georeferencing note</b> — pixel↔map coordinates are computed by linear interpolation across the raster's reprojected bounding box, not a full projected transform. This is accurate for the kind of unrotated, small‑extent orthomosaic a drone survey produces, but isn't appropriate for large or rotated mosaics spanning a wide area.</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="map"></div>
+    <div id="drawerHandle"><button id="btn-toggle-drawer">Results ▲</button></div>
+    <div id="resultsDrawer">
+      <div class="drawer-head">
+        <b>Transect results</b>
+        <span id="statsSummaryDrawer" style="color:var(--muted);font-size:12px;"></span>
+        <button class="drawer-close" id="btn-close-drawer">✕ close</button>
+      </div>
+      <div class="drawer-body">
+        <table id="resultsTable">
+          <thead><tr><th>#</th><th>Dist A (m)</th><th>Dist B (m)</th><th>Δ (B−A, m)</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+<script src="https://unpkg.com/georaster"></script>
+<script src="https://unpkg.com/georaster-layer-for-leaflet/dist/georaster-layer-for-leaflet.min.js"></script>
+<script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+
+<script>
+/* ============================================================
+   Edge & Erosion Monitor
+   Self-contained edge detection + DSAS-style change analysis
+   for drone orthophotos / GeoTIFFs.
+   ============================================================ */
+
+const COLORS = { A: '#06b6d4', B: '#f59e0b' };
+
+const state = {
+  activeSurvey: 'A',
+  surveys: { A: null, B: null },
+  aoiLayer: null,
+  baselineLayer: null,
+  transectResults: []
+};
+
+let pendingDrawType = null;
+
+// ---------- small utilities ----------
+function tick(){ return new Promise(r => setTimeout(r, 10)); }
+function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+function setStatus(msg){ document.getElementById('statusText').textContent = msg; }
+function downloadText(filename, text, mime){
+  const blob = new Blob([text], {type: mime});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ---------- map setup ----------
+const map = L.map('map', { zoomControl: true, maxZoom: 24 }).setView([54.0, -2.5], 6);
+
+// Dedicated pane for orthophoto/GeoTIFF overlays
+map.createPane('rasterPane');
+map.getPane('rasterPane').style.zIndex = 350;
+
+const streetLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+  attribution: 'Tiles &copy; Esri &mdash; Source: Esri, HERE, Garmin, USGS, Intermap, INCREMENT P, NRCan, Esri Japan, METI, Esri China (Hong Kong), Esri Korea, Esri (Thailand), NGCC, OpenStreetMap contributors, GIS User Community',
+  maxNativeZoom: 19,
+  maxZoom: 24
+}).addTo(map);
+
+const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+  attribution: 'Tiles &copy; Esri',
+  maxNativeZoom: 20,
+  maxZoom: 24
+});
+
+L.control.layers({ 'Street (Esri)': streetLayer, 'Satellite': satLayer }, {}, { position: 'topright' }).addTo(map);
+
+const drawnItems = new L.FeatureGroup().addTo(map);
+const transectLayerGroup = L.layerGroup().addTo(map);
+new L.Control.Draw({ draw: false, edit: { featureGroup: drawnItems } }).addTo(map);
+
+document.getElementById('swatch-A').style.background = COLORS.A;
+document.getElementById('swatch-B').style.background = COLORS.B;
+
+// ---------- draw interactions ----------
+let freehand = null; // { latlngs, previewLayer }
+
+function cancelPendingFreehand(){
+  map.off('mousedown', onFreehandStart);
+  if (freehand) {
+    map.removeLayer(freehand.previewLayer);
+    map.off('mousemove', onFreehandMove);
+    map.off('mouseup', onFreehandEnd);
+    document.removeEventListener('mouseup', onFreehandEnd);
+    map.dragging.enable();
+    map.doubleClickZoom.enable();
+    map.getContainer().style.cursor = '';
+    freehand = null;
+  }
+}
+
+function startDrawAoiRectangle(){
+  cancelPendingFreehand();
+  new L.Draw.Rectangle(map, { shapeOptions: { color: '#f59e0b', weight: 2 } }).enable();
+  pendingDrawType = 'aoi';
+}
+function startDrawAoiPolygon(){
+  cancelPendingFreehand();
+  new L.Draw.Polygon(map, { shapeOptions: { color: '#f59e0b', weight: 2 } }).enable();
+  pendingDrawType = 'aoi';
+}
+function startDrawAoiFreehand(){
+  cancelPendingFreehand();
+  setStatus('Freehand AOI: click and drag on the map, release to close the shape.');
+  map.dragging.disable();
+  map.doubleClickZoom.disable();
+  map.getContainer().style.cursor = 'crosshair';
+  map.once('mousedown', onFreehandStart);
+}
+function onFreehandStart(e){
+  freehand = { latlngs: [e.latlng], previewLayer: L.polyline([e.latlng], { color: '#f59e0b', weight: 2, dashArray: '4 4' }).addTo(map) };
+  map.on('mousemove', onFreehandMove);
+  map.on('mouseup', onFreehandEnd);
+  document.addEventListener('mouseup', onFreehandEnd);
+}
+function onFreehandMove(e){
+  if (!freehand) return;
+  freehand.latlngs.push(e.latlng);
+  freehand.previewLayer.setLatLngs(freehand.latlngs);
+}
+function onFreehandEnd(){
+  if (!freehand) return;
+  const latlngs = freehand.latlngs;
+  map.removeLayer(freehand.previewLayer);
+  map.off('mousemove', onFreehandMove);
+  map.off('mouseup', onFreehandEnd);
+  document.removeEventListener('mouseup', onFreehandEnd);
+  map.dragging.enable();
+  map.doubleClickZoom.enable();
+  map.getContainer().style.cursor = '';
+  freehand = null;
+
+  if (latlngs.length < 3) { setStatus('Freehand AOI needs a bigger shape — try again, dragging out an area.'); return; }
+
+  const ring = latlngs.map(ll => [ll.lng, ll.lat]);
+  ring.push(ring[0]);
+  let ringCoords = ring;
+  try {
+    const simplified = turf.simplify(turf.polygon([ring]), { tolerance: 0.00005, highQuality: false });
+    ringCoords = simplified.geometry.coordinates[0];
+  } catch(e) { /* fall back to the raw trail */ }
+
+  const coords = ringCoords.map(([lng, lat]) => [lat, lng]);
+  const layer = L.polygon(coords, { color: '#f59e0b', weight: 2 });
+  layer.customType = 'aoi';
+  if (state.aoiLayer) drawnItems.removeLayer(state.aoiLayer);
+  state.aoiLayer = layer;
+  drawnItems.addLayer(layer);
+  setStatus('Freehand AOI set.');
+}
+function startDrawAoi(){
+  const shape = document.getElementById('aoiShapeSelect').value;
+  if (shape === 'rectangle') startDrawAoiRectangle();
+  else if (shape === 'polygon') startDrawAoiPolygon();
+  else startDrawAoiFreehand();
+}
+
+function startDrawBaseline(){
+  cancelPendingFreehand();
+  new L.Draw.Polyline(map, { shapeOptions: { color: '#a855f7', weight: 3, dashArray: '6 6' } }).enable();
+  pendingDrawType = 'baseline';
+}
+function startDrawEdge(){
+  cancelPendingFreehand();
+  const color = state.activeSurvey === 'A' ? COLORS.A : COLORS.B;
+  new L.Draw.Polyline(map, { shapeOptions: { color, weight: 3 } }).enable();
+  pendingDrawType = 'edge';
+}
+
+map.on(L.Draw.Event.CREATED, e => {
+  const layer = e.layer;
+  if (pendingDrawType === 'aoi') {
+    if (state.aoiLayer) drawnItems.removeLayer(state.aoiLayer);
+    layer.customType = 'aoi';
+    state.aoiLayer = layer;
+  } else if (pendingDrawType === 'baseline') {
+    if (state.baselineLayer) drawnItems.removeLayer(state.baselineLayer);
+    layer.customType = 'baseline';
+    state.baselineLayer = layer;
+  } else if (pendingDrawType === 'edge') {
+    layer.customType = 'edge';
+    layer.customSurvey = state.activeSurvey;
+    layer.customSource = 'manual';
+  }
+  drawnItems.addLayer(layer);
+  pendingDrawType = null;
+});
+map.on('draw:drawstop', () => { pendingDrawType = null; });
+map.on('draw:deleted', e => {
+  e.layers.eachLayer(layer => {
+    if (layer === state.aoiLayer) state.aoiLayer = null;
+    if (layer === state.baselineLayer) state.baselineLayer = null;
+  });
+});
+
+document.getElementById('btn-draw-aoi').onclick = startDrawAoi;
+document.getElementById('btn-clear-aoi').onclick = () => {
+  if (state.aoiLayer) { drawnItems.removeLayer(state.aoiLayer); state.aoiLayer = null; }
+};
+document.getElementById('btn-draw-baseline').onclick = startDrawBaseline;
+document.getElementById('btn-clear-baseline').onclick = () => {
+  if (state.baselineLayer) { drawnItems.removeLayer(state.baselineLayer); state.baselineLayer = null; }
+};
+document.getElementById('btn-draw-edge').onclick = startDrawEdge;
+
+function clearAutoEdges(slot){
+  const toRemove = [];
+  drawnItems.eachLayer(l => { if (l.customType === 'edge' && l.customSurvey === slot && l.customSource === 'auto') toRemove.push(l); });
+  toRemove.forEach(l => drawnItems.removeLayer(l));
+}
+function clearAllEdges(slot){
+  const toRemove = [];
+  drawnItems.eachLayer(l => { if (l.customType === 'edge' && l.customSurvey === slot) toRemove.push(l); });
+  toRemove.forEach(l => drawnItems.removeLayer(l));
+}
+document.getElementById('btn-clear-auto-edges').onclick = () => clearAutoEdges(state.activeSurvey);
+document.getElementById('btn-clear-all-edges').onclick = () => clearAllEdges(state.activeSurvey);
+
+// ---------- tabs ----------
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ---------- active survey toggle ----------
+function refreshActiveButtons(){
+  document.getElementById('btn-active-A').style.outline = state.activeSurvey === 'A' ? '2px solid ' + COLORS.A : 'none';
+  document.getElementById('btn-active-B').style.outline = state.activeSurvey === 'B' ? '2px solid ' + COLORS.B : 'none';
+}
+document.getElementById('btn-active-A').onclick = () => { state.activeSurvey = 'A'; refreshActiveButtons(); };
+document.getElementById('btn-active-B').onclick = () => { state.activeSurvey = 'B'; refreshActiveButtons(); };
+refreshActiveButtons();
+
+// ---------- Survey B reveal / remove ----------
+document.getElementById('btn-show-survey-b').onclick = () => {
+  document.getElementById('survey-card-B').style.display = 'block';
+  document.getElementById('btn-show-survey-b').style.display = 'none';
+};
+document.getElementById('btn-remove-survey-b').onclick = () => {
+  const s = state.surveys.B;
+  if (s && s.leafletLayer) map.removeLayer(s.leafletLayer);
+  clearAllEdges('B');
+  state.surveys.B = null;
+  updateSurveyStatus('B');
+  document.getElementById('file-geotiff-B').value = '';
+  document.getElementById('file-image-B').value = '';
+  document.getElementById('date-B').value = '';
+  document.getElementById('survey-card-B').style.display = 'none';
+  document.getElementById('btn-show-survey-b').style.display = 'block';
+  if (state.activeSurvey === 'B') { state.activeSurvey = 'A'; refreshActiveButtons(); }
+  setStatus('Survey B removed.');
+};
+
+// ---------- format radio toggles ----------
+['A','B'].forEach(slot => {
+  document.querySelectorAll(`input[name="fmt-${slot}"]`).forEach(r => {
+    r.addEventListener('change', () => {
+      const isImg = document.querySelector(`input[name="fmt-${slot}"]:checked`).value === 'image';
+      document.getElementById('geotiff-fields-' + slot).style.display = isImg ? 'none' : 'block';
+      document.getElementById('image-fields-' + slot).style.display = isImg ? 'block' : 'none';
+    });
+  });
+  document.getElementById('opacity-' + slot).addEventListener('input', e => {
+    const v = parseFloat(e.target.value);
+    if (state.surveys[slot] && state.surveys[slot].leafletLayer) state.surveys[slot].leafletLayer.setOpacity(v);
+  });
+  document.getElementById('visible-' + slot).addEventListener('change', e => {
+    const layer = state.surveys[slot] && state.surveys[slot].leafletLayer;
+    if (!layer) return;
+    if (e.target.checked) map.addLayer(layer); else map.removeLayer(layer);
+  });
+});
+
+// ---------- method param toggles ----------
+document.getElementById('methodSelect').addEventListener('change', e => {
+  const isCanny = e.target.value === 'canny';
+  document.getElementById('canny-params').style.display = isCanny ? 'block' : 'none';
+  document.getElementById('threshold-params').style.display = isCanny ? 'none' : 'block';
+});
+document.getElementById('autoThreshold').addEventListener('change', e => {
+  document.getElementById('lowThresh').disabled = e.target.checked;
+  document.getElementById('highThresh').disabled = e.target.checked;
+});
+
+// ============================================================
+// Coordinate transforms
+// ============================================================
+function latLngToPixelOriginal(survey, lat, lng){
+  const { north, south, east, west } = survey.bounds;
+  const col = (lng - west) / (east - west) * survey.width;
+  const row = (north - lat) / (north - south) * survey.height;
+  return { row, col };
+}
+function pixelToLatLngOriginal(survey, row, col){
+  const { north, south, east, west } = survey.bounds;
+  const lat = north - (row / survey.height) * (north - south);
+  const lng = west + (col / survey.width) * (east - west);
+  return [lat, lng];
+}
+function layerToLatLngBounds(rectLayer){
+  const b = rectLayer.getBounds();
+  return { north: b.getNorth(), south: b.getSouth(), east: b.getEast(), west: b.getWest() };
+}
+
+// ============================================================
+// Survey loading
+// ============================================================
+function updateSurveyStatus(slot){
+  const s = state.surveys[slot];
+  const el = document.getElementById('status-' + slot);
+  if (!s) { el.textContent = 'Not loaded.'; return; }
+  el.textContent = `${s.name} · ${s.width}×${s.height}px · ${s.date || 'no date set'}`;
+}
+
+function isBackgroundPixel(r,g,b){
+  return (r<=2 && g<=2 && b<=2) || (r>=253 && g>=253 && b>=253);
+}
+
+async function handleLoadGeoTiff(slot, file){
+  setStatus(`Reading GeoTIFF for Survey ${slot}…`);
+  await tick();
+  const buf = await file.arrayBuffer();
+  const georaster = await parseGeoraster(buf);
+  if (state.surveys[slot] && state.surveys[slot].leafletLayer) map.removeLayer(state.surveys[slot].leafletLayer);
+  const noData = georaster.noDataValue;
+  const layer = new GeoRasterLayer({
+    georaster,
+    pane: 'rasterPane',
+    opacity: parseFloat(document.getElementById('opacity-' + slot).value),
+    resolution: 256,
+    pixelValuesToColorFn: values => {
+      const r = values[0], g = values.length > 1 ? values[1] : values[0], b = values.length > 2 ? values[2] : values[0];
+      if (noData != null && values[0] === noData) return null;
+      if (isBackgroundPixel(r, g, b)) return null;
+      return `rgb(${r},${g},${b})`;
+    }
+  });
+  layer.addTo(map);
+  const b = layer.getBounds();
+  const survey = {
+    kind: 'geotiff',
+    width: georaster.width, height: georaster.height,
+    bounds: { north: b.getNorth(), south: b.getSouth(), east: b.getEast(), west: b.getWest() },
+    georaster, leafletLayer: layer,
+    date: document.getElementById('date-' + slot).value || '',
+    name: file.name
+  };
+  state.surveys[slot] = survey;
+  map.fitBounds(b);
+  updateSurveyStatus(slot);
+  setStatus(`Survey ${slot} loaded: ${file.name}`);
+}
+
+function handleLoadImage(slot, file, north, south, east, west){
+  setStatus(`Reading image for Survey ${slot}…`);
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width; canvas.height = img.height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const imageData = ctx.getImageData(0, 0, img.width, img.height);
+    const displayData = ctx.createImageData(imageData);
+    displayData.data.set(imageData.data);
+    for (let i = 0; i < displayData.data.length; i += 4) {
+      if (isBackgroundPixel(displayData.data[i], displayData.data[i+1], displayData.data[i+2])) displayData.data[i+3] = 0;
+    }
+    ctx.putImageData(displayData, 0, 0);
+    if (state.surveys[slot] && state.surveys[slot].leafletLayer) map.removeLayer(state.surveys[slot].leafletLayer);
+    const bounds = L.latLngBounds([south, west], [north, east]);
+    const layer = L.imageOverlay(canvas.toDataURL('image/png'), bounds, { opacity: parseFloat(document.getElementById('opacity-' + slot).value), pane: 'rasterPane' }).addTo(map);
+    const survey = {
+      kind: 'image',
+      width: img.width, height: img.height,
+      bounds: { north, south, east, west },
+      imageData, leafletLayer: layer,
+      date: document.getElementById('date-' + slot).value || '',
+      name: file.name
+    };
+    state.surveys[slot] = survey;
+    map.fitBounds(bounds);
+    updateSurveyStatus(slot);
+    setStatus(`Survey ${slot} loaded: ${file.name}`);
+  };
+  img.onerror = () => setStatus('Could not read that image file.');
+  img.src = URL.createObjectURL(file);
+}
+
+function loadSlot(slot){
+  const fmt = document.querySelector(`input[name="fmt-${slot}"]:checked`).value;
+  if (fmt === 'geotiff') {
+    const f = document.getElementById('file-geotiff-' + slot).files[0];
+    if (!f) { setStatus(`Choose a GeoTIFF file for Survey ${slot}.`); return; }
+    handleLoadGeoTiff(slot, f).catch(err => { console.error(err); setStatus('Error loading GeoTIFF: ' + err.message); });
+  } else {
+    const f = document.getElementById('file-image-' + slot).files[0];
+    const north = parseFloat(document.getElementById('bounds-N-' + slot).value);
+    const south = parseFloat(document.getElementById('bounds-S-' + slot).value);
+    const east = parseFloat(document.getElementById('bounds-E-' + slot).value);
+    const west = parseFloat(document.getElementById('bounds-W-' + slot).value);
+    if (!f || [north, south, east, west].some(isNaN)) {
+      setStatus(`Choose an image and enter all 4 corner coordinates for Survey ${slot}.`);
+      return;
+    }
+    handleLoadImage(slot, f, north, south, east, west);
+  }
+}
+document.getElementById('load-btn-A').onclick = () => loadSlot('A');
+document.getElementById('load-btn-B').onclick = () => loadSlot('B');
+
+// ============================================================
+// Building a processing raster
+// ============================================================
+async function getProcessingRaster(survey, maxDim, cropBoundsLatLng){
+  if (survey.kind === 'image') return getProcessingRasterFromImage(survey, maxDim, cropBoundsLatLng);
+
+  const g = survey.georaster;
+  let left = 0, top = 0, right = survey.width, bottom = survey.height;
+  if (cropBoundsLatLng) {
+    const p1 = latLngToPixelOriginal(survey, cropBoundsLatLng.north, cropBoundsLatLng.west);
+    const p2 = latLngToPixelOriginal(survey, cropBoundsLatLng.south, cropBoundsLatLng.east);
+    left = clamp(Math.floor(Math.min(p1.col, p2.col)), 0, survey.width);
+    right = clamp(Math.ceil(Math.max(p1.col, p2.col)), 0, survey.width);
+    top = clamp(Math.floor(Math.min(p1.row, p2.row)), 0, survey.height);
+    bottom = clamp(Math.ceil(Math.max(p1.row, p2.row)), 0, survey.height);
+  }
+  const cropW = Math.max(1, right - left), cropH = Math.max(1, bottom - top);
+  const scale = maxDim === 0 ? 1 : Math.min(1, maxDim / Math.max(cropW, cropH));
+  const outW = Math.max(1, Math.round(cropW * scale));
+  const outH = Math.max(1, Math.round(cropH * scale));
+
+  const vals = g.values;
+  const bandCount = vals.length;
+  const flat = band => {
+    const arr = new Float32Array(outW * outH);
+    for (let r = 0; r < outH; r++) {
+      const srcRow = clamp(top + Math.floor((r + 0.5) / outH * cropH), 0, survey.height - 1);
+      const bandRow = band[srcRow];
+      for (let c = 0; c < outW; c++) {
+        const srcCol = clamp(left + Math.floor((c + 0.5) / outW * cropW), 0, survey.width - 1);
+        arr[r * outW + c] = bandRow[srcCol];
+      }
+    }
+    return arr;
+  };
+  const R = flat(vals[0]);
+  const G = bandCount > 1 ? flat(vals[1]) : R;
+  const B = bandCount > 2 ? flat(vals[2]) : R;
+
+  return {
+    width: outW, height: outH, bands: [R, G, B], singleBand: bandCount < 3,
+    pixelToLatLng(row, col){
+      const origCol = left + (col + 0.5) / outW * cropW;
+      const origRow = top + (row + 0.5) / outH * cropH;
+      return pixelToLatLngOriginal(survey, origRow, origCol);
+    }
+  };
+}
+
+function getProcessingRasterFromImage(survey, maxDim, cropBoundsLatLng){
+  let left = 0, top = 0, right = survey.width, bottom = survey.height;
+  if (cropBoundsLatLng) {
+    const p1 = latLngToPixelOriginal(survey, cropBoundsLatLng.north, cropBoundsLatLng.west);
+    const p2 = latLngToPixelOriginal(survey, cropBoundsLatLng.south, cropBoundsLatLng.east);
+    left = clamp(Math.floor(Math.min(p1.col, p2.col)), 0, survey.width);
+    right = clamp(Math.ceil(Math.max(p1.col, p2.col)), 0, survey.width);
+    top = clamp(Math.floor(Math.min(p1.row, p2.row)), 0, survey.height);
+    bottom = clamp(Math.ceil(Math.max(p1.row, p2.row)), 0, survey.height);
+  }
+  const cropW = Math.max(1, right - left), cropH = Math.max(1, bottom - top);
+  const scale = maxDim === 0 ? 1 : Math.min(1, maxDim / Math.max(cropW, cropH));
+  const outW = Math.max(1, Math.round(cropW * scale));
+  const outH = Math.max(1, Math.round(cropH * scale));
+
+  const srcCanvas = document.createElement('canvas');
+  srcCanvas.width = survey.width; srcCanvas.height = survey.height;
+  srcCanvas.getContext('2d').putImageData(survey.imageData, 0, 0);
+
+  const dstCanvas = document.createElement('canvas');
+  dstCanvas.width = outW; dstCanvas.height = outH;
+  const ctx = dstCanvas.getContext('2d');
+  ctx.drawImage(srcCanvas, left, top, cropW, cropH, 0, 0, outW, outH);
+  const id = ctx.getImageData(0, 0, outW, outH);
+
+  const R = new Float32Array(outW * outH), G = new Float32Array(outW * outH), B = new Float32Array(outW * outH);
+  for (let i = 0; i < outW * outH; i++) { R[i] = id.data[i*4]; G[i] = id.data[i*4+1]; B[i] = id.data[i*4+2]; }
+
+  return {
+    width: outW, height: outH, bands: [R, G, B], singleBand: false,
+    pixelToLatLng(row, col){
+      const origCol = left + (col + 0.5) / outW * cropW;
+      const origRow = top + (row + 0.5) / outH * cropH;
+      return pixelToLatLngOriginal(survey, origRow, origCol);
+    }
+  };
+}
+
+// ============================================================
+// Image processing algorithms
+// ============================================================
+function toGrayscale(raster){
+  const { width, height, bands } = raster;
+  const [R,G,B] = bands;
+  const out = new Float32Array(width * height);
+  for (let i = 0; i < out.length; i++) out[i] = 0.299*R[i] + 0.587*G[i] + 0.114*B[i];
+  return out;
+}
+function excessGreenIndex(raster){
+  const [R,G,B] = raster.bands;
+  const out = new Float32Array(R.length);
+  for (let i = 0; i < out.length; i++) out[i] = 2*G[i] - R[i] - B[i];
+  return out;
+}
+function hsvValueChannel(raster){
+  const [R,G,B] = raster.bands;
+  const out = new Float32Array(R.length);
+  for (let i = 0; i < out.length; i++) out[i] = Math.max(R[i], G[i], B[i]);
+  return out;
+}
+
+function gaussianBlur(src, width, height, sigma){
+  if (sigma <= 0) return src.slice();
+  const radius = Math.max(1, Math.round(sigma * 3));
+  const kernel = [];
+  let sum = 0;
+  for (let i = -radius; i <= radius; i++) { const v = Math.exp(-(i*i)/(2*sigma*sigma)); kernel.push(v); sum += v; }
+  for (let i = 0; i < kernel.length; i++) kernel[i] /= sum;
+
+  const tmp = new Float32Array(width * height);
+  const out = new Float32Array(width * height);
+  for (let r = 0; r < height; r++) for (let c = 0; c < width; c++) {
+    let acc = 0;
+    for (let k = -radius; k <= radius; k++) {
+      const cc = clamp(c + k, 0, width - 1);
+      acc += src[r*width + cc] * kernel[k + radius];
+    }
+    tmp[r*width + c] = acc;
+  }
+  for (let c = 0; c < width; c++) for (let r = 0; r < height; r++) {
+    let acc = 0;
+    for (let k = -radius; k <= radius; k++) {
+      const rr = clamp(r + k, 0, height - 1);
+      acc += tmp[rr*width + c] * kernel[k + radius];
+    }
+    out[r*width + c] = acc;
+  }
+  return out;
+}
+
+function sobel(gray, width, height){
+  const mag = new Float32Array(width * height);
+  const dir = new Float32Array(width * height);
+  const gx = [-1,0,1,-2,0,2,-1,0,1], gy = [-1,-2,-1,0,0,0,1,2,1];
+  for (let r = 1; r < height - 1; r++) for (let c = 1; c < width - 1; c++) {
+    let sx = 0, sy = 0, k = 0;
+    for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+      const v = gray[(r+dr)*width + (c+dc)];
+      sx += v*gx[k]; sy += v*gy[k]; k++;
+    }
+    const idx = r*width + c;
+    mag[idx] = Math.sqrt(sx*sx + sy*sy);
+    dir[idx] = Math.atan2(sy, sx);
+  }
+  return { mag, dir };
+}
+
+function nonMaxSuppress(mag, dir, width, height){
+  const out = new Float32Array(width * height);
+  for (let r = 1; r < height - 1; r++) for (let c = 1; c < width - 1; c++) {
+    const idx = r*width + c;
+    let angle = dir[idx] * 180 / Math.PI;
+    if (angle < 0) angle += 180;
+    let n1, n2;
+    if ((angle >= 0 && angle < 22.5) || (angle >= 157.5 && angle <= 180)) { n1 = mag[idx-1]; n2 = mag[idx+1]; }
+    else if (angle >= 22.5 && angle < 67.5) { n1 = mag[idx-width+1]; n2 = mag[idx+width-1]; }
+    else if (angle >= 67.5 && angle < 112.5) { n1 = mag[idx-width]; n2 = mag[idx+width]; }
+    else { n1 = mag[idx-width-1]; n2 = mag[idx+width+1]; }
+    out[idx] = (mag[idx] >= n1 && mag[idx] >= n2) ? mag[idx] : 0;
+  }
+  return out;
+}
+
+function otsuThreshold(data, bins){
+  bins = bins || 256;
+  let min = Infinity, max = -Infinity;
+  for (const v of data) { if (v < min) min = v; if (v > max) max = v; }
+  if (max <= min) return min;
+  const hist = new Array(bins).fill(0);
+  const scale = bins / (max - min + 1e-9);
+  for (const v of data) { let b = Math.floor((v - min) * scale); if (b >= bins) b = bins - 1; if (b < 0) b = 0; hist[b]++; }
+  const total = data.length;
+  let sum = 0; for (let i = 0; i < bins; i++) sum += i * hist[i];
+  let sumB = 0, wB = 0, wF = 0, varMax = -1, threshBin = 0;
+  for (let i = 0; i < bins; i++) {
+    wB += hist[i]; if (wB === 0) continue;
+    wF = total - wB; if (wF === 0) break;
+    sumB += i * hist[i];
+    const mB = sumB / wB, mF = (sum - sumB) / wF;
+    const between = wB * wF * (mB - mF) * (mB - mF);
+    if (between > varMax) { varMax = between; threshBin = i; }
+  }
+  return min + threshBin / scale;
+}
+
+function hysteresis(nms, width, height, low, high){
+  const label = new Uint8Array(width * height);
+  for (let i = 0; i < nms.length; i++) {
+    if (nms[i] >= high) label[i] = 2;
+    else if (nms[i] >= low) label[i] = 1;
+  }
+  const stack = [];
+  for (let i = 0; i < label.length; i++) if (label[i] === 2) stack.push(i);
+  const visited = new Uint8Array(width * height);
+  while (stack.length) {
+    const idx = stack.pop();
+    if (visited[idx]) continue;
+    visited[idx] = 1;
+    const r = Math.floor(idx / width), c = idx % width;
+    for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+      if (dr === 0 && dc === 0) continue;
+      const rr = r + dr, cc = c + dc;
+      if (rr < 0 || rr >= height || cc < 0 || cc >= width) continue;
+      const nIdx = rr*width + cc;
+      if (label[nIdx] === 1) { label[nIdx] = 2; stack.push(nIdx); }
+    }
+  }
+  const out = new Uint8Array(width * height);
+  for (let i = 0; i < label.length; i++) out[i] = label[i] === 2 ? 1 : 0;
+  return out;
+}
+
+function maskToBoundary(mask, width, height){
+  const boundary = new Uint8Array(width * height);
+  for (let r = 0; r < height; r++) for (let c = 0; c < width; c++) {
+    const i = r*width + c;
+    if (!mask[i]) continue;
+    if (r === 0 || c === 0 || r === height-1 || c === width-1) { boundary[i] = 1; continue; }
+    if (!mask[i-1] || !mask[i+1] || !mask[i-width] || !mask[i+width]) boundary[i] = 1;
+  }
+  return boundary;
+}
+
+function traceEdgeChains(mask, width, height, minLength){
+  const visited = new Uint8Array(width * height);
+  const order = [[-1,-1],[-1,0],[-1,1],[0,1],[1,1],[1,0],[1,-1],[0,-1]];
+  const idx = (r,c) => r*width + c;
+  const chains = [];
+
+  function walkFrom(startR, startC){
+    const pts = [[startR, startC]];
+    visited[idx(startR,startC)] = 1;
+    let cur = [startR, startC], extending = true;
+    while (extending) {
+      extending = false;
+      for (const [dr,dc] of order) {
+        const nr = cur[0]+dr, nc = cur[1]+dc;
+        if (nr < 0 || nr >= height || nc < 0 || nc >= width) continue;
+        const ni = idx(nr,nc);
+        if (mask[ni] && !visited[ni]) { visited[ni] = 1; pts.push([nr,nc]); cur = [nr,nc]; extending = true; break; }
+      }
+    }
+    cur = [startR, startC];
+    const front = [];
+    extending = true;
+    while (extending) {
+      extending = false;
+      for (const [dr,dc] of order) {
+        const nr = cur[0]+dr, nc = cur[1]+dc;
+        if (nr < 0 || nr >= height || nc < 0 || nc >= width) continue;
+        const ni = idx(nr,nc);
+        if (mask[ni] && !visited[ni]) { visited[ni] = 1; front.unshift([nr,nc]); cur = [nr,nc]; extending = true; break; }
+      }
+    }
+    return front.concat(pts);
+  }
+
+  for (let r = 0; r < height; r++) for (let c = 0; c < width; c++) {
+    const i = idx(r,c);
+    if (mask[i] && !visited[i]) {
+      const chain = walkFrom(r, c);
+      if (chain.length >= minLength) chains.push(chain);
+    }
+  }
+  return chains;
+}
+
+// ============================================================
+// Run detection
+// ============================================================
+function setProgress(pct, label){
+  document.getElementById('detectProgressWrap').style.display = 'block';
+  document.getElementById('detectProgressFill').style.width = clamp(pct, 0, 100) + '%';
+  document.getElementById('detectProgressLabel').textContent = label;
+}
+function hideProgress(){
+  document.getElementById('detectProgressWrap').style.display = 'none';
+}
+
+async function runDetection(){
+  const survey = state.surveys[state.activeSurvey];
+  if (!survey) { setStatus(`Load an image into Survey ${state.activeSurvey} first.`); return; }
+
+  document.getElementById('detectResultText').textContent = '';
+  setProgress(3, 'Preparing raster…');
+  setStatus('Preparing raster…');
+  await tick();
+
+  const maxDim = parseInt(document.getElementById('maxDimSelect').value, 10);
+  const cropBounds = state.aoiLayer ? layerToLatLngBounds(state.aoiLayer) : null;
+  let raster;
+  try {
+    raster = await getProcessingRaster(survey, maxDim, cropBounds);
+  } catch (err) {
+    console.error(err);
+    setStatus('Error preparing raster: ' + err.message);
+    hideProgress();
+    return;
+  }
+
+  const method = document.getElementById('methodSelect').value;
+  if (raster.singleBand && method !== 'canny') {
+    document.getElementById('detectResultText').textContent = 'Note: single-band raster — colour index may be meaningless. Consider Canny instead.';
+  }
+
+  const sigma = parseFloat(document.getElementById('blurSigma').value);
+  const minLen = parseInt(document.getElementById('minChainLen').value, 10);
+  let chainsPixel = [];
+
+  try {
+    if (method === 'canny') {
+      setProgress(15, 'Converting to grayscale…'); await tick();
+      const gray = toGrayscale(raster);
+      setProgress(30, 'Smoothing…'); await tick();
+      const blurred = gaussianBlur(gray, raster.width, raster.height, sigma);
+      setProgress(45, 'Computing gradients (Sobel)…'); await tick();
+      const { mag, dir } = sobel(blurred, raster.width, raster.height);
+      setProgress(58, 'Thinning edges…'); await tick();
+      const nms = nonMaxSuppress(mag, dir, raster.width, raster.height);
+      let low, high;
+      if (document.getElementById('autoThreshold').checked) {
+        let positives = nms.filter(v => v > 0);
+        if (positives.length === 0) positives = new Float32Array([1]);
+        high = otsuThreshold(positives);
+        low = high * 0.4;
+        document.getElementById('lowThresh').value = low.toFixed(1);
+        document.getElementById('highThresh').value = high.toFixed(1);
+      } else {
+        low = parseFloat(document.getElementById('lowThresh').value);
+        high = parseFloat(document.getElementById('highThresh').value);
+      }
+      setProgress(70, 'Linking edges (hysteresis)…'); await tick();
+      const mask = hysteresis(nms, raster.width, raster.height, low, high);
+      setProgress(85, 'Tracing edge lines…'); await tick();
+      chainsPixel = traceEdgeChains(mask, raster.width, raster.height, minLen);
+    } else {
+      setProgress(15, method === 'vegetation' ? 'Computing vegetation index…' : 'Computing brightness channel…'); await tick();
+      const indexArr = method === 'vegetation' ? excessGreenIndex(raster) : hsvValueChannel(raster);
+      setProgress(35, 'Smoothing…'); await tick();
+      const blurred = gaussianBlur(indexArr, raster.width, raster.height, sigma);
+      setProgress(55, 'Thresholding (Otsu)…'); await tick();
+      const t = otsuThreshold(blurred);
+      const invert = document.getElementById('invertMask').checked;
+      const mask = new Uint8Array(raster.width * raster.height);
+      for (let i = 0; i < blurred.length; i++) mask[i] = (invert ? blurred[i] < t : blurred[i] >= t) ? 1 : 0;
+      setProgress(70, 'Finding boundary…'); await tick();
+      const boundary = maskToBoundary(mask, raster.width, raster.height);
+      setProgress(85, 'Tracing edge lines…'); await tick();
+      chainsPixel = traceEdgeChains(boundary, raster.width, raster.height, minLen);
+    }
+
+    if (state.aoiLayer && !(state.aoiLayer instanceof L.Rectangle)) {
+      setProgress(90, 'Clipping to AOI shape…'); await tick();
+      const aoiPoly = state.aoiLayer.toGeoJSON();
+      const clipped = [];
+      chainsPixel.forEach(chain => {
+        let run = [];
+        chain.forEach(pt => {
+          const [lat, lng] = raster.pixelToLatLng(pt[0], pt[1]);
+          const inside = turf.booleanPointInPolygon(turf.point([lng, lat]), aoiPoly);
+          if (inside) {
+            run.push(pt);
+          } else {
+            if (run.length >= minLen) clipped.push(run);
+            run = [];
+          }
+        });
+        if (run.length >= minLen) clipped.push(run);
+      });
+      chainsPixel = clipped;
+    }
+
+    setProgress(95, 'Simplifying & placing on map…'); await tick();
+    clearAutoEdges(state.activeSurvey);
+    const simplifyDeg = parseFloat(document.getElementById('simplifyMeters').value) / 111320;
+    let totalLen = 0, count = 0;
+    const color = state.activeSurvey === 'A' ? COLORS.A : COLORS.B;
+
+    chainsPixel.forEach(chain => {
+      const latlngs = chain.map(([r,c]) => raster.pixelToLatLng(r,c));
+      const line = turf.lineString(latlngs.map(([lat,lng]) => [lng,lat]));
+      let simplified;
+      try { simplified = turf.simplify(line, { tolerance: simplifyDeg, highQuality: true }); }
+      catch(e) { simplified = line; }
+      const coords = simplified.geometry.coordinates.map(([lng,lat]) => [lat,lng]);
+      if (coords.length < 2) return;
+      const pl = L.polyline(coords, { color, weight: 3 });
+      pl.customType = 'edge'; pl.customSurvey = state.activeSurvey; pl.customSource = 'auto';
+      drawnItems.addLayer(pl);
+      totalLen += turf.length(simplified, { units: 'meters' });
+      count++;
+    });
+
+    setProgress(100, 'Done.');
+    const msg = `${count} segment(s), ~${totalLen.toFixed(1)} m total.`;
+    document.getElementById('detectResultText').textContent = msg;
+    setStatus('Detection on Survey ' + state.activeSurvey + ' done: ' + msg);
+  } finally {
+    setTimeout(hideProgress, 500);
+  }
+}
+document.getElementById('btn-run-detect').onclick = () => runDetection().catch(err => { console.error(err); setStatus('Detection error: ' + err.message); hideProgress(); });
+
+// ============================================================
+// Change analysis (DSAS-style transects)
+// ============================================================
+function collectEdgeFeatureCollection(slot){
+  const features = [];
+  drawnItems.eachLayer(layer => { if (layer.customType === 'edge' && layer.customSurvey === slot) features.push(layer.toGeoJSON()); });
+  return { type: 'FeatureCollection', features };
+}
+
+function generateTransects(baselineLatLngs, spacingM, lengthM){
+  const line = turf.lineString(baselineLatLngs.map(([lat,lng]) => [lng,lat]));
+  const totalLen = turf.length(line, { units: 'meters' });
+  const transects = [];
+  for (let d = 0; d <= totalLen; d += spacingM) {
+    const pt = turf.along(line, d, { units: 'meters' });
+    const d0 = Math.max(0, d - 1), d1 = Math.min(totalLen, d + 1);
+    const p0 = turf.along(line, d0, { units: 'meters' });
+    const p1 = turf.along(line, d1, { units: 'meters' });
+    const brg = turf.bearing(p0, p1);
+    const endA = turf.destination(pt, lengthM/2, brg + 90, { units: 'meters' });
+    const endB = turf.destination(pt, lengthM/2, brg - 90, { units: 'meters' });
+    const transectLine = turf.lineString([endA.geometry.coordinates, endB.geometry.coordinates]);
+    transects.push({ id: transects.length + 1, origin: pt, line: transectLine });
+  }
+  return transects;
+}
+
+function nearestIntersectionDistance(transect, fc){
+  if (!fc || !fc.features.length) return null;
+  let best = null;
+  fc.features.forEach(f => {
+    let pts;
+    try { pts = turf.lineIntersect(transect.line, f); } catch(e) { return; }
+    pts.features.forEach(p => {
+      const d = turf.distance(transect.origin, p, { units: 'meters' });
+      if (best === null || d < best) best = d;
+    });
+  });
+  return best;
+}
+
+function computeTransectResults(transects, edgeA, edgeB){
+  return transects.map(t => {
+    const distA = nearestIntersectionDistance(t, edgeA);
+    const distB = nearestIntersectionDistance(t, edgeB);
+    const delta = (distA != null && distB != null) ? (distB - distA) : null;
+    return Object.assign({}, t, { distA, distB, delta });
+  });
+}
+
+function renderTransects(results){
+  transectLayerGroup.clearLayers();
+  results.forEach(t => {
+    const coords = t.line.geometry.coordinates.map(([lng,lat]) => [lat,lng]);
+    let color = '#94a3b8';
+    if (t.delta != null) color = t.delta < 0 ? '#ef4444' : '#22c55e';
+    const pl = L.polyline(coords, { color, weight: t.delta != null ? 3 : 1.5, opacity: 0.9 });
+    pl.bindTooltip(`#${t.id} Δ=${t.delta != null ? t.delta.toFixed(2) + ' m' : 'n/a'}`);
+    transectLayerGroup.addLayer(pl);
+  });
+}
+
+function renderResultsTable(results){
+  const tbody = document.querySelector('#resultsTable tbody');
+  tbody.innerHTML = '';
+  results.forEach(t => {
+    const tr = document.createElement('tr');
+    const cls = t.delta == null ? '' : (t.delta < 0 ? 'neg' : 'pos');
+    tr.innerHTML = `<td>${t.id}</td><td>${t.distA != null ? t.distA.toFixed(2) : '–'}</td><td>${t.distB != null ? t.distB.toFixed(2) : '–'}</td><td class="${cls}">${t.delta != null ? t.delta.toFixed(2) : '–'}</td>`;
+    tbody.appendChild(tr);
+  });
+  const deltas = results.map(r => r.delta).filter(d => d != null);
+  let summary;
+  if (deltas.length) {
+    const mean = deltas.reduce((a,b) => a+b, 0) / deltas.length;
+    const max = Math.max(...deltas), min = Math.min(...deltas);
+    summary = `n=${deltas.length} transects · mean Δ ${mean.toFixed(2)} m · range ${min.toFixed(2)} to ${max.toFixed(2)} m`;
+  } else {
+    summary = 'No valid intersections found — check the transects actually cross both edge lines.';
+  }
+  document.getElementById('statsSummary').textContent = summary;
+  document.getElementById('statsSummaryDrawer').textContent = summary;
+  openDrawer();
+}
+
+function calculateChange(){
+  if (!state.baselineLayer) { setStatus('Draw a baseline first (Monitor tab).'); return; }
+  const edgeA = collectEdgeFeatureCollection('A');
+  const edgeB = collectEdgeFeatureCollection('B');
+  if (!edgeA.features.length || !edgeB.features.length) { setStatus('Need at least one edge line for Survey A and one for Survey B.'); return; }
+  const spacing = parseFloat(document.getElementById('transectSpacing').value) || 10;
+  const length = parseFloat(document.getElementById('transectLength').value) || 40;
+  const baseLatLngs = state.baselineLayer.getLatLngs().map(ll => [ll.lat, ll.lng]);
+  const transects = generateTransects(baseLatLngs, spacing, length);
+  const results = computeTransectResults(transects, edgeA, edgeB);
+  state.transectResults = results;
+  renderTransects(results);
+  renderResultsTable(results);
+  setStatus(`Change calculated across ${transects.length} transects.`);
+}
+document.getElementById('btn-calc-change').onclick = calculateChange;
+
+// ---------- results drawer ----------
+function openDrawer(){ document.getElementById('resultsDrawer').classList.add('open'); }
+function closeDrawer(){ document.getElementById('resultsDrawer').classList.remove('open'); }
+document.getElementById('btn-toggle-drawer').onclick = () => {
+  document.getElementById('resultsDrawer').classList.toggle('open');
+};
+document.getElementById('btn-close-drawer').onclick = closeDrawer;
+
+// ============================================================
+// Export
+// ============================================================
+document.getElementById('btn-export-edges').onclick = () => {
+  const features = [];
+  drawnItems.eachLayer(layer => {
+    if (layer.customType === 'edge') {
+      const gj = layer.toGeoJSON();
+      gj.properties = { survey: layer.customSurvey, source: layer.customSource || 'manual', date: (state.surveys[layer.customSurvey] && state.surveys[layer.customSurvey].date) || '' };
+      features.push(gj);
+    }
+  });
+  if (!features.length) { setStatus('No edge lines to export yet.'); return; }
+  downloadText('edges.geojson', JSON.stringify({ type: 'FeatureCollection', features }, null, 2), 'application/geo+json');
+};
+
+document.getElementById('btn-export-transects').onclick = () => {
+  if (!state.transectResults.length) { setStatus('No transects to export yet — run Generate transects & calculate change first.'); return; }
+  const features = state.transectResults.map(t => {
+    const f = t.line; f.properties = { id: t.id, distA: t.distA, distB: t.distB, delta: t.delta }; return f;
+  });
+  if (state.baselineLayer) {
+    const bl = state.baselineLayer.toGeoJSON();
+    bl.properties = { type: 'baseline' };
+    features.push(bl);
+  }
+  downloadText('transects.geojson', JSON.stringify({ type: 'FeatureCollection', features }, null, 2), 'application/geo+json');
+};
+
+document.getElementById('btn-export-csv').onclick = () => {
+  if (!state.transectResults.length) { setStatus('No results to export yet — run Generate transects & calculate change first.'); return; }
+  let csv = 'transect_id,origin_lat,origin_lng,dist_survey_A_m,dist_survey_B_m,delta_m\n';
+  state.transectResults.forEach(t => {
+    const [lng, lat] = t.origin.geometry.coordinates;
+    csv += `${t.id},${lat.toFixed(7)},${lng.toFixed(7)},${t.distA != null ? t.distA.toFixed(2) : ''},${t.distB != null ? t.distB.toFixed(2) : ''},${t.delta != null ? t.delta.toFixed(2) : ''}\n`;
+  });
+  downloadText('transect_results.csv', csv, 'text/csv');
+};
+
+setStatus('Ready. Load a GeoTIFF or image into Survey A to begin.');
+</script>
+</body>
+</html>

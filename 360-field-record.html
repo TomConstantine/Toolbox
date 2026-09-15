@@ -1186,6 +1186,8 @@
         return {
           x,
           y,
+          clientX,
+          clientY,
           normX: (clientX - imageRect.left) / imageRect.width,
           normY: (clientY - imageRect.top) / imageRect.height,
           imageX: clientX - imageRect.left,
@@ -1200,6 +1202,8 @@
       return {
         x,
         y,
+        clientX,
+        clientY,
         normX: x / rect.width,
         normY: y / rect.height,
         inImage: true
@@ -1214,11 +1218,13 @@
         /*
          * Pannellum's public API provides mouseEventToCoords(), rather than
          * coordsToPitchYaw().  Pass a document-style mouse event at the actual
-         * pointer location so the annotation is stored as panorama pitch/yaw.
+         * pointer location (captured earlier in getCanvasPos, so this works
+         * for both mouse and touch input) so the annotation is stored as
+         * panorama pitch/yaw.
          */
         const py = viewer.mouseEventToCoords({
-          clientX: e.clientX,
-          clientY: e.clientY
+          clientX: pos.clientX,
+          clientY: pos.clientY
         });
         if (Array.isArray(py) && py.length >= 2) {
           return { pitch: py[0], yaw: py[1], is360: true };
@@ -1378,9 +1384,10 @@
       /*
        * Pannellum does not expose a public pitch/yaw -> screen-coordinate
        * function. Project the stored spherical coordinate using the same
-       * rectilinear camera model: current pitch/yaw + current HFOV + viewer
-       * aspect ratio. This is recalculated on every render, so annotations
-       * remain attached to the panorama while panning, tilting and zooming.
+       * rectilinear (pinhole) camera model Pannellum's own equirectangular
+       * shader uses: current pitch/yaw + current HFOV + viewer aspect ratio.
+       * This is recalculated on every render, so annotations remain
+       * attached to the panorama while panning, tilting and zooming.
        */
       const panoEl = document.getElementById(`panorama-${targetPrefix}`);
       const r = panoEl ? panoEl.getBoundingClientRect() : null;
@@ -1406,12 +1413,22 @@
       while (dyaw > Math.PI) dyaw -= 2 * Math.PI;
       while (dyaw < -Math.PI) dyaw += 2 * Math.PI;
 
-      // Convert the spherical direction into camera coordinates.
+      // Direction of the annotated point, relative to the camera's yaw
+      // (but not yet its pitch).
       const cp = Math.cos(pitch);
       const sp = Math.sin(pitch);
-      const x = cp * Math.sin(dyaw);
-      const y = sp;
-      const z = cp * Math.cos(dyaw);
+      const x1 = cp * Math.sin(dyaw);
+      const y1 = sp;
+      const z1 = cp * Math.cos(dyaw);
+
+      // Now rotate that direction by the camera's current pitch too, so the
+      // point stays put when the viewer tilts up/down, not just when it
+      // pans left/right.
+      const cvp = Math.cos(viewPitch);
+      const svp = Math.sin(viewPitch);
+      const x = x1;
+      const y = y1 * cvp - z1 * svp;
+      const z = y1 * svp + z1 * cvp;
 
       // Behind the camera / effectively on the camera plane.
       if (z <= 0.0001) return null;

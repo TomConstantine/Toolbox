@@ -17,17 +17,16 @@
 
 <style>
   :root{
-    /* Dark Slate Woodland & Water Palette */
-    --ink: #0d1712;                /* Deep Slate Woodland Dark */
-    --stone: #15241b;              /* Dark Slate Green Panel */
-    --stone-2: #1e3327;            /* Card / Item Background */
-    --forest-green: #008542;       /* Slate Green Accent */
-    --moss: #2bb673;               /* Fresh Leaf / Primary Accent */
-    --water: #008d96;              /* River Teal Accent */
-    --highlight: #22d3ee;          /* Vibrant Cyan/Teal for Active state */
-    --parchment: #e6f2eb;          /* Clean Pale Tint Text */
-    --parchment-dim: #9ebdb0;      /* Muted Slate Text */
-    --rule: rgba(158, 189, 176, 0.16); /* Subtle Glass Borders */
+    --ink: #0d1712;
+    --stone: #15241b;
+    --stone-2: #1e3327;
+    --forest-green: #008542;
+    --moss: #2bb673;
+    --water: #008d96;
+    --highlight: #22d3ee;
+    --parchment: #e6f2eb;
+    --parchment-dim: #9ebdb0;
+    --rule: rgba(158, 189, 176, 0.16);
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
@@ -160,36 +159,131 @@
     align-items: center;
     justify-content: center;
   }
-  .viewer-box .box-tag {
+
+  /* Compact Top-Left Icon Toolbar */
+  .viewer-toolbar {
     position: absolute;
-    top: 10px; left: 10px;
-    z-index: 10;
-    background: rgba(13, 23, 18, 0.85);
+    top: 10px;
+    left: 10px;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(13, 23, 18, 0.88);
+    backdrop-filter: blur(4px);
     border: 1px solid var(--rule);
+    padding: 4px 8px;
+    border-radius: 6px;
+  }
+  .viewer-toolbar .box-tag {
     font-family: 'IBM Plex Mono', monospace;
     font-size: 11px;
-    padding: 4px 10px;
-    border-radius: 4px;
     color: var(--highlight);
+    margin-right: 4px;
+    white-space: nowrap;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .icon-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--parchment-dim);
+    width: 26px;
+    height: 26px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    padding: 0;
+  }
+  .icon-btn:hover {
+    background: var(--stone-2);
+    color: var(--highlight);
+    border-color: var(--rule);
+  }
+  .icon-btn.active {
+    background: var(--moss);
+    color: var(--ink);
   }
 
-  .fullscreen-box-btn {
+  /* Expanded Multi-Tool Annotation Bar */
+  .annotation-bar {
     position: absolute;
-    top: 10px; right: 10px;
-    z-index: 20;
-    background: rgba(13, 23, 18, 0.85);
+    top: 50px;
+    left: 10px;
+    z-index: 40;
+    background: rgba(13, 23, 18, 0.94);
+    border: 1px solid var(--moss);
+    border-radius: 6px;
+    padding: 6px 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.6);
+    flex-wrap: wrap;
+  }
+  .anno-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    border-right: 1px solid var(--rule);
+    padding-right: 8px;
+  }
+  .anno-group:last-child { border-right: none; padding-right: 0; }
+  .tool-btn {
+    background: var(--stone-2);
+    border: 1px solid var(--rule);
+    color: var(--parchment-dim);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .tool-btn:hover { border-color: var(--moss); color: var(--parchment); }
+  .tool-btn.active { background: var(--moss); color: var(--ink); font-weight: 600; border-color: var(--moss); }
+  
+  .color-picker { display: flex; gap: 5px; }
+  .color-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 1.5px solid transparent;
+    transition: transform 0.15s ease;
+  }
+  .color-dot:hover { transform: scale(1.2); }
+  .color-dot.active { border-color: #ffffff; transform: scale(1.15); }
+
+  .anno-action-btn {
+    background: var(--stone-2);
     border: 1px solid var(--rule);
     color: var(--parchment);
     font-family: 'IBM Plex Mono', monospace;
-    font-size: 10px;
-    padding: 4px 10px;
-    border-radius: 4px;
+    font-size: 9.5px;
+    padding: 4px 8px;
+    border-radius: 3px;
     cursor: pointer;
     text-transform: uppercase;
   }
-  .fullscreen-box-btn:hover {
-    border-color: var(--moss);
-    color: var(--moss);
+  .anno-action-btn:hover { border-color: var(--highlight); color: var(--highlight); }
+  .anno-action-btn.close-btn { border-color: var(--moss); color: var(--moss); }
+
+  /* Interactive Canvas Overlay */
+  .annotation-canvas {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 30;
+    pointer-events: none;
+  }
+  .annotation-canvas.active {
+    pointer-events: auto;
+    cursor: crosshair;
   }
 
   .panorama-frame { width: 100%; height: 100%; }
@@ -239,9 +333,7 @@
     z-index: 1;
     transition: height 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   }
-  #map.expanded-compare {
-    height: 500px;
-  }
+  #map.expanded-compare { height: 500px; }
 
   .map-legend {
     display: flex;
@@ -255,25 +347,10 @@
     border: 1px solid var(--rule);
     flex-wrap: wrap;
   }
-  .legend-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .legend-badge {
-    width: 10px;
-    height: 10px;
-    display: inline-block;
-  }
-  .legend-badge.type-360 {
-    background: var(--moss);
-    border-radius: 50%;
-    box-shadow: 0 0 4px var(--moss);
-  }
-  .legend-badge.type-flat {
-    background: var(--water);
-    border-radius: 2px;
-  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-badge { width: 10px; height: 10px; display: inline-block; }
+  .legend-badge.type-360 { background: var(--moss); border-radius: 50%; box-shadow: 0 0 4px var(--moss); }
+  .legend-badge.type-flat { background: var(--water); border-radius: 2px; }
 
   .coord-card{
     border-top:1px dashed var(--rule);
@@ -291,15 +368,10 @@
     margin-bottom:8px;
     line-height:1.35;
   }
-  .card-actions {
-    margin-top: 10px;
-  }
+  .card-actions { margin-top: 10px; }
 
   /* ---------- filter & node list ---------- */
-  .node-list-panel {
-    border-top: 1px dashed var(--rule);
-    padding-top: 12px;
-  }
+  .node-list-panel { border-top: 1px dashed var(--rule); padding-top: 12px; }
   .filter-bar {
     display: flex;
     gap: 4px;
@@ -322,29 +394,11 @@
     text-transform: uppercase;
     transition: all 0.2s ease;
   }
-  .filter-btn.active {
-    background: var(--moss);
-    color: var(--ink);
-    font-weight: 600;
-  }
+  .filter-btn.active { background: var(--moss); color: var(--ink); font-weight: 600; }
 
-  /* Survey Date panel */
-  .date-panel {
-    margin-bottom: 10px;
-  }
-  .date-panel-head {
-    display: flex;
-    justify-space: space-between;
-    align-items: center;
-    margin-bottom: 6px;
-  }
-  .date-panel-label {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 10px;
-    letter-spacing: .1em;
-    text-transform: uppercase;
-    color: var(--moss);
-  }
+  .date-panel { margin-bottom: 10px; }
+  .date-panel-head { display: flex; justify-space: space-between; align-items: center; margin-bottom: 6px; }
+  .date-panel-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--moss); }
   .compare-toggle-btn {
     background: var(--stone-2);
     border: 1px solid var(--rule);
@@ -357,17 +411,8 @@
     text-transform: uppercase;
     transition: all 0.2s ease;
   }
-  .compare-toggle-btn.active {
-    background: var(--highlight);
-    border-color: var(--highlight);
-    color: var(--ink);
-    font-weight: 600;
-  }
-  .date-chip-row {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-  }
+  .compare-toggle-btn.active { background: var(--highlight); border-color: var(--highlight); color: var(--ink); font-weight: 600; }
+  .date-chip-row { display: flex; gap: 6px; flex-wrap: wrap; }
   .date-chip {
     background: var(--stone-2);
     border: 1px solid var(--rule);
@@ -381,11 +426,7 @@
     white-space: nowrap;
   }
   .date-chip:hover { border-color: var(--moss); }
-  .date-chip.active {
-    background: rgba(0, 141, 150, 0.25);
-    border-color: var(--water);
-    color: #ffffff;
-  }
+  .date-chip.active { background: rgba(0, 141, 150, 0.25); border-color: var(--water); color: #ffffff; }
 
   .subfilter-row {
     display: flex;
@@ -397,11 +438,7 @@
     color: var(--parchment-dim);
     flex-wrap: wrap;
   }
-  .subfilter-row .subfilter-label {
-    text-transform: uppercase;
-    letter-spacing: .08em;
-    color: var(--moss);
-  }
+  .subfilter-row .subfilter-label { text-transform: uppercase; letter-spacing: .08em; color: var(--moss); }
   .subfilter-btn {
     background: var(--stone-2);
     border: 1px solid var(--rule);
@@ -414,19 +451,9 @@
     text-transform: uppercase;
     transition: all 0.2s ease;
   }
-  .subfilter-btn.active {
-    background: rgba(43, 182, 115, 0.2);
-    border-color: var(--moss);
-    color: var(--moss);
-  }
+  .subfilter-btn.active { background: rgba(43, 182, 115, 0.2); border-color: var(--moss); color: var(--moss); }
 
-  .node-list {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    max-height: 200px;
-    overflow-y: auto;
-  }
+  .node-list { display: flex; flex-direction: column; gap: 6px; max-height: 200px; overflow-y: auto; }
   .node-item {
     padding: 8px 12px;
     border-radius: 6px;
@@ -436,7 +463,7 @@
     color: var(--parchment-dim);
     cursor: pointer;
     display: flex;
-    justify-content: space-between;
+    justify-space: space-between;
     align-items: center;
     border: 1px solid transparent;
     transition: all 0.2s ease;
@@ -454,28 +481,10 @@
     background: rgba(34, 211, 238, 0.15);
     box-shadow: inset 3px 0 0 var(--highlight);
   }
-  .node-item .node-info {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .node-badge {
-    font-size: 9px;
-    padding: 2px 4px;
-    border-radius: 3px;
-    font-weight: 500;
-  }
-  .node-badge.type-360 {
-    background: rgba(43, 182, 115, 0.2);
-    color: var(--moss);
-  }
-  .node-badge.type-flat {
-    background: rgba(0, 141, 150, 0.2);
-    color: #38bdf8;
-  }
+  .node-item .node-info { display: flex; align-items: center; gap: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .node-badge { font-size: 9px; padding: 2px 4px; border-radius: 3px; font-weight: 500; }
+  .node-badge.type-360 { background: rgba(43, 182, 115, 0.2); color: var(--moss); }
+  .node-badge.type-flat { background: rgba(0, 141, 150, 0.2); color: #38bdf8; }
   .node-delete-btn {
     background: transparent;
     border: none;
@@ -486,12 +495,9 @@
     border-radius: 3px;
     transition: all 0.2s ease;
   }
-  .node-delete-btn:hover {
-    background: rgba(239, 68, 68, 0.25);
-    color: #ef4444;
-  }
+  .node-delete-btn:hover { background: rgba(239, 68, 68, 0.25); color: #ef4444; }
 
-  /* ---------- modals ---------- */
+  /* ---------- modals & form controls ---------- */
   .modal-overlay {
     position: fixed;
     top: 0; left: 0; width: 100%; height: 100%;
@@ -512,29 +518,10 @@
     max-height: 90vh;
     overflow-y: auto;
   }
-  .modal-content h3 {
-    font-family: 'Fraunces', serif;
-    margin: 0 0 10px;
-    color: #ffffff;
-    font-size: 22px;
-  }
-  .modal-desc {
-    font-size: 12.5px;
-    color: var(--parchment-dim);
-    margin-bottom: 20px;
-    line-height: 1.5;
-  }
-  .form-group {
-    margin-bottom: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-  .form-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-  }
+  .modal-content h3 { font-family: 'Fraunces', serif; margin: 0 0 10px; color: #ffffff; font-size: 22px; }
+  .modal-desc { font-size: 12.5px; color: var(--parchment-dim); margin-bottom: 20px; line-height: 1.5; }
+  .form-group { margin-bottom: 16px; display: flex; flex-direction: column; gap: 6px; width: 100%; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .form-group label {
     font-family: 'IBM Plex Mono', monospace;
     font-size: 11px;
@@ -551,18 +538,48 @@
     font-family: 'Inter', sans-serif;
     font-size: 13.5px;
     outline: none;
-  }
-  .form-group select:focus, .form-group input:focus {
-    border-color: var(--moss);
-  }
-  .modal-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    margin-top: 20px;
+    width: 100%;
   }
 
-  /* ---------- Full-Screen Dual Viewer Popup ---------- */
+  /* Range Slider Flush Styling Fix */
+  .form-group input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    background: var(--stone-2);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    outline: none;
+    margin: 8px 0;
+    padding: 0;
+    cursor: pointer;
+  }
+  .form-group input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--moss);
+    cursor: pointer;
+    box-shadow: 0 0 6px rgba(43, 182, 115, 0.5);
+  }
+  .form-group input[type="range"]::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--moss);
+    cursor: pointer;
+    border: none;
+  }
+
+  .form-group select:focus, .form-group input:focus { border-color: var(--moss); }
+  .checkbox-group { display: flex; align-items: center; gap: 10px; font-size: 13px; margin-top: 6px; }
+  .checkbox-group input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--moss); cursor: pointer; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+
+  /* Full-Screen Dual Viewer Modal */
   .compare-modal-window {
     background: var(--ink);
     border: 1px solid var(--rule);
@@ -574,35 +591,12 @@
     padding: 20px;
     box-shadow: 0 25px 60px rgba(0,0,0,0.85);
   }
-  .compare-modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 14px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--rule);
-  }
-  .compare-modal-title {
-    font-family: 'Fraunces', serif;
-    font-size: 20px;
-    color: #ffffff;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-  .compare-header-actions {
-    display: flex;
-    gap: 10px;
-  }
-  .compare-modal-body {
-    flex: 1;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    min-height: 0;
-  }
+  .compare-modal-header { display: flex; justify-space-between; align-items: center; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--rule); }
+  .compare-modal-title { font-family: 'Fraunces', serif; font-size: 20px; color: #ffffff; display: flex; align-items: center; gap: 12px; }
+  .compare-header-actions { display: flex; gap: 10px; }
+  .compare-modal-body { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; min-height: 0; }
 
-  /* Guided Compare Floating Step Bar */
+  /* Floating Step Bar */
   .step-floating-bar {
     position: fixed;
     top: 20px;
@@ -621,21 +615,10 @@
     font-size: 12px;
     color: var(--parchment);
   }
-  .step-badge {
-    background: var(--highlight);
-    color: var(--ink);
-    padding: 3px 8px;
-    border-radius: 12px;
-    font-weight: 600;
-    font-size: 11px;
-  }
+  .step-badge { background: var(--highlight); color: var(--ink); padding: 3px 8px; border-radius: 12px; font-weight: 600; font-size: 11px; }
 
-  /* ---------- leaflet markers & subtle black arrows ---------- */
-  .marker-wrap {
-    position: relative;
-    width: 30px;
-    height: 30px;
-  }
+  /* Leaflet markers */
+  .marker-wrap { position: relative; width: 30px; height: 30px; }
   .custom-marker {
     position: absolute;
     top: 50%; left: 50%;
@@ -644,28 +627,11 @@
     transition: all 0.2s ease;
     border: 2px solid #ffffff;
   }
-  .custom-marker.type-360 {
-    width: 14px; height: 14px;
-    background-color: var(--moss);
-    border-radius: 50%;
-  }
-  .custom-marker.type-flat {
-    width: 12px; height: 12px;
-    background-color: var(--water);
-    border-radius: 3px;
-  }
-  .custom-marker.active {
-    transform: translate(-50%,-50%) scale(1.4);
-    box-shadow: 0 0 12px var(--highlight);
-    border-color: #ffffff;
-  }
-  .custom-marker.active-secondary {
-    transform: translate(-50%,-50%) scale(1.3);
-    box-shadow: 0 0 12px var(--moss);
-    border-color: var(--moss);
-  }
+  .custom-marker.type-360 { width: 14px; height: 14px; background-color: var(--moss); border-radius: 50%; }
+  .custom-marker.type-flat { width: 12px; height: 12px; background-color: var(--water); border-radius: 3px; }
+  .custom-marker.active { transform: translate(-50%,-50%) scale(1.4); box-shadow: 0 0 12px var(--highlight); border-color: #ffffff; }
+  .custom-marker.active-secondary { transform: translate(-50%,-50%) scale(1.3); box-shadow: 0 0 12px var(--moss); border-color: var(--moss); }
 
-  /* Subtle Uniform Black Heading Arrow System */
   .heading-pivot {
     position: absolute;
     top: 50%; left: 50%;
@@ -683,7 +649,6 @@
     opacity: 0.9;
     filter: drop-shadow(0 1px 2px rgba(255,255,255,0.4));
   }
-
   .view-cone {
     position: absolute;
     left: -5px; top: -24px;
@@ -728,10 +693,43 @@
 
 <main>
   <section class="viewer-panel">
-    <!-- Main Viewer Frame -->
-    <div class="viewer-box" id="box-primary" style="aspect-ratio: 16/10;">
-      <span class="box-tag" id="tag-primary">Primary Node</span>
-      <button class="fullscreen-box-btn" onclick="toggleElementFullscreen('box-primary')">Fullscreen</button>
+    <!-- Main Viewer Box -->
+    <div class="viewer-box" id="box-primary">
+      <div class="viewer-toolbar">
+        <span class="box-tag" id="tag-primary">Primary Node</span>
+        <button class="icon-btn" id="annoBtn-primary" title="Annotate Image" onclick="toggleAnnotationMode('primary')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        </button>
+        <button class="icon-btn" title="Set Current View as North (0°)" onclick="recalibrateNorth('primary')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="12 6 15 12 12 18 9 12 12 6" fill="currentColor"/></svg>
+        </button>
+        <button class="icon-btn" title="Toggle Fullscreen" onclick="toggleElementFullscreen('box-primary')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+        </button>
+      </div>
+
+      <!-- Annotation Bar with Multi-Tools (Brush, Arrow, Box, Text) -->
+      <div class="annotation-bar" id="annotationBar-primary" style="display:none;">
+        <div class="anno-group">
+          <button class="tool-btn active" id="tool-brush-primary" onclick="setAnnoTool('primary','brush')">Brush</button>
+          <button class="tool-btn" id="tool-arrow-primary" onclick="setAnnoTool('primary','arrow')">Arrow</button>
+          <button class="tool-btn" id="tool-box-primary" onclick="setAnnoTool('primary','box')">Box</button>
+          <button class="tool-btn" id="tool-text-primary" onclick="setAnnoTool('primary','text')">Text</button>
+        </div>
+        <div class="anno-group">
+          <div class="color-picker" id="colorPicker-primary">
+            <span class="color-dot active" style="background:#22d3ee" data-color="#22d3ee"></span>
+            <span class="color-dot" style="background:#ef4444" data-color="#ef4444"></span>
+            <span class="color-dot" style="background:#f59e0b" data-color="#f59e0b"></span>
+            <span class="color-dot" style="background:#2bb673" data-color="#2bb673"></span>
+            <span class="color-dot" style="background:#ffffff" data-color="#ffffff"></span>
+          </div>
+        </div>
+        <button class="anno-action-btn" onclick="clearAnnotations('primary')">Clear</button>
+        <button class="anno-action-btn close-btn" onclick="toggleAnnotationMode('primary')">Done</button>
+      </div>
+
+      <canvas class="annotation-canvas" id="annoCanvas-primary"></canvas>
       <div id="panorama-primary" class="panorama-frame"></div>
       <img id="flat-primary" class="flat-frame" alt="Primary Preview" />
     </div>
@@ -747,7 +745,6 @@
       <span id="nodeCountLabel">0 Nodes</span>
     </div>
 
-    <!-- Map Type Legend -->
     <div class="map-legend">
       <div class="legend-item"><span class="legend-badge type-360"></span> 360° Photo</div>
       <div class="legend-item"><span class="legend-badge type-flat"></span> Flat Photo</div>
@@ -765,7 +762,6 @@
       </div>
     </div>
 
-    <!-- Filter & Node List Quick-Selector -->
     <div class="node-list-panel">
       <div class="date-panel">
         <div class="date-panel-head">
@@ -803,22 +799,19 @@
   <button id="cancelCompareStepBtn" class="upload-btn secondary" style="padding:4px 10px; font-size:10px; border-color:var(--parchment-dim); color:var(--parchment);">Exit Compare</button>
 </div>
 
-<!-- Initial Date Selection Popup Modal -->
+<!-- Date Selection Modal -->
 <div id="compareSetupModal" class="modal-overlay" style="display:none;">
   <div class="modal-content">
     <h3>Compare Survey Datasets</h3>
     <div class="modal-desc">Select two dates to compare. The guided step picker will expand the map to let you choose individual images.</div>
-    
     <div class="form-group">
       <label for="compareDatePrimarySelect">Primary Dataset (Left Viewer)</label>
       <select id="compareDatePrimarySelect"></select>
     </div>
-
     <div class="form-group">
       <label for="compareDateSecondarySelect">Comparison Dataset (Right Viewer)</label>
       <select id="compareDateSecondarySelect"></select>
     </div>
-
     <div class="modal-actions">
       <button id="cancelCompareSetupBtn" class="upload-btn secondary">Cancel</button>
       <button id="start2StepCompareBtn" class="upload-btn">Start 2-Step Select</button>
@@ -830,7 +823,7 @@
 <div id="exportConfigModal" class="modal-overlay" style="display:none;">
   <div class="modal-content">
     <h3>Save Field Record HTML</h3>
-    <div class="modal-desc">Configure output file name and image quality before generating the standalone HTML file.</div>
+    <div class="modal-desc">Adjust output filename, scale image resolution dynamically, and toggle annotations before generating the standalone HTML file.</div>
     
     <div class="form-group">
       <label for="exportFilename">Output Filename</label>
@@ -838,12 +831,20 @@
     </div>
 
     <div class="form-group">
-      <label for="exportResolution">Image Quality & Resolution</label>
-      <select id="exportResolution">
-        <option value="original">Original Full Quality (Unchanged)</option>
-        <option value="2048">2048px Max Dimension (Balanced)</option>
-        <option value="1280">1280px Max Dimension (Compressed / Faster)</option>
-      </select>
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <label for="exportScaleSlider">Image Scale Percentage</label>
+        <span id="scaleValLabel" style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--moss); font-weight:600;">100%</span>
+      </div>
+      <input type="range" id="exportScaleSlider" min="15" max="100" step="5" value="100" oninput="updateExportEstimateUI()">
+    </div>
+
+    <div class="checkbox-group">
+      <input type="checkbox" id="exportKeepAnnotations" checked>
+      <label for="exportKeepAnnotations">Retain annotations on exported file</label>
+    </div>
+
+    <div style="margin-top: 15px; padding: 10px; background: rgba(0,0,0,0.25); border: 1px solid var(--rule); border-radius: 6px; font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--parchment-dim);">
+      Estimated Export File Size: <b id="estSizeText" style="color:var(--moss);">Calculating...</b>
     </div>
 
     <div class="modal-actions">
@@ -853,7 +854,7 @@
   </div>
 </div>
 
-<!-- Large Full-Screen Compare Popup View -->
+<!-- Dual Viewer Compare Popup View -->
 <div id="compareFullModal" class="modal-overlay" style="display:none;">
   <div class="compare-modal-window">
     <div class="compare-modal-header">
@@ -869,16 +870,80 @@
     <div class="compare-modal-body">
       <!-- Left Viewer Box -->
       <div class="viewer-box" id="box-compare-left" style="height:100%;">
-        <span class="box-tag" id="tag-compare-left">Left Node</span>
-        <button class="fullscreen-box-btn" onclick="toggleElementFullscreen('box-compare-left')">Fullscreen</button>
+        <div class="viewer-toolbar">
+          <span class="box-tag" id="tag-compare-left">Left Node</span>
+          <button class="icon-btn" id="annoBtn-compare-left" title="Annotate Image" onclick="toggleAnnotationMode('compare-left')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          </button>
+          <button class="icon-btn" title="Set Current View as North (0°)" onclick="recalibrateNorth('left')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="12 6 15 12 12 18 9 12 12 6" fill="currentColor"/></svg>
+          </button>
+          <button class="icon-btn" title="Toggle Fullscreen" onclick="toggleElementFullscreen('box-compare-left')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+          </button>
+        </div>
+
+        <div class="annotation-bar" id="annotationBar-compare-left" style="display:none;">
+          <div class="anno-group">
+            <button class="tool-btn active" id="tool-brush-compare-left" onclick="setAnnoTool('compare-left','brush')">Brush</button>
+            <button class="tool-btn" id="tool-arrow-compare-left" onclick="setAnnoTool('compare-left','arrow')">Arrow</button>
+            <button class="tool-btn" id="tool-box-compare-left" onclick="setAnnoTool('compare-left','box')">Box</button>
+            <button class="tool-btn" id="tool-text-compare-left" onclick="setAnnoTool('compare-left','text')">Text</button>
+          </div>
+          <div class="anno-group">
+            <div class="color-picker" id="colorPicker-compare-left">
+              <span class="color-dot active" style="background:#22d3ee" data-color="#22d3ee"></span>
+              <span class="color-dot" style="background:#ef4444" data-color="#ef4444"></span>
+              <span class="color-dot" style="background:#f59e0b" data-color="#f59e0b"></span>
+              <span class="color-dot" style="background:#2bb673" data-color="#2bb673"></span>
+              <span class="color-dot" style="background:#ffffff" data-color="#ffffff"></span>
+            </div>
+          </div>
+          <button class="anno-action-btn" onclick="clearAnnotations('compare-left')">Clear</button>
+          <button class="anno-action-btn close-btn" onclick="toggleAnnotationMode('compare-left')">Done</button>
+        </div>
+
+        <canvas class="annotation-canvas" id="annoCanvas-compare-left"></canvas>
         <div id="panorama-compare-left" class="panorama-frame"></div>
         <img id="flat-compare-left" class="flat-frame" alt="Left Preview" />
       </div>
 
       <!-- Right Viewer Box -->
       <div class="viewer-box" id="box-compare-right" style="height:100%;">
-        <span class="box-tag" id="tag-compare-right" style="color:var(--moss);">Right Node</span>
-        <button class="fullscreen-box-btn" onclick="toggleElementFullscreen('box-compare-right')">Fullscreen</button>
+        <div class="viewer-toolbar">
+          <span class="box-tag" id="tag-compare-right" style="color:var(--moss);">Right Node</span>
+          <button class="icon-btn" id="annoBtn-compare-right" title="Annotate Image" onclick="toggleAnnotationMode('compare-right')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          </button>
+          <button class="icon-btn" title="Set Current View as North (0°)" onclick="recalibrateNorth('right')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="12 6 15 12 12 18 9 12 12 6" fill="currentColor"/></svg>
+          </button>
+          <button class="icon-btn" title="Toggle Fullscreen" onclick="toggleElementFullscreen('box-compare-right')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+          </button>
+        </div>
+
+        <div class="annotation-bar" id="annotationBar-compare-right" style="display:none;">
+          <div class="anno-group">
+            <button class="tool-btn active" id="tool-brush-compare-right" onclick="setAnnoTool('compare-right','brush')">Brush</button>
+            <button class="tool-btn" id="tool-arrow-compare-right" onclick="setAnnoTool('compare-right','arrow')">Arrow</button>
+            <button class="tool-btn" id="tool-box-compare-right" onclick="setAnnoTool('compare-right','box')">Box</button>
+            <button class="tool-btn" id="tool-text-compare-right" onclick="setAnnoTool('compare-right','text')">Text</button>
+          </div>
+          <div class="anno-group">
+            <div class="color-picker" id="colorPicker-compare-right">
+              <span class="color-dot active" style="background:#22d3ee" data-color="#22d3ee"></span>
+              <span class="color-dot" style="background:#ef4444" data-color="#ef4444"></span>
+              <span class="color-dot" style="background:#f59e0b" data-color="#f59e0b"></span>
+              <span class="color-dot" style="background:#2bb673" data-color="#2bb673"></span>
+              <span class="color-dot" style="background:#ffffff" data-color="#ffffff"></span>
+            </div>
+          </div>
+          <button class="anno-action-btn" onclick="clearAnnotations('compare-right')">Clear</button>
+          <button class="anno-action-btn close-btn" onclick="toggleAnnotationMode('compare-right')">Done</button>
+        </div>
+
+        <canvas class="annotation-canvas" id="annoCanvas-compare-right"></canvas>
         <div id="panorama-compare-right" class="panorama-frame"></div>
         <img id="flat-compare-right" class="flat-frame" alt="Right Preview" />
       </div>
@@ -890,12 +955,10 @@
 <div id="editModal" class="modal-overlay" style="display:none;">
   <div class="modal-content">
     <h3>Edit Node Metadata</h3>
-    
     <div class="form-group">
       <label for="editTitle">Node Title / Name</label>
       <input type="text" id="editTitle">
     </div>
-
     <div class="form-row">
       <div class="form-group">
         <label for="editDate">Captured Date</label>
@@ -906,7 +969,6 @@
         <input type="text" id="editDevice">
       </div>
     </div>
-
     <div class="form-row">
       <div class="form-group">
         <label for="editLat">Latitude</label>
@@ -917,7 +979,6 @@
         <input type="number" step="any" id="editLon">
       </div>
     </div>
-
     <div class="form-row">
       <div class="form-group">
         <label for="editHeading">Heading (° True North)</label>
@@ -928,12 +989,10 @@
         <input type="number" step="any" min="-90" max="90" id="editPitch" placeholder="e.g. -90">
       </div>
     </div>
-
     <div class="form-group">
       <label for="editSurveyDate">Survey Date</label>
       <input type="date" id="editSurveyDate" style="background:var(--stone-2); border:1px solid var(--rule); color:var(--parchment); padding:9px 12px; border-radius:6px; font-family:'Inter',sans-serif; font-size:13.5px; outline:none;">
     </div>
-
     <div class="modal-actions">
       <button id="cancelEditBtn" class="upload-btn secondary">Cancel</button>
       <button id="saveEditBtn" class="upload-btn">Save Changes</button>
@@ -958,7 +1017,6 @@
   let dateFilterMode = 'single'; 
   let activeDateKey = 'all'; 
   
-  // Guided Compare state
   let compareStep = 0;
   let comparePrimaryDate = null;
   let compareSecondaryDate = null;
@@ -969,39 +1027,32 @@
   let isSyncingViewers = false;
   let yawPollTimer = null;
 
-  // Map Setup with Multiple Esri & OpenStreetMap Basemaps
+  // Annotations state per viewer box target ('primary', 'compare-left', 'compare-right')
+  const annoStates = {
+    'primary': { active: false, tool: 'brush', color: '#22d3ee', isDrawing: false, startPt: null, tempShape: null },
+    'compare-left': { active: false, tool: 'brush', color: '#22d3ee', isDrawing: false, startPt: null, tempShape: null },
+    'compare-right': { active: false, tool: 'brush', color: '#22d3ee', isDrawing: false, startPt: null, tempShape: null }
+  };
+
+  // Leaflet Map Initialization
   let map = L.map('map').setView([DEFAULT_LAT, DEFAULT_LON], 10);
 
   const esriImagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
       maxZoom: 19,
-      attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+      attribution: 'Tiles &copy; Esri'
   });
-
-  const esriTopo = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
-      maxZoom: 19,
-      attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), and the GIS User Community'
-  });
-
-  const esriStreet = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
-      maxZoom: 19,
-      attribution: 'Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, Intermap, iPC, NRCAN, Esri Japan, METI, Esri China (Hong Kong)'
-  });
-
-  const osmMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap contributors'
-  });
+  const esriTopo = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Esri Topo' });
+  const esriStreet = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Esri Street' });
+  const osmMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: 'OSM' });
 
   esriImagery.addTo(map);
 
-  const baseMaps = {
+  L.control.layers({
     "Esri Satellite Imagery": esriImagery,
     "Esri Topographic": esriTopo,
     "Esri Street Map": esriStreet,
     "OpenStreetMap": osmMap
-  };
-
-  L.control.layers(baseMaps).addTo(map);
+  }).addTo(map);
 
   function toggleElementFullscreen(elementId) {
     const el = document.getElementById(elementId);
@@ -1041,6 +1092,497 @@
     const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
     const mi = parseInt(bits[1], 10) - 1;
     return `${parseInt(bits[2], 10)} ${months[mi] || bits[1]} ${bits[0]}`;
+  }
+
+  /* ---------- SPATIALLY-STUCK ANNOTATION SYSTEM ---------- */
+  function getViewerInstance(targetPrefix) {
+    if (targetPrefix === 'primary') return pViewerPrimary;
+    if (targetPrefix === 'compare-left') return pViewerLeft;
+    if (targetPrefix === 'compare-right') return pViewerRight;
+    return null;
+  }
+
+  function setAnnoTool(targetPrefix, toolName) {
+    const st = annoStates[targetPrefix];
+    st.tool = toolName;
+    const bar = document.getElementById(`annotationBar-${targetPrefix}`);
+    if (bar) {
+      bar.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+      const activeBtn = document.getElementById(`tool-${toolName}-${targetPrefix}`);
+      if (activeBtn) activeBtn.classList.add('active');
+    }
+  }
+
+  function initAnnotationCanvas(targetPrefix) {
+    const canvas = document.getElementById(`annoCanvas-${targetPrefix}`);
+    if (!canvas) return;
+
+    const resizeCanvas = () => {
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+      redrawAnnotations(targetPrefix);
+    };
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    /*
+     * IMPORTANT:
+     * The annotation canvas covers the whole viewer box, but a flat image
+     * using object-fit: contain does NOT necessarily fill that box.
+     *
+     * Store flat-image annotations as normalised coordinates INSIDE THE
+     * ACTUAL DISPLAYED IMAGE rectangle, rather than relative to the viewport.
+     * This keeps annotations attached to the photograph when the viewer is
+     * resized, fullscreened, or the image has letterboxing.
+     */
+    const getFlatImageRect = () => {
+      const flatEl = document.getElementById(`flat-${targetPrefix}`);
+      if (!flatEl || flatEl.style.display === 'none' || !flatEl.naturalWidth || !flatEl.naturalHeight) {
+        return null;
+      }
+
+      const canvasRect = canvas.getBoundingClientRect();
+      const imageRatio = flatEl.naturalWidth / flatEl.naturalHeight;
+      const boxRatio = canvasRect.width / canvasRect.height;
+
+      let width, height, left, top;
+
+      if (imageRatio > boxRatio) {
+        // Image is constrained by width; top/bottom are letterboxed.
+        width = canvasRect.width;
+        height = width / imageRatio;
+        left = canvasRect.left;
+        top = canvasRect.top + (canvasRect.height - height) / 2;
+      } else {
+        // Image is constrained by height; left/right are letterboxed.
+        height = canvasRect.height;
+        width = height * imageRatio;
+        left = canvasRect.left + (canvasRect.width - width) / 2;
+        top = canvasRect.top;
+      }
+
+      return {
+        left,
+        top,
+        width,
+        height,
+        canvasLeft: canvasRect.left,
+        canvasTop: canvasRect.top
+      };
+    };
+
+    const getCanvasPos = (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
+      const imageRect = getFlatImageRect();
+
+      if (imageRect) {
+        return {
+          x,
+          y,
+          normX: (clientX - imageRect.left) / imageRect.width,
+          normY: (clientY - imageRect.top) / imageRect.height,
+          imageX: clientX - imageRect.left,
+          imageY: clientY - imageRect.top,
+          inImage: clientX >= imageRect.left &&
+                   clientX <= imageRect.left + imageRect.width &&
+                   clientY >= imageRect.top &&
+                   clientY <= imageRect.top + imageRect.height
+        };
+      }
+
+      return {
+        x,
+        y,
+        normX: x / rect.width,
+        normY: y / rect.height,
+        inImage: true
+      };
+    };
+
+    const canvasPosToCoord = (pos) => {
+      const viewer = getViewerInstance(targetPrefix);
+      const node = getNodeForTargetPrefix(targetPrefix);
+
+      if (node && node.is360 && viewer && typeof viewer.mouseEventToCoords === 'function') {
+        /*
+         * Pannellum's public API provides mouseEventToCoords(), rather than
+         * coordsToPitchYaw().  Pass a document-style mouse event at the actual
+         * pointer location so the annotation is stored as panorama pitch/yaw.
+         */
+        const py = viewer.mouseEventToCoords({
+          clientX: e.clientX,
+          clientY: e.clientY
+        });
+        if (Array.isArray(py) && py.length >= 2) {
+          return { pitch: py[0], yaw: py[1], is360: true };
+        }
+      }
+
+      // Flat-image coordinates are normalised against the photograph itself,
+      // not the surrounding viewer viewport.
+      return {
+        normX: Math.max(0, Math.min(1, pos.normX)),
+        normY: Math.max(0, Math.min(1, pos.normY)),
+        is360: false
+      };
+    };
+
+    const startDraw = (e) => {
+      const st = annoStates[targetPrefix];
+      if (!st.active) return;
+
+      const pos = getCanvasPos(e);
+      const node = getNodeForTargetPrefix(targetPrefix);
+      if (!node) return;
+
+      // Do not allow flat-image annotations to be created in the
+      // letterboxed area outside the actual photograph.
+      if (!node.is360 && pos.inImage === false) return;
+
+      const coord = canvasPosToCoord(pos);
+
+      if (st.tool === 'text') {
+        const textStr = prompt("Enter annotation text:");
+        if (textStr && textStr.trim()) {
+          node.annotations = node.annotations || [];
+          node.annotations.push({
+            type: 'text',
+            text: textStr.trim(),
+            coord: coord,
+            color: st.color
+          });
+          redrawAnnotations(targetPrefix);
+        }
+        return;
+      }
+
+      st.isDrawing = true;
+      st.startPt = coord;
+
+      if (st.tool === 'brush') {
+        st.tempShape = {
+          type: 'brush',
+          points: [coord],
+          color: st.color,
+          width: 3
+        };
+      } else if (st.tool === 'arrow' || st.tool === 'box') {
+        st.tempShape = {
+          type: st.tool,
+          start: coord,
+          end: coord,
+          color: st.color,
+          width: 3
+        };
+      }
+    };
+
+    const drawMove = (e) => {
+      const st = annoStates[targetPrefix];
+      if (!st.active || !st.isDrawing || !st.tempShape) return;
+      e.preventDefault();
+
+      const pos = getCanvasPos(e);
+
+      // Keep flat-image brush/shape drawing inside the actual photograph.
+      if (!getNodeForTargetPrefix(targetPrefix)?.is360 && pos.inImage === false) {
+        return;
+      }
+
+      const coord = canvasPosToCoord(pos);
+
+      if (st.tool === 'brush') {
+        st.tempShape.points.push(coord);
+      } else if (st.tool === 'arrow' || st.tool === 'box') {
+        st.tempShape.end = coord;
+      }
+
+      redrawAnnotations(targetPrefix);
+    };
+
+    const stopDraw = () => {
+      const st = annoStates[targetPrefix];
+      if (!st.active || !st.isDrawing) return;
+      st.isDrawing = false;
+
+      const node = getNodeForTargetPrefix(targetPrefix);
+      if (node && st.tempShape) {
+        node.annotations = node.annotations || [];
+        node.annotations.push(st.tempShape);
+      }
+      st.tempShape = null;
+      redrawAnnotations(targetPrefix);
+    };
+
+    canvas.addEventListener('mousedown', startDraw);
+    canvas.addEventListener('mousemove', drawMove);
+    window.addEventListener('mouseup', stopDraw);
+
+    canvas.addEventListener('touchstart', startDraw, { passive: false });
+    canvas.addEventListener('touchmove', drawMove, { passive: false });
+    window.addEventListener('touchend', stopDraw);
+
+    const picker = document.getElementById(`colorPicker-${targetPrefix}`);
+    if (picker) {
+      picker.querySelectorAll('.color-dot').forEach(dot => {
+        dot.addEventListener('click', (e) => {
+          picker.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
+          e.target.classList.add('active');
+          annoStates[targetPrefix].color = e.target.getAttribute('data-color');
+        });
+      });
+    }
+  }
+
+  function toggleAnnotationMode(targetPrefix) {
+    const st = annoStates[targetPrefix];
+    st.active = !st.active;
+
+    const btn = document.getElementById(`annoBtn-${targetPrefix}`);
+    const bar = document.getElementById(`annotationBar-${targetPrefix}`);
+    const canvas = document.getElementById(`annoCanvas-${targetPrefix}`);
+
+    if (btn) btn.classList.toggle('active', st.active);
+    if (bar) bar.style.display = st.active ? 'flex' : 'none';
+    if (canvas) canvas.classList.toggle('active', st.active);
+
+    if (st.active) redrawAnnotations(targetPrefix);
+  }
+
+  function clearAnnotations(targetPrefix) {
+    const node = getNodeForTargetPrefix(targetPrefix);
+    if (node) {
+      node.annotations = [];
+      redrawAnnotations(targetPrefix);
+    }
+  }
+
+  function getNodeForTargetPrefix(targetPrefix) {
+    if (targetPrefix === 'primary') return nodes.find(n => n.id === selectedNodeId);
+    if (targetPrefix === 'compare-left') return nodes.find(n => n.id === selectedNodeId);
+    if (targetPrefix === 'compare-right') return nodes.find(n => n.id === secondaryNodeId);
+    return null;
+  }
+
+  function coordToCanvasPos(coord, targetPrefix, canvasW, canvasH) {
+    const viewer = getViewerInstance(targetPrefix);
+
+    if (coord.is360 && viewer) {
+      /*
+       * Pannellum does not expose a public pitch/yaw -> screen-coordinate
+       * function. Project the stored spherical coordinate using the same
+       * rectilinear camera model: current pitch/yaw + current HFOV + viewer
+       * aspect ratio. This is recalculated on every render, so annotations
+       * remain attached to the panorama while panning, tilting and zooming.
+       */
+      const panoEl = document.getElementById(`panorama-${targetPrefix}`);
+      const r = panoEl ? panoEl.getBoundingClientRect() : null;
+      const w = r && r.width ? r.width : canvasW;
+      const h = r && r.height ? r.height : canvasH;
+      const left = r ? r.left : 0;
+      const top = r ? r.top : 0;
+
+      if (!w || !h || typeof viewer.getYaw !== 'function' ||
+          typeof viewer.getPitch !== 'function' || typeof viewer.getHfov !== 'function') {
+        return null;
+      }
+
+      const toRad = Math.PI / 180;
+      const pitch = coord.pitch * toRad;
+      const yaw = coord.yaw * toRad;
+      const viewPitch = viewer.getPitch() * toRad;
+      const viewYaw = viewer.getYaw() * toRad;
+      const hfov = viewer.getHfov() * toRad;
+
+      // Relative yaw, wrapped to [-PI, PI].
+      let dyaw = yaw - viewYaw;
+      while (dyaw > Math.PI) dyaw -= 2 * Math.PI;
+      while (dyaw < -Math.PI) dyaw += 2 * Math.PI;
+
+      // Convert the spherical direction into camera coordinates.
+      const cp = Math.cos(pitch);
+      const sp = Math.sin(pitch);
+      const x = cp * Math.sin(dyaw);
+      const y = sp;
+      const z = cp * Math.cos(dyaw);
+
+      // Behind the camera / effectively on the camera plane.
+      if (z <= 0.0001) return null;
+
+      const fx = w / (2 * Math.tan(hfov / 2));
+      const vfov = 2 * Math.atan(Math.tan(hfov / 2) * (h / w));
+      const fy = h / (2 * Math.tan(vfov / 2));
+
+      const xScreen = (w / 2) + (x / z) * fx;
+      const yScreen = (h / 2) - (y / z) * fy;
+
+      // Convert from panorama viewport coordinates into annotation-canvas
+      // coordinates. Normally these have the same origin, but this also
+      // handles any offset introduced by layout/fullscreen changes.
+      const canvasEl = document.getElementById(`annoCanvas-${targetPrefix}`);
+      const cr = canvasEl ? canvasEl.getBoundingClientRect() : null;
+      const canvasLeft = cr ? cr.left : 0;
+      const canvasTop = cr ? cr.top : 0;
+
+      return {
+        x: (left + xScreen) - canvasLeft,
+        y: (top + yScreen) - canvasTop
+      };
+    }
+
+    /*
+     * Flat photographs use normalised coordinates within the actual
+     * displayed image. Reconstruct the object-fit:contain rectangle so the
+     * annotation follows the photograph rather than the viewport.
+     */
+    const flatEl = document.getElementById(`flat-${targetPrefix}`);
+    if (flatEl && flatEl.style.display !== 'none' && flatEl.naturalWidth && flatEl.naturalHeight) {
+      const imageRatio = flatEl.naturalWidth / flatEl.naturalHeight;
+      const boxRatio = canvasW / canvasH;
+
+      let imageW, imageH, offsetX, offsetY;
+
+      if (imageRatio > boxRatio) {
+        imageW = canvasW;
+        imageH = canvasW / imageRatio;
+        offsetX = 0;
+        offsetY = (canvasH - imageH) / 2;
+      } else {
+        imageH = canvasH;
+        imageW = canvasH * imageRatio;
+        offsetX = (canvasW - imageW) / 2;
+        offsetY = 0;
+      }
+
+      return {
+        x: offsetX + coord.normX * imageW,
+        y: offsetY + coord.normY * imageH
+      };
+    }
+
+    return {
+      x: coord.normX * canvasW,
+      y: coord.normY * canvasH
+    };
+  }
+
+  function renderSingleShape(ctx, shape, targetPrefix, canvasW, canvasH) {
+    ctx.strokeStyle = shape.color || '#22d3ee';
+    ctx.fillStyle = shape.color || '#22d3ee';
+    ctx.lineWidth = shape.width || 3;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    if (shape.type === 'brush' && shape.points && shape.points.length > 0) {
+      ctx.beginPath();
+      let first = true;
+      shape.points.forEach(pt => {
+        const pos = coordToCanvasPos(pt, targetPrefix, canvasW, canvasH);
+        if (pos) {
+          if (first) { ctx.moveTo(pos.x, pos.y); first = false; }
+          else ctx.lineTo(pos.x, pos.y);
+        }
+      });
+      ctx.stroke();
+    } else if (shape.type === 'box' && shape.start && shape.end) {
+      const p1 = coordToCanvasPos(shape.start, targetPrefix, canvasW, canvasH);
+      const p2 = coordToCanvasPos(shape.end, targetPrefix, canvasW, canvasH);
+      if (p1 && p2) {
+        ctx.beginPath();
+        ctx.rect(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y);
+        ctx.stroke();
+      }
+    } else if (shape.type === 'arrow' && shape.start && shape.end) {
+      const p1 = coordToCanvasPos(shape.start, targetPrefix, canvasW, canvasH);
+      const p2 = coordToCanvasPos(shape.end, targetPrefix, canvasW, canvasH);
+      if (p1 && p2) {
+        const headlen = 14;
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        const angle = Math.atan2(dy, dx);
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(p2.x, p2.y);
+        ctx.lineTo(p2.x - headlen * Math.cos(angle - Math.PI / 6), p2.y - headlen * Math.sin(angle - Math.PI / 6));
+        ctx.lineTo(p2.x - headlen * Math.cos(angle + Math.PI / 6), p2.y - headlen * Math.sin(angle + Math.PI / 6));
+        ctx.lineTo(p2.x, p2.y);
+        ctx.fill();
+      }
+    } else if (shape.type === 'text' && shape.coord && shape.text) {
+      const pos = coordToCanvasPos(shape.coord, targetPrefix, canvasW, canvasH);
+      if (pos) {
+        ctx.font = 'bold 15px "IBM Plex Mono", monospace';
+        ctx.shadowColor = 'rgba(0,0,0,0.8)';
+        ctx.shadowBlur = 4;
+        ctx.fillText(shape.text, pos.x, pos.y);
+        ctx.shadowBlur = 0;
+      }
+    }
+  }
+
+  function redrawAnnotations(targetPrefix) {
+    const canvas = document.getElementById(`annoCanvas-${targetPrefix}`);
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const node = getNodeForTargetPrefix(targetPrefix);
+    if (!node) return;
+
+    if (node.annotations && node.annotations.length) {
+      node.annotations.forEach(shape => renderSingleShape(ctx, shape, targetPrefix, canvas.width, canvas.height));
+    }
+
+    const st = annoStates[targetPrefix];
+    if (st && st.isDrawing && st.tempShape) {
+      renderSingleShape(ctx, st.tempShape, targetPrefix, canvas.width, canvas.height);
+    }
+  }
+
+  /* ---------- RECALIBRATE NORTH FUNCTION ---------- */
+  function recalibrateNorth(role) {
+    let node = null;
+    let activeViewer = null;
+
+    if (role === 'primary' || role === 'left') {
+      node = nodes.find(n => n.id === selectedNodeId);
+      activeViewer = (role === 'left' && pViewerLeft) ? pViewerLeft : pViewerPrimary;
+    } else if (role === 'right') {
+      node = nodes.find(n => n.id === secondaryNodeId);
+      activeViewer = pViewerRight;
+    }
+
+    if (!node) return;
+
+    if (node.is360 && activeViewer && typeof activeViewer.getYaw === 'function') {
+      const currentYaw = activeViewer.getYaw();
+      node.heading = (360 - currentYaw) % 360;
+      node.hasHeading = true;
+      activeViewer.setYaw(0);
+    } else {
+      const input = prompt("Enter new North Heading angle in degrees (0-359):", node.heading || 0);
+      if (input !== null) {
+        const val = parseFloat(input);
+        if (!isNaN(val)) {
+          node.heading = ((val % 360) + 360) % 360;
+          node.hasHeading = true;
+        }
+      }
+    }
+
+    selectNode(selectedNodeId);
+    alert(`True North recalibrated for "${node.title}". Heading updated to ${Math.round(node.heading)}°.`);
   }
 
   function renderViewers() {
@@ -1093,14 +1635,17 @@
         autoLoad: true,
         compass: false,
         showZoomCtrl: true,
-        showFullscreenCtrl: true
+        showFullscreenCtrl: false
       });
 
       if (role === 'primary') pViewerPrimary = viewer;
       if (role === 'left') pViewerLeft = viewer;
       if (role === 'right') pViewerRight = viewer;
 
-      viewer.on('onrendered', () => {
+      // Re-render annotations smoothly as 360 view moves/pans
+      viewer.on('render', () => {
+        redrawAnnotations(targetPrefix);
+
         if (isSyncingViewers) return;
         const otherViewer = role === 'left' ? pViewerRight : (role === 'right' ? pViewerLeft : null);
         if (!otherViewer) return;
@@ -1119,9 +1664,12 @@
       if (role === 'left' && pViewerLeft) { pViewerLeft.destroy(); pViewerLeft = null; }
       if (role === 'right' && pViewerRight) { pViewerRight.destroy(); pViewerRight = null; }
       panoEl.style.display = 'none';
+      flatEl.onload = () => redrawAnnotations(targetPrefix);
       flatEl.src = node.url;
       flatEl.style.display = 'block';
     }
+
+    setTimeout(() => redrawAnnotations(targetPrefix), 250);
   }
 
   function stopYawPolling() {
@@ -1171,6 +1719,7 @@
   function addNode(nodeData) {
     if (!nodeData.dateKey) nodeData.dateKey = 'undated';
     if (!nodeData.dateKeyLabel) nodeData.dateKeyLabel = prettifyDateKey(nodeData.dateKey);
+    nodeData.annotations = nodeData.annotations || [];
 
     const marker = L.marker([nodeData.lat, nodeData.lon], {
       icon: createMarkerIcon(nodeData, false, false),
@@ -1193,7 +1742,6 @@
     if (compareStep === 1) {
       selectedNodeId = id;
       compareStep = 2;
-      
       const secNodes = nodes.filter(n => (n.dateKey || 'undated') === compareSecondaryDate);
       if (secNodes.length) secondaryNodeId = secNodes[0].id;
 
@@ -1289,7 +1837,6 @@
               const make = EXIF.getTag(this, "Make") || "";
               const model = EXIF.getTag(this, "Model") || "";
               const device = (make || model) ? `${make} ${model}`.trim() : "Camera / Drone";
-
               const rawDate = EXIF.getTag(this, "DateTimeOriginal") || EXIF.getTag(this, "DateTime") || "Unknown Date";
               
               let alt = EXIF.getTag(this, "GPSAltitude");
@@ -1335,7 +1882,8 @@
                 pitch: xmpData.pitch,
                 hasHeading: hasHeading,
                 dateKey: dateKey,
-                dateKeyLabel: prettifyDateKey(dateKey)
+                dateKeyLabel: prettifyDateKey(dateKey),
+                annotations: []
               };
 
               addNode(nodeData);
@@ -1425,10 +1973,7 @@
   });
 
   document.getElementById('cancelCompareStepBtn').addEventListener('click', exitCompareMode);
-
-  document.getElementById('closeFullCompareBtn').addEventListener('click', () => {
-    exitCompareMode();
-  });
+  document.getElementById('closeFullCompareBtn').addEventListener('click', exitCompareMode);
 
   function exitCompareMode() {
     dateFilterMode = 'single';
@@ -1509,15 +2054,10 @@
       const key = n.dateKey || 'undated';
       let dateOk = true;
 
-      if (compareStep === 1) {
-        dateOk = (key === comparePrimaryDate);
-      } else if (compareStep === 2) {
-        dateOk = (key === compareSecondaryDate);
-      } else if (dateFilterMode === 'compare') {
-        dateOk = (key === comparePrimaryDate || key === compareSecondaryDate);
-      } else {
-        dateOk = (activeDateKey === 'all' || key === activeDateKey);
-      }
+      if (compareStep === 1) dateOk = (key === comparePrimaryDate);
+      else if (compareStep === 2) dateOk = (key === compareSecondaryDate);
+      else if (dateFilterMode === 'compare') dateOk = (key === comparePrimaryDate || key === compareSecondaryDate);
+      else dateOk = (activeDateKey === 'all' || key === activeDateKey);
 
       const typeOk = (activeFilter === 'all') || (activeFilter === '360' && n.is360) || (activeFilter === 'flat' && !n.is360);
       const srcOk = (sourceFilter === 'all') || (sourceFilter === 'gps' && n.hasGps) || (sourceFilter === 'manual' && !n.hasGps);
@@ -1563,7 +2103,7 @@
     map.fitBounds(bounds, { padding: [35, 35] });
   }
 
-  // Edit Metadata
+  // Edit Metadata Modal Logic
   document.getElementById('editMetadataBtn').addEventListener('click', () => {
     const node = nodes.find(n => n.id === selectedNodeId);
     if (!node) return;
@@ -1609,30 +2149,69 @@
     document.getElementById('editModal').style.display = 'none';
   });
 
-  // Save/Export Logic with Options Prompt
+  /* ---------- SAVE TO FILE & COMPRESSION SCALING ---------- */
   document.getElementById('saveBtn').addEventListener('click', () => {
     if (!nodes.length) { alert("Upload images first!"); return; }
     document.getElementById('exportConfigModal').style.display = 'flex';
+    updateExportEstimateUI();
   });
 
   document.getElementById('cancelExportConfigBtn').addEventListener('click', () => {
     document.getElementById('exportConfigModal').style.display = 'none';
   });
 
+  function formatBytes(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+
+  function updateExportEstimateUI() {
+    const pct = parseInt(document.getElementById('exportScaleSlider').value, 10);
+    document.getElementById('scaleValLabel').innerText = pct + '%';
+
+    let totalOriginalBytes = 0;
+    nodes.forEach(n => {
+      totalOriginalBytes += Math.round(n.url.length * 0.75);
+    });
+
+    const scaleFactor = pct / 100;
+    let estimatedTotal = 0;
+    nodes.forEach(n => {
+      const orig = Math.round(n.url.length * 0.75);
+      if (pct === 100) {
+        estimatedTotal += orig;
+      } else {
+        const areaRatio = Math.pow(scaleFactor, 1.6);
+        const qualityRatio = n.is360 ? 0.92 : 0.82; 
+        estimatedTotal += Math.max(12000, Math.round(orig * areaRatio * qualityRatio));
+      }
+    });
+
+    document.getElementById('estSizeText').innerText = `${formatBytes(estimatedTotal)} (Original: ${formatBytes(totalOriginalBytes)})`;
+  }
+
   document.getElementById('confirmExportConfigBtn').addEventListener('click', async () => {
     let filename = document.getElementById('exportFilename').value.trim() || 'Field_Record_360.html';
     if (!filename.endsWith('.html')) filename += '.html';
-    const resMode = document.getElementById('exportResolution').value;
+    
+    const pct = parseInt(document.getElementById('exportScaleSlider').value, 10);
+    const keepAnnotations = document.getElementById('exportKeepAnnotations').checked;
 
     document.getElementById('exportConfigModal').style.display = 'none';
 
-    // Process nodes with optional canvas resizing
     const processedNodes = await Promise.all(nodes.map(async (n) => {
-      const copy = {...n};
+      const copy = JSON.parse(JSON.stringify(n));
       delete copy.marker;
 
-      if (resMode !== 'original' && copy.url.startsWith('data:image')) {
-        copy.url = await resizeDataUrl(copy.url, parseInt(resMode, 10));
+      if (!keepAnnotations) {
+        copy.annotations = [];
+      }
+
+      if (copy.url.startsWith('data:image')) {
+        copy.url = await resizeImageByPercentage(copy.url, pct, copy.is360);
       }
       return copy;
     }));
@@ -1648,34 +2227,30 @@
     link.click();
   });
 
-  function resizeDataUrl(dataUrl, maxDim) {
+  function resizeImageByPercentage(dataUrl, percentage, is360) {
     return new Promise((resolve) => {
+      if (percentage === 100) { resolve(dataUrl); return; }
+
       const img = new Image();
       img.onload = () => {
-        let w = img.width;
-        let h = img.height;
-        if (w <= maxDim && h <= maxDim) { resolve(dataUrl); return; }
-
-        if (w > h) {
-          h = Math.round((h * maxDim) / w);
-          w = maxDim;
-        } else {
-          w = Math.round((w * maxDim) / h);
-          h = maxDim;
-        }
+        const scale = percentage / 100;
+        const targetW = Math.max(100, Math.round(img.width * scale));
+        const targetH = Math.max(100, Math.round(img.height * scale));
 
         const canvas = document.createElement('canvas');
-        canvas.width = w;
-        canvas.height = h;
+        canvas.width = targetW;
+        canvas.height = targetH;
         const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL('image/jpeg', 0.85));
+        ctx.drawImage(img, 0, 0, targetW, targetH);
+        
+        const jpegQuality = is360 ? 0.92 : 0.82;
+        resolve(canvas.toDataURL('image/jpeg', jpegQuality));
       };
       img.src = dataUrl;
     });
   }
 
-  // Print Side-by-Side Comparison to JPG
+  // Print Comparison View to JPG
   document.getElementById('printCompareJpgBtn').addEventListener('click', async () => {
     const nodeLeft = nodes.find(n => n.id === selectedNodeId);
     const nodeRight = nodes.find(n => n.id === secondaryNodeId);
@@ -1691,14 +2266,12 @@
     canvas.width = w * 2 + 20;
     canvas.height = h + headerH;
 
-    // Dark Background
     ctx.fillStyle = '#0d1712';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const loadImg = (url) => new Promise(res => { const img = new Image(); img.onload = () => res(img); img.src = url; });
     const [imgL, imgR] = await Promise.all([loadImg(nodeLeft.url), loadImg(nodeRight.url)]);
 
-    // Header Left
     ctx.fillStyle = '#2bb673';
     ctx.font = 'bold 22px sans-serif';
     ctx.fillText(`PRIMARY: ${nodeLeft.title}`, 20, 36);
@@ -1706,7 +2279,6 @@
     ctx.font = '16px monospace';
     ctx.fillText(`Date: ${nodeLeft.dateKeyLabel}  |  Lat: ${nodeLeft.lat.toFixed(5)} Lon: ${nodeLeft.lon.toFixed(5)}`, 20, 68);
 
-    // Header Right
     ctx.fillStyle = '#22d3ee';
     ctx.font = 'bold 22px sans-serif';
     ctx.fillText(`COMPARISON: ${nodeRight.title}`, w + 40, 36);
@@ -1714,7 +2286,6 @@
     ctx.font = '16px monospace';
     ctx.fillText(`Date: ${nodeRight.dateKeyLabel}  |  Lat: ${nodeRight.lat.toFixed(5)} Lon: ${nodeRight.lon.toFixed(5)}`, w + 40, 68);
 
-    // Draw Images
     ctx.drawImage(imgL, 0, headerH, w, h);
     ctx.drawImage(imgR, w + 20, headerH, w, h);
 
@@ -1725,6 +2296,10 @@
   });
 
   window.addEventListener('DOMContentLoaded', () => {
+    initAnnotationCanvas('primary');
+    initAnnotationCanvas('compare-left');
+    initAnnotationCanvas('compare-right');
+
     if (SAVED_PROJECT_TITLE) {
       projectTitle = SAVED_PROJECT_TITLE;
       document.title = projectTitle;

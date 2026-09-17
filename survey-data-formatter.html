@@ -18,19 +18,34 @@ header{padding:28px clamp(18px,4vw,48px) 18px;border-bottom:1px solid var(--rule
 h1{font-family:Fraunces,serif;font-weight:500;font-size:clamp(28px,4vw,42px);margin:8px 0 14px}
 .meta-strip{display:flex;flex-wrap:wrap;gap:22px 34px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--parchment-dim)}.meta-strip span{color:var(--moss);text-transform:uppercase;letter-spacing:.08em;font-size:10.5px}.meta-strip b{display:block;color:var(--parchment);font-size:13px;margin-top:2px}
 .actions{position:absolute;top:28px;right:clamp(18px,4vw,48px);display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
-.btn{background:var(--brass);color:var(--ink);border:0;padding:10px 16px;font-family:'IBM Plex Mono',monospace;font-size:12px;text-transform:uppercase;font-weight:500;border-radius:4px;cursor:pointer}.btn:hover{background:#e0a75f}.btn.secondary{background:transparent;color:var(--parchment);border:1px solid var(--rule)}.btn:disabled{opacity:.4;cursor:not-allowed}#csvUpload{display:none}
-main{display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:1px;background:var(--rule);min-height:calc(100vh - 170px)}@media(max-width:980px){header{padding-bottom:78px}.actions{top:auto;bottom:18px;left:clamp(18px,4vw,48px);right:auto}main{grid-template-columns:1fr}}
-.map-panel{background:var(--ink);padding:clamp(16px,2.4vw,28px);min-width:0}.side-panel{background:var(--stone);padding:clamp(16px,2.4vw,28px);display:flex;flex-direction:column;gap:16px;min-width:0}
+.btn{background:var(--brass);color:var(--ink);border:0;padding:10px 16px;font-family:'IBM Plex Mono',monospace;font-size:12px;text-transform:uppercase;font-weight:500;border-radius:4px;cursor:pointer}.btn:hover{background:#e0a75f}.btn.secondary{background:transparent;color:var(--parchment);border:1px solid var(--rule)}.btn.secondary:hover{background:transparent;border-color:var(--moss)}.btn.secondary.on{background:var(--brass);color:var(--ink);border-color:var(--brass)}.btn:disabled{opacity:.4;cursor:not-allowed}#csvUpload{display:none}
+main{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:1px;background:var(--rule);min-height:calc(100vh - 170px)}@media(max-width:980px){header{padding-bottom:78px}.actions{top:auto;bottom:18px;left:clamp(18px,4vw,48px);right:auto}main{grid-template-columns:1fr}}
+.map-panel{background:var(--ink);padding:clamp(16px,2.4vw,28px);min-width:0}.side-panel{background:var(--stone);padding:clamp(16px,2.4vw,28px);display:flex;flex-direction:column;gap:14px;min-width:0}
 .panel-label{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--moss);display:flex;justify-content:space-between;gap:12px}
 #map{width:100%;height:calc(100vh - 245px);min-height:480px;border-radius:10px;border:1px solid var(--rule);filter:saturate(.9);z-index:1}
-.legend{display:flex;gap:14px;align-items:center;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--parchment-dim);margin-top:12px}.dot{width:10px;height:10px;border-radius:50%;background:var(--water);border:2px solid white}.dot.selected{background:var(--brass)}
-.upload-zone{border:1px dashed var(--rule);border-radius:9px;padding:18px;background:rgba(0,0,0,.12)}.upload-zone strong{font-family:Fraunces,serif;font-size:18px;font-weight:500}.upload-zone p{color:var(--parchment-dim);font-size:12px;line-height:1.55;margin:8px 0 0}
+#map.boxmode{cursor:crosshair}#map.boxmode .leaflet-grab{cursor:crosshair}
+.legend{display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--parchment-dim);margin-top:12px}.dot{width:8px;height:8px;border-radius:50%;background:var(--water);border:1.5px solid white}.dot.selected{background:var(--brass);box-shadow:0 0 0 2px rgba(201,148,78,.5)}
+.upload-zone{border:1px dashed var(--rule);border-radius:9px;padding:16px;background:rgba(0,0,0,.12)}.upload-zone strong{font-family:Fraunces,serif;font-size:18px;font-weight:500}.upload-zone p{color:var(--parchment-dim);font-size:12px;line-height:1.55;margin:8px 0 0}
 .search{width:100%;background:var(--ink);border:1px solid var(--rule);border-radius:5px;color:var(--parchment);padding:11px 12px;font:12px 'IBM Plex Mono',monospace;outline:none}.search:focus{border-color:var(--moss)}
-.table-wrap{border:1px solid var(--rule);border-radius:9px;overflow:auto;flex:1;min-height:250px;max-height:calc(100vh - 410px);background:rgba(0,0,0,.12)}table{width:100%;border-collapse:collapse;font-size:11px}th{position:sticky;top:0;background:var(--stone-2);color:var(--moss);font:10px 'IBM Plex Mono',monospace;letter-spacing:.08em;text-transform:uppercase;text-align:left;padding:10px 8px;z-index:2}td{padding:9px 8px;border-top:1px solid var(--rule);white-space:nowrap;color:var(--parchment-dim)}tr{cursor:pointer}tr:hover td{background:rgba(255,255,255,.04)}tr.selected td{background:rgba(201,148,78,.18);color:var(--parchment)}.check{accent-color:var(--brass)}
-.detail{border-top:1px dashed var(--rule);padding-top:14px;font-family:'IBM Plex Mono',monospace;font-size:12px;line-height:1.8;color:var(--parchment-dim)}.detail b{color:var(--parchment);font-weight:500}.detail .name{font-family:Fraunces,serif;font-size:18px;color:var(--parchment);line-height:1.35;margin-bottom:6px}.empty{padding:30px 15px;text-align:center;color:var(--parchment-dim);font-size:12px;line-height:1.6}
-footer{padding:20px clamp(18px,4vw,48px) 32px;font:11px 'IBM Plex Mono',monospace;color:var(--parchment-dim);letter-spacing:.03em}
-.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--stone-2);color:var(--parchment)}.popup-title{font-family:Fraunces,serif;font-size:17px}.popup-meta{font:11px 'IBM Plex Mono',monospace;color:var(--parchment-dim);line-height:1.6}.point-icon{background:transparent;border:0}.point-marker{width:9px;height:9px;border-radius:50%;background:var(--water);border:1.5px solid white;box-shadow:0 1px 3px rgba(0,0,0,.55)}.point-marker.selected{transform:scale(1.45);border-color:#fff;box-shadow:0 0 0 2px rgba(201,148,78,.7),0 1px 4px rgba(0,0,0,.6)}
-.leaflet-container { background: #15241b !important; }
+.btn-row{display:flex;gap:7px;flex-wrap:wrap}
+.mini{background:transparent;border:1px solid var(--rule);color:var(--parchment);font:10.5px 'IBM Plex Mono',monospace;letter-spacing:.05em;text-transform:uppercase;padding:7px 9px;border-radius:4px;cursor:pointer;white-space:nowrap}.mini:hover:not(:disabled){border-color:var(--moss)}.mini:disabled{opacity:.35;cursor:not-allowed}.mini.on{background:var(--brass);color:var(--ink);border-color:var(--brass)}.mini.warn{color:var(--danger)}
+.table-wrap{border:1px solid var(--rule);border-radius:9px;overflow:auto;flex:1;min-height:200px;max-height:calc(100vh - 520px);background:rgba(0,0,0,.12)}table{width:100%;border-collapse:collapse;font-size:11px}th{position:sticky;top:0;background:var(--stone-2);color:var(--moss);font:10px 'IBM Plex Mono',monospace;letter-spacing:.08em;text-transform:uppercase;text-align:left;padding:10px 8px;z-index:2}td{padding:9px 8px;border-top:1px solid var(--rule);white-space:nowrap;color:var(--parchment-dim)}tr{cursor:pointer}tr:hover td{background:rgba(255,255,255,.04)}tr.selected td{background:rgba(201,148,78,.18);color:var(--parchment)}.check{accent-color:var(--brass)}
+.detail{border-top:1px dashed var(--rule);padding-top:12px;font-family:'IBM Plex Mono',monospace;font-size:12px;line-height:1.75;color:var(--parchment-dim)}.detail b{color:var(--parchment);font-weight:500}.detail .name{font-family:Fraunces,serif;font-size:18px;color:var(--parchment);line-height:1.35;margin-bottom:6px}.empty{padding:30px 15px;text-align:center;color:var(--parchment-dim);font-size:12px;line-height:1.6}
+details.tools{border:1px solid var(--rule);border-radius:9px;background:rgba(0,0,0,.12)}details.tools>summary{list-style:none;cursor:pointer;padding:11px 13px;font:11px 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--moss);display:flex;justify-content:space-between;align-items:center}details.tools>summary::-webkit-details-marker{display:none}details.tools>summary:after{content:"+";font-size:14px}details.tools[open]>summary:after{content:"–"}
+.tools-body{padding:0 13px 14px;display:flex;flex-direction:column;gap:10px}
+.field{display:flex;flex-direction:column;gap:5px}.field label{font:10px 'IBM Plex Mono',monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--parchment-dim)}
+.field input[type=text]{width:100%;background:var(--ink);border:1px solid var(--rule);border-radius:5px;color:var(--parchment);padding:8px 10px;font:11px 'IBM Plex Mono',monospace;outline:none}.field input[type=text]:focus{border-color:var(--moss)}
+.switch{display:flex;align-items:center;gap:8px;font:11px 'IBM Plex Mono',monospace;color:var(--parchment-dim);cursor:pointer}
+.line-list{display:flex;flex-direction:column;gap:5px;max-height:150px;overflow:auto}
+.line-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--rule);border-radius:5px;font:11px 'IBM Plex Mono',monospace;color:var(--parchment-dim)}
+.line-item .swatch{width:14px;height:3px;border-radius:2px;flex:0 0 auto}.line-item .nm{color:var(--parchment);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}.line-item .ct{font-size:10px}.line-item button{background:transparent;border:0;color:var(--parchment-dim);cursor:pointer;font-size:13px;line-height:1;padding:2px 4px}.line-item button:hover{color:var(--danger)}
+.hint{font:10.5px 'IBM Plex Mono',monospace;color:var(--parchment-dim);line-height:1.6}
+footer{padding:20px clamp(18px,4vw,48px) 32px;font:11px 'IBM Plex Mono',monospace;color:var(--parchment-dim);letter-spacing:.03em;line-height:1.7}
+.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--stone-2);color:var(--parchment)}.popup-title{font-family:Fraunces,serif;font-size:17px}.popup-meta{font:11px 'IBM Plex Mono',monospace;color:var(--parchment-dim);line-height:1.6}.point-icon{background:transparent;border:0}
+.point-marker{width:6px;height:6px;border-radius:50%;background:var(--water);border:1px solid rgba(255,255,255,.9);box-shadow:0 1px 2px rgba(0,0,0,.55)}
+.point-marker.selected{transform:scale(1.5);border-color:#fff;box-shadow:0 0 0 2px rgba(201,148,78,.75),0 1px 3px rgba(0,0,0,.6)}
+.leaflet-container{background:#15241b !important}
+#selbox{position:fixed;border:1px dashed var(--brass);background:rgba(201,148,78,.12);z-index:9999;pointer-events:none;display:none}
 </style>
 </head>
 <body>
@@ -40,6 +55,7 @@ footer{padding:20px clamp(18px,4vw,48px) 32px;font:11px 'IBM Plex Mono',monospac
 <div class="actions">
 <label for="csvUpload" class="btn">Upload Survey CSV</label>
 <input id="csvUpload" type="file" accept=".csv,text/csv">
+<button id="boxBtn" class="btn secondary" disabled>Box select: off</button>
 <button id="exportBtn" class="btn secondary" disabled>Export for AMX</button>
 <button id="clearBtn" class="btn secondary" disabled>Clear Data</button>
 </div>
@@ -54,61 +70,95 @@ footer{padding:20px clamp(18px,4vw,48px) 32px;font:11px 'IBM Plex Mono',monospac
 <section class="map-panel">
 <div class="panel-label"><span>Survey location</span><span id="mapStatus">Default view</span></div>
 <div id="map"></div>
-<div class="legend"><span class="dot"></span> Survey point <span class="dot selected"></span> Selected point · click points or linework to select</div>
+<div class="legend"><span class="dot"></span> Survey point <span class="dot selected"></span> Selected point · click a point or line to select, click again to deselect · turn on box select and drag to select an area, hold Alt to deselect an area</div>
 </section>
 <aside class="side-panel">
 <div class="upload-zone">
 <strong>Load survey data</strong>
-<p>Upload a CSV in the same format as the supplied survey export. Repeated <b>Line</b>, <b>Line ID</b>, <b>Feature</b>, <b>Code</b> or <b>Name</b> values are interpreted as linework and joined in CSV order. The app recognises <b>Name</b>, <b>Easting</b>, <b>Northing</b>, <b>Elevation</b>, <b>Longitude</b> and <b>Latitude</b>.</p>
+<p>Upload a CSV in the same format as the supplied survey export. The app reads <b>Name</b>, <b>Easting</b>, <b>Northing</b>, <b>Elevation</b>, <b>Longitude</b> and <b>Latitude</b>, and groups linework from <b>Line</b>, <b>Line ID</b>, <b>String</b>, <b>Feature</b>, <b>Code</b> or <b>Description</b>. Only codes that describe linear features are joined up.</p>
 </div>
 <input id="search" class="search" type="search" placeholder="Filter by name or description…" disabled>
+<div class="btn-row">
+<button id="selShown" class="mini" disabled>Select shown</button>
+<button id="deselShown" class="mini" disabled>Deselect shown</button>
+<button id="invShown" class="mini" disabled>Invert shown</button>
+<button id="deselAll" class="mini warn" disabled>Deselect all</button>
+</div>
 <div class="panel-label"><span>Survey points</span><span id="visibleCount">0 shown</span></div>
 <div class="table-wrap"><table><thead><tr><th><input id="selectAll" class="check" type="checkbox" disabled></th><th>Name</th><th>Easting</th><th>Northing</th><th>Elevation</th></tr></thead><tbody id="tbody"><tr><td colspan="5" class="empty">Upload a survey CSV to plot points and select records.</td></tr></tbody></table></div>
+<details class="tools"><summary>Linework</summary>
+<div class="tools-body">
+<label class="switch"><input id="autoLines" class="check" type="checkbox" checked> Join points with a linear code</label>
+<label class="switch"><input id="unknownLines" class="check" type="checkbox"> Also join codes I haven't listed</label>
+<div class="field"><label for="linearWords">Linear codes (joined up)</label><input id="linearWords" type="text"></div>
+<div class="field"><label for="pointWords">Standalone codes (never joined)</label><input id="pointWords" type="text"></div>
+<div class="btn-row"><button id="applyRules" class="mini">Apply codes</button><button id="clearLines" class="mini warn">Remove all linework</button></div>
+<div class="field"><label for="lineName">Draw a line through the selected points</label><input id="lineName" type="text" placeholder="Line name, e.g. Wall 3"></div>
+<div class="btn-row"><button id="drawLine" class="mini" disabled>Draw line from selection</button><button id="closeLine" class="mini" disabled>Draw closed shape</button></div>
+<div class="hint">Points are joined in the order you selected them. Box-selected points follow CSV order.</div>
+<div class="panel-label"><span>Lines on map</span><span id="lineCount">0</span></div>
+<div class="line-list" id="lineList"><div class="hint">No linework drawn.</div></div>
+</div>
+</details>
 <div class="detail" id="detail"><div class="name">No point selected</div>Select a row or map marker to inspect it. Tick one or more records, then use <b>Export for AMX</b>.</div>
 </aside>
 </main>
-<footer>Client-side survey viewer with Esri Basemaps. Positions use Latitude/Longitude when present; otherwise British National Grid Easting/Northing values are converted to WGS84 for display.</footer>
+<footer>Client-side survey viewer with Esri basemaps. Positions use Latitude/Longitude when present; otherwise British National Grid Easting/Northing values are converted to WGS84 for display. Basemap tiles are sharp to zoom 19 and scale beyond that for close inspection of survey detail.</footer>
+<div id="selbox"></div>
 <script>
 const DEFAULT=[51.507351,-0.127758];
-const map=L.map('map').setView(DEFAULT,11);
+const MAX_ZOOM=24, TILE_NATIVE=19;
+const map=L.map('map',{maxZoom:MAX_ZOOM,zoomSnap:.5,zoomDelta:.5,wheelPxPerZoomLevel:80}).setView(DEFAULT,11);
 
-// Esri & OpenStreetMap Basemap Layer Options (No API Keys Required)
-const esriTopo = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
-  maxZoom: 19, attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), and the GIS User Community'
-});
-
-const esriImagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-  maxZoom: 19, attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
-});
-
-const esriStreet = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
-  maxZoom: 19, attribution: 'Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, Intermap, iPC, NRCAN, Esri Japan, METI, Esri China (Hong Kong)'
-});
-
-const osmMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
-});
-
+// Esri & OpenStreetMap basemaps (no API keys). maxNativeZoom lets Leaflet upscale tiles past the
+// deepest available tile level so very precise datasets can still be zoomed right in.
+const tileOpts={maxZoom:MAX_ZOOM,maxNativeZoom:TILE_NATIVE};
+const esriTopo=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',Object.assign({},tileOpts,{attribution:'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), and the GIS User Community'}));
+const esriImagery=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',Object.assign({},tileOpts,{maxNativeZoom:20,attribution:'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'}));
+const esriStreet=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',Object.assign({},tileOpts,{attribution:'Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, Intermap, iPC, NRCAN, Esri Japan, METI, Esri China (Hong Kong)'}));
+const osmMap=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',Object.assign({},tileOpts,{attribution:'&copy; OpenStreetMap contributors'}));
+const blank=L.tileLayer('',{maxZoom:MAX_ZOOM});
 esriTopo.addTo(map);
-
-const baseMaps = {
-  "Esri Topographic": esriTopo,
-  "Esri Satellite Imagery": esriImagery,
-  "Esri Street Map": esriStreet,
-  "OpenStreetMap": osmMap
-};
-
-L.control.layers(baseMaps).addTo(map);
+L.control.layers({"Esri Topographic":esriTopo,"Esri Satellite Imagery":esriImagery,"Esri Street Map":esriStreet,"OpenStreetMap":osmMap,"No basemap (points only)":blank}).addTo(map);
+L.control.scale({imperial:false,maxWidth:140}).addTo(map);
 
 proj4.defs('EPSG:27700','+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +towgs84=446.448,-125.157,542.06,0.1502,0.247,0.8421,-20.4894 +units=m +no_defs');
-let points=[], markers=[], lineLayers=[], selected=new Set(), activeId=null;
+
+/* ---------- linework rules ---------- */
+const LINEAR_DEFAULT='wall,embankment,kerb,fence,hedge,edge,bank,toe,top of bank,ditch,channel,crest,bund,berm,revetment,gabion,parapet,coping,boundary,centreline,track,path,road,verge,treeline,high ground,low ground,grass,water edge,river,stream,ridge,step,building,line,string';
+const POINT_DEFAULT='outfall,headwall,inlet,manhole,mh,cover,ic,inspection,gully,chamber,valve,hydrant,tree,sign,post,lamp,bollard,pole,marker,station,stn,benchmark,bm,spot,level,sample,pin,rod,control,photo,pipe end,pipe';
+let linearWords=LINEAR_DEFAULT.split(','), pointWords=POINT_DEFAULT.split(',');
+
+let points=[],markers=[],lineLayers=[],selected=new Set(),activeId=null;
+let customLines=[],customSeq=0,suppressed=new Set();
 const $=id=>document.getElementById(id);
 function norm(s){return String(s||'').trim().toLowerCase().replace(/[\s_-]+/g,'')}
 function val(row,...names){const keys=Object.keys(row);for(const n of names){const k=keys.find(x=>norm(x)===norm(n));if(k!==undefined&&row[k]!==''&&row[k]!=null)return row[k]}return ''}
 function num(x){const n=parseFloat(String(x).replace(',','.'));return Number.isFinite(n)?n:null}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function featureColour(p){const t=((p.description||'')+' '+(p.lineKey||'')+' '+(p.name||'')).toLowerCase();if(t.includes('wall'))return '#ffd400';if(t.includes('embankment'))return '#8b5a2b';if(t.includes('high ground')||t.includes('highground'))return '#2f8f3a';return '#111111'}
-function markerIcon(on,p){const c=featureColour(p);return L.divIcon({className:'point-icon',html:`<div class="point-marker ${on?'selected':''}" style="background:${c}"></div>`,iconSize:[9,9],iconAnchor:[4.5,4.5]})}
+function wordMatch(text,list){
+ const t=' '+String(text||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim()+' ';
+ return list.some(raw=>{const w=String(raw).trim().toLowerCase();if(!w)return false;
+  return w.length<=3?t.includes(' '+w+' '):t.includes(w)});
+}
+// A point only belongs to linework if its code reads as a linear feature. Anything on the
+// standalone list (outfalls, manholes, trees…) is never joined, even when the code repeats.
+function pointText(p){return [p.lineKey,p.description,p.name].join(' ')}
+function isLinear(p){
+ const t=pointText(p);
+ if(wordMatch(t,pointWords))return false;
+ if(wordMatch(t,linearWords))return true;
+ return $('unknownLines').checked;
+}
+function featureColour(p){if(!p)return '#8fc0c9';const t=pointText(p).toLowerCase();
+ if(t.includes('wall'))return '#ffd400';
+ if(t.includes('embankment'))return '#8b5a2b';
+ if(t.includes('high ground')||t.includes('highground'))return '#2f8f3a';
+ if(t.includes('outfall')||t.includes('inlet'))return '#d47a6b';
+ return '#111111'}
+function markerIcon(on,p){const c=featureColour(p);return L.divIcon({className:'point-icon',html:`<div class="point-marker ${on?'selected':''}" style="background:${c}"></div>`,iconSize:[6,6],iconAnchor:[3,3]})}
+const CUSTOM_COLOURS=['#c9944e','#8fc0c9','#7ea187','#e07be0','#f0f0f0'];
+
 function parseRows(rows){
 points=rows.map((r,i)=>{
  const name=val(r,'Name','Point ID','PointID','Point');
@@ -118,54 +168,183 @@ points=rows.map((r,i)=>{
  let lon=num(val(r,'Longitude','Lon','Long'));
  let lat=num(val(r,'Latitude','Lat'));
  if((lat==null||lon==null)&&e!=null&&n!=null){try{[lon,lat]=proj4('EPSG:27700','EPSG:4326',[e,n])}catch(err){}}
- const lineKey=String(val(r,'Line','Line ID','LineID','String','Feature','Code','Name')||'').trim();
- return {id:i,name:String(name||`Point ${i+1}`),e,n,z,lat,lon,description:val(r,'Description','Code description','Point Description','Code'),lineKey,raw:r};
+ const lineKey=String(val(r,'Line','Line ID','LineID','String','Feature','Code')||'').trim();
+ const description=val(r,'Description','Code description','Point Description','Code');
+ return {id:i,name:String(name||`Point ${i+1}`),e,n,z,lat,lon,description,lineKey:lineKey||String(description||'').trim(),raw:r};
 }).filter(p=>p.lat!=null&&p.lon!=null&&p.lat>=-90&&p.lat<=90&&p.lon>=-180&&p.lon<=180);
+points.forEach((p,i)=>p.id=i);
 }
-function clearMarkers(){markers.forEach(m=>map.removeLayer(m));markers=[];lineLayers.forEach(x=>map.removeLayer(x.layer));lineLayers=[]}
+function clearMarkers(){markers.forEach(m=>m&&map.removeLayer(m));markers=[];clearLineLayers()}
+function clearLineLayers(){lineLayers.forEach(x=>map.removeLayer(x.layer));lineLayers=[]}
+
+function rebuildLines(){
+ clearLineLayers();
+ if($('autoLines').checked){
+  const groups=new Map();
+  points.forEach(p=>{if(!p.lineKey||!isLinear(p))return;if(!groups.has(p.lineKey))groups.set(p.lineKey,[]);groups.get(p.lineKey).push(p)});
+  groups.forEach((pts,key)=>{
+   if(pts.length<2||suppressed.has(key))return;
+   addLine({type:'auto',key,name:key,ids:pts.map(p=>p.id),colour:featureColour(pts[0]),closed:false});
+  });
+ }
+ customLines.forEach(l=>addLine(Object.assign({type:'custom'},l)));
+ renderLineList();updateLineStyles();updateMapStatus();
+}
+function addLine(def){
+ const pts=def.ids.map(id=>points.find(p=>p.id===id)).filter(Boolean);
+ if(pts.length<2)return;
+ const coords=pts.map(p=>[p.lat,p.lon]); if(def.closed)coords.push(coords[0]);
+ const layer=L.polyline(coords,{color:def.colour,weight:2.5,opacity:.9}).addTo(map);
+ layer.bindTooltip(def.name||def.key,{sticky:true});
+ layer.on('click',ev=>{L.DomEvent.stop(ev);toggleGroup(def.ids)});
+ lineLayers.push(Object.assign({},def,{layer}));
+}
+function renderLineList(){
+ $('lineCount').textContent=lineLayers.length;
+ $('lineList').innerHTML=lineLayers.length?lineLayers.map((x,i)=>
+  `<div class="line-item"><span class="swatch" style="background:${x.colour}"></span><span class="nm">${esc(x.name||x.key)}</span><span class="ct">${x.ids.length} pts${x.type==='custom'?' · drawn':''}</span><button data-idx="${i}" title="Remove this line">✕</button></div>`
+ ).join(''):'<div class="hint">No linework drawn.</div>';
+ $('lineList').querySelectorAll('button[data-idx]').forEach(b=>b.addEventListener('click',()=>{
+  const x=lineLayers[+b.dataset.idx];if(!x)return;
+  if(x.type==='auto')suppressed.add(x.key);else customLines=customLines.filter(l=>l.uid!==x.uid);
+  rebuildLines();
+ }));
+}
 function plot(){
-clearMarkers();
-points.forEach(p=>{
- const m=L.marker([p.lat,p.lon],{icon:markerIcon(selected.has(p.id),p)}).addTo(map);
- m.bindPopup(`<div class="popup-title">${esc(p.name)}</div><div class="popup-meta">E ${p.e??'—'}<br>N ${p.n??'—'}<br>Elevation ${p.z??'—'}${p.description?`<br>${esc(p.description)}`:''}</div>`);
- m.on('click',()=>{toggle(p.id,!selected.has(p.id));setActive(p.id,true)});markers[p.id]=m;
+ clearMarkers();
+ points.forEach(p=>{
+  const m=L.marker([p.lat,p.lon],{icon:markerIcon(selected.has(p.id),p)}).addTo(map);
+  m.bindPopup(`<div class="popup-title">${esc(p.name)}</div><div class="popup-meta">E ${p.e??'—'}<br>N ${p.n??'—'}<br>Elevation ${p.z??'—'}${p.description?`<br>${esc(p.description)}`:''}</div>`);
+  m.on('click',()=>{toggle(p.id,!selected.has(p.id));setActive(p.id,true)});
+  markers[p.id]=m;
  });
- const groups=new Map(); points.forEach(p=>{if(!p.lineKey)return; if(!groups.has(p.lineKey))groups.set(p.lineKey,[]); groups.get(p.lineKey).push(p)});
- groups.forEach((pts,key)=>{if(pts.length<2)return; const ids=pts.map(p=>p.id); const colour=featureColour(pts[0]); const layer=L.polyline(pts.map(p=>[p.lat,p.lon]),{color:colour,weight:3,opacity:.9}).addTo(map); layer.bindTooltip(key,{sticky:true}); layer.on('click',()=>toggleGroup(ids)); lineLayers.push({key,ids,layer,colour});});
- if(points.length){const bounds=L.latLngBounds(points.map(p=>[p.lat,p.lon]));map.fitBounds(bounds.pad(.12));$('mapStatus').textContent=`Survey extent · ${lineLayers.length} line${lineLayers.length===1?'':'s'}`;}
+ rebuildLines();
+ if(points.length){const b=L.latLngBounds(points.map(p=>[p.lat,p.lon]));map.fitBounds(b.pad(.12),{maxZoom:20})}
 }
+function updateMapStatus(){
+ if(!points.length){$('mapStatus').textContent='Default view';return}
+ $('mapStatus').textContent=`Zoom ${map.getZoom()} · ${lineLayers.length} line${lineLayers.length===1?'':'s'}`;
+}
+map.on('zoomend',updateMapStatus);
+
+function shownPoints(){const q=$('search').value.trim().toLowerCase();return points.filter(p=>!q||(p.name+' '+p.description).toLowerCase().includes(q))}
 function render(){
-const q=$('search').value.trim().toLowerCase();
-const shown=points.filter(p=>!q||(p.name+' '+p.description).toLowerCase().includes(q));
-$('visibleCount').textContent=`${shown.length} shown`;
-$('tbody').innerHTML=shown.length?shown.map(p=>`<tr class="${selected.has(p.id)?'selected':''}" data-id="${p.id}"><td><input class="check rowcheck" data-id="${p.id}" type="checkbox" ${selected.has(p.id)?'checked':''}></td><td>${esc(p.name)}</td><td>${p.e??'—'}</td><td>${p.n??'—'}</td><td>${p.z??'—'}</td></tr>`).join(''):`<tr><td colspan="5" class="empty">No points match the current filter.</td></tr>`;
-document.querySelectorAll('.rowcheck').forEach(c=>c.addEventListener('click',e=>{e.stopPropagation();toggle(+c.dataset.id,c.checked)}));
-document.querySelectorAll('#tbody tr[data-id]').forEach(r=>r.addEventListener('click',()=>setActive(+r.dataset.id,true)));
-$('pointCount').textContent=points.length;$('selectedCount').textContent=selected.size;$('exportBtn').disabled=!points.length;$('clearBtn').disabled=!points.length;$('search').disabled=!points.length;$('selectAll').disabled=!points.length;
-$('selectAll').checked=points.length>0&&selected.size===points.length;$('selectAll').indeterminate=selected.size>0&&selected.size<points.length;
+ const shown=shownPoints();
+ $('visibleCount').textContent=`${shown.length} shown`;
+ $('tbody').innerHTML=shown.length?shown.map(p=>`<tr class="${selected.has(p.id)?'selected':''}" data-id="${p.id}" title="${esc(p.description||'')}"><td><input class="check rowcheck" data-id="${p.id}" type="checkbox" ${selected.has(p.id)?'checked':''}></td><td>${esc(p.name)}</td><td>${p.e??'—'}</td><td>${p.n??'—'}</td><td>${p.z??'—'}</td></tr>`).join(''):`<tr><td colspan="5" class="empty">No points match the current filter.</td></tr>`;
+ document.querySelectorAll('.rowcheck').forEach(c=>c.addEventListener('click',e=>{e.stopPropagation();toggle(+c.dataset.id,c.checked)}));
+ document.querySelectorAll('#tbody tr[data-id]').forEach(r=>r.addEventListener('click',()=>setActive(+r.dataset.id,true)));
+ const has=points.length>0;
+ $('pointCount').textContent=points.length;$('selectedCount').textContent=selected.size;
+ ['exportBtn','clearBtn','boxBtn','search','selectAll','selShown','deselShown','invShown'].forEach(id=>$(id).disabled=!has);
+ $('deselAll').disabled=selected.size===0;
+ $('drawLine').disabled=selected.size<2;$('closeLine').disabled=selected.size<3;
+ $('selectAll').checked=has&&selected.size===points.length;
+ $('selectAll').indeterminate=selected.size>0&&selected.size<points.length;
 }
-function updateLineStyles(){lineLayers.forEach(x=>{const all=x.ids.every(id=>selected.has(id));const any=x.ids.some(id=>selected.has(id));x.layer.setStyle({color:x.colour,weight:all?5:any?4:3,opacity:all?1:.9})})}
-function toggle(id,on){if(on)selected.add(id);else selected.delete(id);if(markers[id])markers[id].setIcon(markerIcon(on,points.find(p=>p.id===id)));updateLineStyles();render()}
-function toggleGroup(ids){const all=ids.every(id=>selected.has(id));ids.forEach(id=>{if(all)selected.delete(id);else selected.add(id);if(markers[id])markers[id].setIcon(markerIcon(!all,points.find(p=>p.id===id)))});updateLineStyles();render()}
+function refreshIcons(ids){(ids||points.map(p=>p.id)).forEach(id=>{const p=points.find(x=>x.id===id);if(p&&markers[id])markers[id].setIcon(markerIcon(selected.has(id),p))})}
+function updateLineStyles(){lineLayers.forEach(x=>{const all=x.ids.every(id=>selected.has(id));const any=x.ids.some(id=>selected.has(id));x.layer.setStyle({color:x.colour,weight:all?4.5:any?3.5:2.5,opacity:all?1:.9})})}
+function toggle(id,on){if(on)selected.add(id);else selected.delete(id);refreshIcons([id]);updateLineStyles();render();updateDetailButton()}
+function toggleGroup(ids){const all=ids.every(id=>selected.has(id));ids.forEach(id=>{if(all)selected.delete(id);else selected.add(id)});refreshIcons(ids);updateLineStyles();render();updateDetailButton()}
+function setSelection(ids,on){ids.forEach(id=>{if(on)selected.add(id);else selected.delete(id)});refreshIcons(ids);updateLineStyles();render();updateDetailButton()}
+
 function setActive(id,open){
-activeId=id;const p=points.find(x=>x.id===id);if(!p)return;
-$('detail').innerHTML=`<div class="name">${esc(p.name)}</div><div><b>Easting</b> ${p.e??'—'} &nbsp; <b>Northing</b> ${p.n??'—'}</div><div><b>Elevation</b> ${p.z??'—'}</div><div><b>Description</b> ${esc(p.description||'—')}</div><div><b>Lat/Lon</b> ${p.lat.toFixed(7)}, ${p.lon.toFixed(7)}</div>`;
-map.panTo([p.lat,p.lon]);if(open)markers[id].openPopup();
+ activeId=id;const p=points.find(x=>x.id===id);if(!p)return;
+ $('detail').innerHTML=`<div class="name">${esc(p.name)}</div><div><b>Easting</b> ${p.e??'—'} &nbsp; <b>Northing</b> ${p.n??'—'}</div><div><b>Elevation</b> ${p.z??'—'}</div><div><b>Description</b> ${esc(p.description||'—')}</div><div><b>Lat/Lon</b> ${p.lat.toFixed(7)}, ${p.lon.toFixed(7)}</div><div><b>Linework</b> ${isLinear(p)?'joined as "'+esc(p.lineKey||'—')+'"':'standalone point'}</div><div class="btn-row" style="margin-top:8px"><button id="detailToggle" class="mini"></button></div>`;
+ updateDetailButton();
+ map.panTo([p.lat,p.lon]);if(open&&markers[id])markers[id].openPopup();
 }
+function updateDetailButton(){
+ const b=$('detailToggle');if(!b||activeId==null)return;
+ const on=selected.has(activeId);
+ b.textContent=on?'Deselect this point':'Select this point';
+ b.classList.toggle('on',on);
+ b.onclick=()=>toggle(activeId,!selected.has(activeId));
+}
+
+/* ---------- box select ---------- */
+let boxMode=false,boxStart=null;
+const boxEl=$('selbox'),mapEl=$('map');
+$('boxBtn').addEventListener('click',()=>setBoxMode(!boxMode));
+function setBoxMode(on){
+ boxMode=on;$('boxBtn').textContent=`Box select: ${on?'on':'off'}`;$('boxBtn').classList.toggle('on',on);
+ mapEl.classList.toggle('boxmode',on);
+ if(on){map.dragging.disable();map.boxZoom.disable()}else{map.dragging.enable();map.boxZoom.enable()}
+}
+mapEl.addEventListener('mousedown',e=>{
+ if(!boxMode||e.button!==0)return;
+ e.preventDefault();
+ boxStart={x:e.clientX,y:e.clientY,ll:map.mouseEventToLatLng(e)};
+ boxEl.style.display='block';drawBox(e.clientX,e.clientY);
+});
+document.addEventListener('mousemove',e=>{if(boxStart)drawBox(e.clientX,e.clientY)});
+document.addEventListener('mouseup',e=>{
+ if(!boxStart)return;
+ const start=boxStart;boxStart=null;boxEl.style.display='none';
+ if(Math.abs(e.clientX-start.x)<4&&Math.abs(e.clientY-start.y)<4)return;
+ const bounds=L.latLngBounds(start.ll,map.mouseEventToLatLng(e));
+ const hit=points.filter(p=>bounds.contains([p.lat,p.lon])).map(p=>p.id);
+ if(hit.length)setSelection(hit,!e.altKey);
+});
+function drawBox(x,y){const l=Math.min(x,boxStart.x),t=Math.min(y,boxStart.y);
+ boxEl.style.left=l+'px';boxEl.style.top=t+'px';boxEl.style.width=Math.abs(x-boxStart.x)+'px';boxEl.style.height=Math.abs(y-boxStart.y)+'px'}
+
+/* ---------- selection controls ---------- */
+$('selShown').addEventListener('click',()=>setSelection(shownPoints().map(p=>p.id),true));
+$('deselShown').addEventListener('click',()=>setSelection(shownPoints().map(p=>p.id),false));
+$('invShown').addEventListener('click',()=>{const ids=shownPoints().map(p=>p.id);ids.forEach(id=>selected.has(id)?selected.delete(id):selected.add(id));refreshIcons(ids);updateLineStyles();render();updateDetailButton()});
+$('deselAll').addEventListener('click',()=>{const ids=Array.from(selected);selected.clear();refreshIcons(ids);updateLineStyles();render();updateDetailButton()});
+$('selectAll').addEventListener('change',e=>setSelection(points.map(p=>p.id),e.target.checked));
+$('search').addEventListener('input',render);
+
+/* ---------- linework controls ---------- */
+$('linearWords').value=LINEAR_DEFAULT;$('pointWords').value=POINT_DEFAULT;
+$('applyRules').addEventListener('click',()=>{
+ linearWords=$('linearWords').value.split(',');pointWords=$('pointWords').value.split(',');
+ suppressed.clear();rebuildLines();if(activeId!=null)setActive(activeId,false);
+});
+$('autoLines').addEventListener('change',rebuildLines);
+$('unknownLines').addEventListener('change',rebuildLines);
+$('clearLines').addEventListener('click',()=>{
+ customLines=[];suppressed.clear();$('autoLines').checked=false;rebuildLines();
+});
+function drawFromSelection(closed){
+ const ids=Array.from(selected);
+ if(ids.length<(closed?3:2))return;
+ customSeq++;
+ const name=$('lineName').value.trim()||`Line ${customSeq}`;
+ customLines.push({uid:'c'+customSeq,name,key:name,ids,closed,colour:CUSTOM_COLOURS[(customSeq-1)%CUSTOM_COLOURS.length]});
+ $('lineName').value='';
+ rebuildLines();
+}
+$('drawLine').addEventListener('click',()=>drawFromSelection(false));
+$('closeLine').addEventListener('click',()=>drawFromSelection(true));
+
+/* ---------- data in / out ---------- */
 $('csvUpload').addEventListener('change',e=>{
 const f=e.target.files[0];if(!f)return;
 Papa.parse(f,{header:true,skipEmptyLines:true,dynamicTyping:false,complete:r=>{
- selected.clear();activeId=null;parseRows(r.data);plot();$('datasetName').textContent=f.name;$('coordSource').textContent=points.length?'CSV / BNG conversion':'No valid coordinates';$('search').value='';render();
- if(!points.length){$('tbody').innerHTML='<tr><td colspan="5" class="empty">No valid mappable points found. Check the CSV headers and coordinate values.</td></tr>';}
+ selected.clear();activeId=null;customLines=[];suppressed.clear();customSeq=0;
+ parseRows(r.data);plot();
+ $('datasetName').textContent=f.name;$('coordSource').textContent=points.length?'CSV / BNG conversion':'No valid coordinates';
+ $('search').value='';render();
+ if(!points.length)$('tbody').innerHTML='<tr><td colspan="5" class="empty">No mappable points found. Check the CSV headers and coordinate values.</td></tr>';
 }});
 });
-$('search').addEventListener('input',render);
-$('selectAll').addEventListener('change',e=>{if(e.target.checked)points.forEach(p=>selected.add(p.id));else selected.clear();points.forEach(p=>markers[p.id]?.setIcon(markerIcon(selected.has(p.id))));updateLineStyles();render()});
-$('clearBtn').addEventListener('click',()=>{points=[];selected.clear();activeId=null;clearMarkers();$('datasetName').textContent='No data loaded';$('pointCount').textContent='0';$('selectedCount').textContent='0';$('coordSource').textContent='Awaiting upload';$('mapStatus').textContent='Default view';$('search').value='';$('detail').innerHTML='<div class="name">No point selected</div>Select a row or map marker to inspect it. Tick one or more records, then use <b>Export for AMX</b>.';map.setView(DEFAULT,11);render();$('csvUpload').value=''});
-$('exportBtn').addEventListener('click',()=>{
-const suggested=prompt('Name the AMX export file:', 'AMX_Export'); if(suggested===null)return; let fileName=suggested.trim()||'AMX_Export'; if(!/\.csv$/i.test(fileName))fileName+='.csv';
-const out=(selected.size?points.filter(p=>selected.has(p.id)):points).map(p=>({'Point ID':p.name,'Eastings':p.e??'','Northings':p.n??'','Point Description':p.z??''}));
-const csv=Papa.unparse(out,{newline:'\r\n'});const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=fileName;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500);
+$('clearBtn').addEventListener('click',()=>{
+ points=[];selected.clear();activeId=null;customLines=[];suppressed.clear();customSeq=0;clearMarkers();
+ $('datasetName').textContent='No data loaded';$('pointCount').textContent='0';$('selectedCount').textContent='0';
+ $('coordSource').textContent='Awaiting upload';$('mapStatus').textContent='Default view';$('search').value='';
+ $('detail').innerHTML='<div class="name">No point selected</div>Select a row or map marker to inspect it. Tick one or more records, then use <b>Export for AMX</b>.';
+ renderLineList();map.setView(DEFAULT,11);setBoxMode(false);render();$('csvUpload').value='';
 });
+$('exportBtn').addEventListener('click',()=>{
+ const suggested=prompt('Name the AMX export file:','AMX_Export');if(suggested===null)return;
+ let fileName=suggested.trim()||'AMX_Export';if(!/\.csv$/i.test(fileName))fileName+='.csv';
+ const out=(selected.size?points.filter(p=>selected.has(p.id)):points).map(p=>({'Point ID':p.name,'Eastings':p.e??'','Northings':p.n??'','Point Description':p.z??''}));
+ const csv=Papa.unparse(out,{newline:'\r\n'});const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+ const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=fileName;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500);
+});
+render();
 </script>
 </body></html>

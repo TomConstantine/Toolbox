@@ -168,12 +168,13 @@
     z-index: 40;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     background: rgba(13, 23, 18, 0.88);
     backdrop-filter: blur(4px);
     border: 1px solid var(--rule);
     padding: 4px 8px;
     border-radius: 6px;
+    max-width: calc(100% - 20px);
   }
   .viewer-toolbar .box-tag {
     font-family: 'IBM Plex Mono', monospace;
@@ -181,10 +182,12 @@
     color: var(--highlight);
     margin-right: 4px;
     white-space: nowrap;
-    max-width: 180px;
+    max-width: 150px;
     overflow: hidden;
     text-overflow: ellipsis;
+    flex-shrink: 1;
   }
+  .toolbar-sep { width:1px; height:18px; background:var(--rule); margin:0 2px; flex-shrink:0; }
   .icon-btn {
     background: transparent;
     border: 1px solid transparent;
@@ -198,6 +201,8 @@
     justify-content: center;
     transition: all 0.2s ease;
     padding: 0;
+    position: relative;
+    flex-shrink: 0;
   }
   .icon-btn:hover {
     background: var(--stone-2);
@@ -209,7 +214,35 @@
     color: var(--ink);
   }
 
-  /* Expanded Multi-Tool Annotation Bar */
+  .count-badge {
+    position: absolute;
+    top: -4px; right: -4px;
+    min-width: 14px; height: 14px;
+    padding: 0 3px;
+    border-radius: 7px;
+    background: var(--highlight);
+    color: var(--ink);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 14px;
+    text-align: center;
+  }
+  .count-badge.empty { display: none; }
+
+  .zoom-group { display: none; align-items: center; gap: 2px; flex-shrink: 0; }
+  .zoom-group.visible { display: inline-flex; }
+  span.toolbar-sep.zoom-group.visible { display: inline-block; }
+  .zoom-level {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--parchment-dim);
+    min-width: 34px;
+    text-align: center;
+    user-select: none;
+  }
+
+  /* Annotation Bar */
   .annotation-bar {
     position: absolute;
     top: 50px;
@@ -224,6 +257,7 @@
     gap: 10px;
     box-shadow: 0 4px 14px rgba(0,0,0,0.6);
     flex-wrap: wrap;
+    max-width: calc(100% - 20px);
   }
   .anno-group {
     display: flex;
@@ -233,20 +267,6 @@
     padding-right: 8px;
   }
   .anno-group:last-child { border-right: none; padding-right: 0; }
-  .tool-btn {
-    background: var(--stone-2);
-    border: 1px solid var(--rule);
-    color: var(--parchment-dim);
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 10px;
-    padding: 4px 8px;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-  .tool-btn:hover { border-color: var(--moss); color: var(--parchment); }
-  .tool-btn.active { background: var(--moss); color: var(--ink); font-weight: 600; border-color: var(--moss); }
-  
   .anno-hint {
     font-family: 'IBM Plex Mono', monospace;
     font-size: 10px;
@@ -280,6 +300,99 @@
   .anno-action-btn:hover { border-color: var(--highlight); color: var(--highlight); }
   .anno-action-btn.close-btn { border-color: var(--moss); color: var(--moss); }
 
+  /* ---------- Notes / comments side panel ---------- */
+  .notes-panel {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    bottom: 10px;
+    width: 250px;
+    max-width: calc(100% - 20px);
+    z-index: 45;
+    background: rgba(13, 23, 18, 0.93);
+    backdrop-filter: blur(6px);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.55);
+  }
+  .notes-panel.open { display: flex; }
+  .notes-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--rule);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: var(--moss);
+    flex-shrink: 0;
+  }
+  .notes-list { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+  .notes-empty {
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    color: var(--parchment-dim);
+    line-height: 1.5;
+    padding: 14px 10px;
+    text-align: center;
+  }
+  .note-item {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    background: var(--stone-2);
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 7px 8px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .note-item:hover { border-color: var(--moss); }
+  .note-item.active { border-color: var(--highlight); background: rgba(34, 211, 238, 0.12); }
+  .note-num {
+    flex-shrink: 0;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    border: 1.5px solid rgba(255,255,255,0.85);
+    margin-top: 1px;
+  }
+  .note-text {
+    flex: 1;
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--parchment);
+    word-break: break-word;
+    white-space: pre-wrap;
+  }
+  .note-text.untitled { color: var(--parchment-dim); font-style: italic; }
+  .note-actions { display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; }
+  .note-mini-btn {
+    background: transparent;
+    border: none;
+    color: var(--parchment-dim);
+    cursor: pointer;
+    padding: 1px 3px;
+    border-radius: 3px;
+    line-height: 1;
+    display: inline-flex;
+  }
+  .note-mini-btn:hover { color: var(--highlight); background: rgba(255,255,255,0.06); }
+  .note-mini-btn.danger:hover { color: #f87171; background: rgba(239,68,68,0.15); }
+  .notes-head-actions { display: flex; align-items: center; gap: 4px; }
+  /* "pins hidden" state, shown on both the panel button and the toolbar button */
+  .note-mini-btn.muted, .icon-btn.muted { color: #f59e0b; }
+  .icon-btn.muted:hover { color: #fbbf24; }
+  .notes-foot { padding: 8px; border-top: 1px solid var(--rule); flex-shrink: 0; }
+
   /* Interactive Canvas Overlay */
   .annotation-canvas {
     position: absolute;
@@ -288,10 +401,9 @@
     z-index: 30;
     pointer-events: none;
   }
-  .annotation-canvas.active {
-    pointer-events: auto;
-    cursor: crosshair;
-  }
+  .annotation-canvas.active { pointer-events: auto; cursor: crosshair; }
+  .annotation-canvas.pannable { pointer-events: auto; cursor: grab; }
+  .annotation-canvas.panning { cursor: grabbing; }
 
   .panorama-frame { width: 100%; height: 100%; }
   .flat-frame {
@@ -300,19 +412,71 @@
     object-fit: contain;
     background: #060b08;
     display: none;
+    transform-origin: center center;
+    will-change: transform;
   }
 
-  /* Native pannellum hotspot pins - strip default sprite styling so our
-     inline-styled dot (see renderPinOnViewer) is all that shows. */
+  /* Pannellum's own zoom / control cluster defaults to the top-left, which
+     collided with our toolbar and filename tag on 360 images. Move it to the
+     bottom-left where nothing else lives. */
+  .pnlm-controls-container {
+    top: auto !important;
+    bottom: 12px !important;
+    left: 12px !important;
+    z-index: 20 !important;
+  }
+
+  /* Native pannellum hotspot pins - strip the default sprite so only our
+     own markup shows. */
   .pnlm-hotspot.pin-hotspot {
     background: none !important;
     background-image: none !important;
+    width: 0 !important;
+    height: 0 !important;
   }
+  .pin-node {
+    position: absolute;
+    left: 0; top: 0;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+  }
+  .pin-bubble {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    border: 2px solid #ffffff;
+    box-shadow: 0 0 6px rgba(0,0,0,0.75);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .pin-node.active .pin-bubble { box-shadow: 0 0 0 5px rgba(34,211,238,0.35), 0 0 8px rgba(0,0,0,0.8); }
+  .pin-flag {
+    background: rgba(13, 23, 18, 0.92);
+    border: 1px solid var(--rule);
+    border-radius: 5px;
+    padding: 3px 8px;
+    font-size: 11.5px;
+    color: var(--parchment);
+    white-space: nowrap;
+    max-width: 190px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    opacity: 0;
+    transform: translateX(-4px);
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    pointer-events: none;
+  }
+  .pin-node:hover .pin-flag, .pin-node.active .pin-flag { opacity: 1; transform: translateX(0); }
 
   .caption{
     margin-top:14px;
     display:flex;
-    justify-space:space-between;
+    justify-content:space-between;
     align-items: center;
     gap:16px;
     flex-wrap:wrap;
@@ -335,7 +499,7 @@
     text-transform:uppercase;
     color:var(--moss);
     display:flex;
-    justify-space:space-between;
+    justify-content:space-between;
     align-items: center;
   }
   #map{
@@ -411,7 +575,7 @@
   .filter-btn.active { background: var(--moss); color: var(--ink); font-weight: 600; }
 
   .date-panel { margin-bottom: 10px; }
-  .date-panel-head { display: flex; justify-space: space-between; align-items: center; margin-bottom: 6px; }
+  .date-panel-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
   .date-panel-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--moss); }
   .compare-toggle-btn {
     background: var(--stone-2);
@@ -441,6 +605,7 @@
   }
   .date-chip:hover { border-color: var(--moss); }
   .date-chip.active { background: rgba(0, 141, 150, 0.25); border-color: var(--water); color: #ffffff; }
+  .date-chip.active-secondary { background: rgba(34, 211, 238, 0.18); border-color: var(--highlight); color: #ffffff; }
 
   .subfilter-row {
     display: flex;
@@ -477,7 +642,7 @@
     color: var(--parchment-dim);
     cursor: pointer;
     display: flex;
-    justify-space: space-between;
+    justify-content: space-between;
     align-items: center;
     border: 1px solid transparent;
     transition: all 0.2s ease;
@@ -499,6 +664,7 @@
   .node-badge { font-size: 9px; padding: 2px 4px; border-radius: 3px; font-weight: 500; }
   .node-badge.type-360 { background: rgba(43, 182, 115, 0.2); color: var(--moss); }
   .node-badge.type-flat { background: rgba(0, 141, 150, 0.2); color: #38bdf8; }
+  .node-badge.type-note { background: rgba(34, 211, 238, 0.18); color: var(--highlight); }
   .node-delete-btn {
     background: transparent;
     border: none;
@@ -543,7 +709,10 @@
     color: var(--moss);
     letter-spacing: .08em;
   }
-  .form-group select, .form-group input[type="text"], .form-group input[type="number"] {
+  .form-group select,
+  .form-group input[type="text"],
+  .form-group input[type="number"],
+  .form-group textarea {
     background: var(--stone-2);
     border: 1px solid var(--rule);
     color: var(--parchment);
@@ -554,6 +723,7 @@
     outline: none;
     width: 100%;
   }
+  .form-group textarea { resize: vertical; min-height: 88px; line-height: 1.5; }
 
   /* Range Slider Flush Styling Fix */
   .form-group input[type="range"] {
@@ -588,10 +758,13 @@
     border: none;
   }
 
-  .form-group select:focus, .form-group input:focus { border-color: var(--moss); }
+  .form-group select:focus, .form-group input:focus, .form-group textarea:focus { border-color: var(--moss); }
   .checkbox-group { display: flex; align-items: center; gap: 10px; font-size: 13px; margin-top: 6px; }
   .checkbox-group input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--moss); cursor: pointer; }
   .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+  .modal-hint { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--parchment-dim); margin-top: 12px; text-align: right; }
+  .modal-colors { display: flex; gap: 8px; align-items: center; }
+  .modal-colors .color-dot { width: 20px; height: 20px; }
 
   /* Full-Screen Dual Viewer Modal */
   .compare-modal-window {
@@ -605,7 +778,7 @@
     padding: 20px;
     box-shadow: 0 25px 60px rgba(0,0,0,0.85);
   }
-  .compare-modal-header { display: flex; justify-space-between; align-items: center; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--rule); }
+  .compare-modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--rule); }
   .compare-modal-title { font-family: 'Fraunces', serif; font-size: 20px; color: #ffffff; display: flex; align-items: center; gap: 12px; }
   .compare-header-actions { display: flex; gap: 10px; }
   .compare-modal-body { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; min-height: 0; }
@@ -630,6 +803,32 @@
     color: var(--parchment);
   }
   .step-badge { background: var(--highlight); color: var(--ink); padding: 3px 8px; border-radius: 12px; font-weight: 600; font-size: 11px; }
+
+  /* Toasts */
+  #toastHost {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10001;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+    pointer-events: none;
+  }
+  .toast {
+    background: var(--stone);
+    border: 1px solid var(--moss);
+    color: var(--parchment);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    padding: 9px 16px;
+    border-radius: 20px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+    animation: toastIn 0.2s ease;
+  }
+  @keyframes toastIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
   /* Leaflet markers */
   .marker-wrap { position: relative; width: 30px; height: 30px; }
@@ -711,20 +910,36 @@
     <div class="viewer-box" id="box-primary">
       <div class="viewer-toolbar">
         <span class="box-tag" id="tag-primary">Primary Node</span>
-        <button class="icon-btn" id="annoBtn-primary" title="Annotate Image" onclick="toggleAnnotationMode('primary')">
+        <button class="icon-btn" id="annoBtn-primary" title="Annotate image" onclick="toggleAnnotationMode('primary')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
         </button>
-        <button class="icon-btn" title="Set Current View as North (0°)" onclick="recalibrateNorth('primary')">
+        <button class="icon-btn" id="notesBtn-primary" title="Show annotation list" onclick="toggleNotesPanel('primary')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+          <span class="count-badge empty" id="notesCount-primary">0</span>
+        </button>
+        <button class="icon-btn" title="Set current view as North (0°)" onclick="recalibrateNorth('primary')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="12 6 15 12 12 18 9 12 12 6" fill="currentColor"/></svg>
         </button>
-        <button class="icon-btn" title="Toggle Fullscreen" onclick="toggleElementFullscreen('box-primary')">
+        <span class="toolbar-sep zoom-group" id="zoomSep-primary"></span>
+        <span class="zoom-group" id="zoomGroup-primary">
+          <button class="icon-btn" title="Zoom out" onclick="stepFlatZoom('primary', -1)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M8 11h6M20 20l-3.5-3.5"/></svg>
+          </button>
+          <span class="zoom-level" id="zoomLevel-primary">100%</span>
+          <button class="icon-btn" title="Zoom in" onclick="stepFlatZoom('primary', 1)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M8 11h6M11 8v6M20 20l-3.5-3.5"/></svg>
+          </button>
+          <button class="icon-btn" title="Reset zoom" onclick="resetFlatZoom('primary')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+          </button>
+        </span>
+        <button class="icon-btn" title="Toggle fullscreen" onclick="toggleElementFullscreen('box-primary')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
         </button>
       </div>
 
-      <!-- Simple, robust annotation bar: single "drop a pin" tool -->
       <div class="annotation-bar" id="annotationBar-primary" style="display:none;">
-        <span class="anno-hint">Click image to drop a labeled pin</span>
+        <span class="anno-hint" id="annoHint-primary">Click the image to drop a pin</span>
         <div class="anno-group">
           <div class="color-picker" id="colorPicker-primary">
             <span class="color-dot active" style="background:#22d3ee" data-color="#22d3ee"></span>
@@ -736,6 +951,24 @@
         </div>
         <button class="anno-action-btn" onclick="clearAnnotations('primary')">Clear</button>
         <button class="anno-action-btn close-btn" onclick="toggleAnnotationMode('primary')">Done</button>
+      </div>
+
+      <div class="notes-panel" id="notesPanel-primary">
+        <div class="notes-head">
+          <span id="notesHeadLabel-primary">Annotations</span>
+          <span class="notes-head-actions">
+            <button class="note-mini-btn" id="pinVisBtn-primary" title="Hide pins on image" onclick="togglePinVisibility('primary')">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+            <button class="note-mini-btn" title="Close" onclick="toggleNotesPanel('primary')">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+          </span>
+        </div>
+        <div class="notes-list" id="notesList-primary"></div>
+        <div class="notes-foot">
+          <button class="anno-action-btn close-btn" style="width:100%;" onclick="startAddPin('primary')">+ Add Pin</button>
+        </div>
       </div>
 
       <canvas class="annotation-canvas" id="annoCanvas-primary"></canvas>
@@ -801,11 +1034,46 @@
   Locations plotted from embedded GPS and XMP telemetry. Multi-date dual viewer synchronizes viewing angles client-side.
 </footer>
 
+<div id="toastHost"></div>
+
 <!-- Floating Compare Step Bar -->
 <div id="compareStepBar" class="step-floating-bar" style="display:none;">
   <span class="step-badge" id="compareStepBadge">STEP 1 OF 2</span>
   <span id="compareStepText">Select <b>Primary Image (Left Viewer)</b> from Map or List</span>
   <button id="cancelCompareStepBtn" class="upload-btn secondary" style="padding:4px 10px; font-size:10px; border-color:var(--parchment-dim); color:var(--parchment);">Exit Compare</button>
+</div>
+
+<!-- Annotation Note Editor -->
+<div id="pinEditorModal" class="modal-overlay" style="display:none;">
+  <div class="modal-content" style="width:min(440px,92vw);">
+    <h3 id="pinEditorTitle">Add Annotation</h3>
+    <div class="modal-desc" id="pinEditorDesc">Describe what you're marking. Notes appear in the annotation list and on the pin itself.</div>
+
+    <div class="form-group">
+      <label for="pinEditorInput">Note</label>
+      <textarea id="pinEditorInput" placeholder="e.g. Erosion at toe of bank — approx 1.5 m section"></textarea>
+    </div>
+
+    <div class="form-group">
+      <label>Marker Colour</label>
+      <div class="modal-colors" id="pinEditorColors">
+        <span class="color-dot active" style="background:#22d3ee" data-color="#22d3ee"></span>
+        <span class="color-dot" style="background:#ef4444" data-color="#ef4444"></span>
+        <span class="color-dot" style="background:#f59e0b" data-color="#f59e0b"></span>
+        <span class="color-dot" style="background:#2bb673" data-color="#2bb673"></span>
+        <span class="color-dot" style="background:#ffffff" data-color="#ffffff"></span>
+      </div>
+    </div>
+
+    <div class="modal-actions" style="justify-content:space-between;">
+      <button id="pinEditorDeleteBtn" class="upload-btn secondary" style="border-color:#ef4444; color:#f87171;">Delete Pin</button>
+      <div style="display:flex; gap:10px;">
+        <button id="pinEditorCancelBtn" class="upload-btn secondary">Cancel</button>
+        <button id="pinEditorSaveBtn" class="upload-btn">Save Note</button>
+      </div>
+    </div>
+    <div class="modal-hint">Ctrl / ⌘ + Enter to save · Esc to cancel</div>
+  </div>
 </div>
 
 <!-- Date Selection Modal -->
@@ -881,19 +1149,36 @@
       <div class="viewer-box" id="box-compare-left" style="height:100%;">
         <div class="viewer-toolbar">
           <span class="box-tag" id="tag-compare-left">Left Node</span>
-          <button class="icon-btn" id="annoBtn-compare-left" title="Annotate Image" onclick="toggleAnnotationMode('compare-left')">
+          <button class="icon-btn" id="annoBtn-compare-left" title="Annotate image" onclick="toggleAnnotationMode('compare-left')">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
           </button>
-          <button class="icon-btn" title="Set Current View as North (0°)" onclick="recalibrateNorth('left')">
+          <button class="icon-btn" id="notesBtn-compare-left" title="Show annotation list" onclick="toggleNotesPanel('compare-left')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+            <span class="count-badge empty" id="notesCount-compare-left">0</span>
+          </button>
+          <button class="icon-btn" title="Set current view as North (0°)" onclick="recalibrateNorth('left')">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="12 6 15 12 12 18 9 12 12 6" fill="currentColor"/></svg>
           </button>
-          <button class="icon-btn" title="Toggle Fullscreen" onclick="toggleElementFullscreen('box-compare-left')">
+          <span class="toolbar-sep zoom-group" id="zoomSep-compare-left"></span>
+          <span class="zoom-group" id="zoomGroup-compare-left">
+            <button class="icon-btn" title="Zoom out" onclick="stepFlatZoom('compare-left', -1)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M8 11h6M20 20l-3.5-3.5"/></svg>
+            </button>
+            <span class="zoom-level" id="zoomLevel-compare-left">100%</span>
+            <button class="icon-btn" title="Zoom in" onclick="stepFlatZoom('compare-left', 1)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M8 11h6M11 8v6M20 20l-3.5-3.5"/></svg>
+            </button>
+            <button class="icon-btn" title="Reset zoom" onclick="resetFlatZoom('compare-left')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+            </button>
+          </span>
+          <button class="icon-btn" title="Toggle fullscreen" onclick="toggleElementFullscreen('box-compare-left')">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
           </button>
         </div>
 
         <div class="annotation-bar" id="annotationBar-compare-left" style="display:none;">
-          <span class="anno-hint">Click image to drop a labeled pin</span>
+          <span class="anno-hint" id="annoHint-compare-left">Click the image to drop a pin</span>
           <div class="anno-group">
             <div class="color-picker" id="colorPicker-compare-left">
               <span class="color-dot active" style="background:#22d3ee" data-color="#22d3ee"></span>
@@ -907,6 +1192,24 @@
           <button class="anno-action-btn close-btn" onclick="toggleAnnotationMode('compare-left')">Done</button>
         </div>
 
+        <div class="notes-panel" id="notesPanel-compare-left">
+          <div class="notes-head">
+            <span id="notesHeadLabel-compare-left">Annotations</span>
+            <span class="notes-head-actions">
+              <button class="note-mini-btn" id="pinVisBtn-compare-left" title="Hide pins on image" onclick="togglePinVisibility('compare-left')">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+              <button class="note-mini-btn" title="Close" onclick="toggleNotesPanel('compare-left')">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>
+              </button>
+            </span>
+          </div>
+          <div class="notes-list" id="notesList-compare-left"></div>
+          <div class="notes-foot">
+            <button class="anno-action-btn close-btn" style="width:100%;" onclick="startAddPin('compare-left')">+ Add Pin</button>
+          </div>
+        </div>
+
         <canvas class="annotation-canvas" id="annoCanvas-compare-left"></canvas>
         <div id="panorama-compare-left" class="panorama-frame"></div>
         <img id="flat-compare-left" class="flat-frame" alt="Left Preview" />
@@ -916,19 +1219,36 @@
       <div class="viewer-box" id="box-compare-right" style="height:100%;">
         <div class="viewer-toolbar">
           <span class="box-tag" id="tag-compare-right" style="color:var(--moss);">Right Node</span>
-          <button class="icon-btn" id="annoBtn-compare-right" title="Annotate Image" onclick="toggleAnnotationMode('compare-right')">
+          <button class="icon-btn" id="annoBtn-compare-right" title="Annotate image" onclick="toggleAnnotationMode('compare-right')">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
           </button>
-          <button class="icon-btn" title="Set Current View as North (0°)" onclick="recalibrateNorth('right')">
+          <button class="icon-btn" id="notesBtn-compare-right" title="Show annotation list" onclick="toggleNotesPanel('compare-right')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+            <span class="count-badge empty" id="notesCount-compare-right">0</span>
+          </button>
+          <button class="icon-btn" title="Set current view as North (0°)" onclick="recalibrateNorth('right')">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="12 6 15 12 12 18 9 12 12 6" fill="currentColor"/></svg>
           </button>
-          <button class="icon-btn" title="Toggle Fullscreen" onclick="toggleElementFullscreen('box-compare-right')">
+          <span class="toolbar-sep zoom-group" id="zoomSep-compare-right"></span>
+          <span class="zoom-group" id="zoomGroup-compare-right">
+            <button class="icon-btn" title="Zoom out" onclick="stepFlatZoom('compare-right', -1)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M8 11h6M20 20l-3.5-3.5"/></svg>
+            </button>
+            <span class="zoom-level" id="zoomLevel-compare-right">100%</span>
+            <button class="icon-btn" title="Zoom in" onclick="stepFlatZoom('compare-right', 1)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M8 11h6M11 8v6M20 20l-3.5-3.5"/></svg>
+            </button>
+            <button class="icon-btn" title="Reset zoom" onclick="resetFlatZoom('compare-right')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+            </button>
+          </span>
+          <button class="icon-btn" title="Toggle fullscreen" onclick="toggleElementFullscreen('box-compare-right')">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
           </button>
         </div>
 
         <div class="annotation-bar" id="annotationBar-compare-right" style="display:none;">
-          <span class="anno-hint">Click image to drop a labeled pin</span>
+          <span class="anno-hint" id="annoHint-compare-right">Click the image to drop a pin</span>
           <div class="anno-group">
             <div class="color-picker" id="colorPicker-compare-right">
               <span class="color-dot active" style="background:#22d3ee" data-color="#22d3ee"></span>
@@ -940,6 +1260,24 @@
           </div>
           <button class="anno-action-btn" onclick="clearAnnotations('compare-right')">Clear</button>
           <button class="anno-action-btn close-btn" onclick="toggleAnnotationMode('compare-right')">Done</button>
+        </div>
+
+        <div class="notes-panel" id="notesPanel-compare-right">
+          <div class="notes-head">
+            <span id="notesHeadLabel-compare-right">Annotations</span>
+            <span class="notes-head-actions">
+              <button class="note-mini-btn" id="pinVisBtn-compare-right" title="Hide pins on image" onclick="togglePinVisibility('compare-right')">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+              <button class="note-mini-btn" title="Close" onclick="toggleNotesPanel('compare-right')">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>
+              </button>
+            </span>
+          </div>
+          <div class="notes-list" id="notesList-compare-right"></div>
+          <div class="notes-foot">
+            <button class="anno-action-btn close-btn" style="width:100%;" onclick="startAddPin('compare-right')">+ Add Pin</button>
+          </div>
         </div>
 
         <canvas class="annotation-canvas" id="annoCanvas-compare-right"></canvas>
@@ -1006,6 +1344,8 @@
   const DEFAULT_LAT = 52.415300;
   const DEFAULT_LON = -4.082900;
 
+  const PREFIXES = ['primary', 'compare-left', 'compare-right'];
+
   let projectTitle = "360° Field Record";
   let nodes = [];
   let selectedNodeId = null;
@@ -1025,12 +1365,35 @@
   let pViewerRight = null;
   let isSyncingViewers = false;
 
-  // Annotation UI state per viewer box target ('primary', 'compare-left', 'compare-right')
+  // Annotation UI state per viewer box target
   const annoStates = {
     'primary': { active: false, color: '#22d3ee' },
     'compare-left': { active: false, color: '#22d3ee' },
     'compare-right': { active: false, color: '#22d3ee' }
   };
+
+  // Currently highlighted pin per viewer
+  const activePinIds = { 'primary': null, 'compare-left': null, 'compare-right': null };
+
+  // Notes panel open state per viewer
+  const notesPanelOpen = { 'primary': false, 'compare-left': false, 'compare-right': false };
+
+  // Whether pins are drawn over the image (view-only; the notes list and the
+  // saved data are unaffected)
+  const pinsVisible = { 'primary': true, 'compare-left': true, 'compare-right': true };
+
+  // Flat-image zoom/pan per viewer: screen = centre + (p - centre) * scale + t
+  const flatViews = {
+    'primary': { scale: 1, tx: 0, ty: 0 },
+    'compare-left': { scale: 1, tx: 0, ty: 0 },
+    'compare-right': { scale: 1, tx: 0, ty: 0 }
+  };
+
+  // Hotspot ids currently injected into each pannellum viewer
+  const renderedHotspotIds = { 'primary': [], 'compare-left': [], 'compare-right': [] };
+
+  const MIN_ZOOM = 1;
+  const MAX_ZOOM = 8;
 
   // Leaflet Map Initialization
   let map = L.map('map').setView([DEFAULT_LAT, DEFAULT_LON], 10);
@@ -1063,6 +1426,16 @@
     }
   }
 
+  function showToast(message, ms = 2600) {
+    const host = document.getElementById('toastHost');
+    if (!host) return;
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.innerText = message;
+    host.appendChild(el);
+    setTimeout(() => el.remove(), ms);
+  }
+
   function parseXmpMetadata(arrayBuffer) {
     const text = new TextDecoder('utf-8', { fatal: false }).decode(new Uint8Array(arrayBuffer));
     const pitchMatch = text.match(/drone-dji:GimbalPitchDegree="([^"]+)"/) || text.match(/<drone-dji:GimbalPitchDegree>([^<]+)<\/drone-dji:GimbalPitchDegree>/) || text.match(/GCamera:Pitch="([^"]+)"/);
@@ -1092,18 +1465,27 @@
     return `${parseInt(bits[2], 10)} ${months[mi] || bits[1]} ${bits[0]}`;
   }
 
+  function escapeHtml(str) {
+    return String(str === undefined || str === null ? '' : str)
+      .replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]);
+  }
+
+  // Readable text colour for a coloured pin bubble
+  function contrastInk(hex) {
+    const h = (hex || '#22d3ee').replace('#', '');
+    const r = parseInt(h.substr(0,2),16), g = parseInt(h.substr(2,2),16), b = parseInt(h.substr(4,2),16);
+    const lum = (0.299*r + 0.587*g + 0.114*b) / 255;
+    return lum > 0.6 ? '#0d1712' : '#ffffff';
+  }
+
   /* ================================================================
      ANNOTATION SYSTEM (pin-based)
      ----------------------------------------------------------------
-     360° photos: pins are native Pannellum hotspots (viewer.addHotSpot).
-     Pannellum repositions its own hotspots on every render, so they
-     track pitch/yaw/zoom automatically with no manual screen-projection
-     math required — this is what makes them "stick" correctly.
-
-     Flat photos: pins are drawn on a canvas overlay, positioned using
-     normalised coordinates within the actual displayed image rectangle
-     (accounting for object-fit:contain letterboxing), redrawn on
-     resize/fullscreen/image-load.
+     360° photos: pins are native Pannellum hotspots, so the library
+     repositions them on every render and they track pitch/yaw/zoom.
+     Flat photos: pins are canvas-drawn from normalised coordinates
+     within the displayed image rect, which also accounts for the
+     zoom/pan transform applied to the <img>.
      ================================================================ */
 
   function getViewerInstance(targetPrefix) {
@@ -1124,240 +1506,779 @@
     return 'pin_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
   }
 
-  // Styles a Pannellum hotspot div as a small colored, labeled pin and
-  // wires up click-to-delete.
-  function stylePinHotspot(hotSpotDiv, args) {
-    hotSpotDiv.style.width = '16px';
-    hotSpotDiv.style.height = '16px';
-    hotSpotDiv.style.marginLeft = '-8px';
-    hotSpotDiv.style.marginTop = '-8px';
-    hotSpotDiv.style.borderRadius = '50%';
-    hotSpotDiv.style.background = args.color || '#22d3ee';
-    hotSpotDiv.style.backgroundImage = 'none';
-    hotSpotDiv.style.border = '2px solid #ffffff';
-    hotSpotDiv.style.boxShadow = '0 0 6px rgba(0,0,0,0.7)';
-    hotSpotDiv.style.cursor = 'pointer';
-    if (args.text) hotSpotDiv.title = args.text;
-    hotSpotDiv.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (confirm(`Delete this pin${args.text ? ' ("' + args.text + '")' : ''}?`)) {
-        removePin(args.targetPrefix, args.pinId);
-      }
-    });
-  }
+  /* ---------- FLAT IMAGE ZOOM & PAN ---------- */
 
-  function renderPinOnViewer(targetPrefix, node, pin) {
-    if (node.is360) {
-      const viewer = getViewerInstance(targetPrefix);
-      if (!viewer || typeof viewer.addHotSpot !== 'function') return;
-      try {
-        viewer.addHotSpot({
-          id: pin.id,
-          pitch: pin.pitch,
-          yaw: pin.yaw,
-          cssClass: 'pin-hotspot',
-          createTooltipFunc: stylePinHotspot,
-          createTooltipArgs: { color: pin.color, text: pin.text, pinId: pin.id, targetPrefix }
-        });
-      } catch (e) { /* hotspot with this id may already exist */ }
-    } else {
-      redrawFlatPins(targetPrefix);
-    }
-  }
-
-  function addPinToNode(targetPrefix, node, pinData) {
-    node.annotations = node.annotations || [];
-    node.annotations.push(pinData);
-    renderPinOnViewer(targetPrefix, node, pinData);
-  }
-
-  function removePin(targetPrefix, pinId) {
-    const node = getNodeForTargetPrefix(targetPrefix);
-    if (!node) return;
-    node.annotations = (node.annotations || []).filter(p => p.id !== pinId);
-    if (node.is360) {
-      const viewer = getViewerInstance(targetPrefix);
-      if (viewer && typeof viewer.removeHotSpot === 'function') {
-        try { viewer.removeHotSpot(pinId); } catch (e) {}
-      }
-    } else {
-      redrawFlatPins(targetPrefix);
-    }
-  }
-
-  function clearAnnotations(targetPrefix) {
-    const node = getNodeForTargetPrefix(targetPrefix);
-    if (!node) return;
-    const ids = (node.annotations || []).map(p => p.id);
-    node.annotations = [];
-    if (node.is360) {
-      const viewer = getViewerInstance(targetPrefix);
-      if (viewer && typeof viewer.removeHotSpot === 'function') {
-        ids.forEach(id => { try { viewer.removeHotSpot(id); } catch (e) {} });
-      }
-    } else {
-      redrawFlatPins(targetPrefix);
-    }
-  }
-
-  // Reconstructs the actual displayed-image rectangle for a flat photo
-  // rendered with object-fit:contain, in coordinates local to the canvas.
-  function getFlatImageRect(targetPrefix) {
+  // Untransformed rect of the image inside its box (object-fit: contain)
+  function getFlatBaseRect(targetPrefix) {
     const canvas = document.getElementById(`annoCanvas-${targetPrefix}`);
     const flatEl = document.getElementById(`flat-${targetPrefix}`);
     if (!canvas || !flatEl || flatEl.style.display === 'none' || !flatEl.naturalWidth || !flatEl.naturalHeight) return null;
 
-    const canvasRect = canvas.getBoundingClientRect();
-    if (!canvasRect.width || !canvasRect.height) return null;
+    const box = canvas.getBoundingClientRect();
+    if (!box.width || !box.height) return null;
 
     const imageRatio = flatEl.naturalWidth / flatEl.naturalHeight;
-    const boxRatio = canvasRect.width / canvasRect.height;
+    const boxRatio = box.width / box.height;
 
     let width, height, left, top;
     if (imageRatio > boxRatio) {
-      width = canvasRect.width;
+      width = box.width;
       height = width / imageRatio;
       left = 0;
-      top = (canvasRect.height - height) / 2;
+      top = (box.height - height) / 2;
     } else {
-      height = canvasRect.height;
+      height = box.height;
       width = height * imageRatio;
-      left = (canvasRect.width - width) / 2;
+      left = (box.width - width) / 2;
       top = 0;
     }
-    return { left, top, width, height };
+    return { left, top, width, height, boxWidth: box.width, boxHeight: box.height };
+  }
+
+  // Rect of the image as actually displayed, after zoom/pan
+  function getFlatImageRect(targetPrefix) {
+    const base = getFlatBaseRect(targetPrefix);
+    if (!base) return null;
+    const v = flatViews[targetPrefix];
+    const cx = base.boxWidth / 2, cy = base.boxHeight / 2;
+    return {
+      left: cx + (base.left - cx) * v.scale + v.tx,
+      top: cy + (base.top - cy) * v.scale + v.ty,
+      width: base.width * v.scale,
+      height: base.height * v.scale
+    };
+  }
+
+  function clampFlatPan(targetPrefix) {
+    const base = getFlatBaseRect(targetPrefix);
+    const v = flatViews[targetPrefix];
+    if (!base) { v.tx = 0; v.ty = 0; return; }
+    const maxX = Math.max(0, (base.width * v.scale - base.boxWidth) / 2);
+    const maxY = Math.max(0, (base.height * v.scale - base.boxHeight) / 2);
+    v.tx = Math.min(maxX, Math.max(-maxX, v.tx));
+    v.ty = Math.min(maxY, Math.max(-maxY, v.ty));
+  }
+
+  function applyFlatTransform(targetPrefix) {
+    const flatEl = document.getElementById(`flat-${targetPrefix}`);
+    const v = flatViews[targetPrefix];
+    clampFlatPan(targetPrefix);
+    if (flatEl) flatEl.style.transform = `translate(${v.tx}px, ${v.ty}px) scale(${v.scale})`;
+
+    const label = document.getElementById(`zoomLevel-${targetPrefix}`);
+    if (label) label.innerText = Math.round(v.scale * 100) + '%';
+
+    const canvas = document.getElementById(`annoCanvas-${targetPrefix}`);
+    const node = getNodeForTargetPrefix(targetPrefix);
+    const st = annoStates[targetPrefix];
+    if (canvas) canvas.classList.toggle('pannable', !st.active && !!node && !node.is360 && v.scale > 1);
+
+    redrawFlatPins(targetPrefix);
+  }
+
+  function setFlatZoomAt(targetPrefix, newScale, clientX, clientY) {
+    const node = getNodeForTargetPrefix(targetPrefix);
+    if (!node || node.is360) return;
+    const canvas = document.getElementById(`annoCanvas-${targetPrefix}`);
+    if (!canvas) return;
+
+    const box = canvas.getBoundingClientRect();
+    const v = flatViews[targetPrefix];
+    const s1 = v.scale;
+    const s2 = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, newScale));
+    if (s2 === s1) return;
+
+    // Keep the point under the cursor fixed while zooming
+    const mx = (clientX === undefined ? box.left + box.width / 2 : clientX) - box.left;
+    const my = (clientY === undefined ? box.top + box.height / 2 : clientY) - box.top;
+    const cx = box.width / 2, cy = box.height / 2;
+
+    v.tx = mx - cx - (mx - cx - v.tx) * (s2 / s1);
+    v.ty = my - cy - (my - cy - v.ty) * (s2 / s1);
+    v.scale = s2;
+
+    if (s2 === MIN_ZOOM) { v.tx = 0; v.ty = 0; }
+    applyFlatTransform(targetPrefix);
+  }
+
+  function stepFlatZoom(targetPrefix, direction) {
+    const v = flatViews[targetPrefix];
+    setFlatZoomAt(targetPrefix, v.scale * (direction > 0 ? 1.4 : 1 / 1.4));
+  }
+
+  function resetFlatZoom(targetPrefix) {
+    const v = flatViews[targetPrefix];
+    v.scale = 1; v.tx = 0; v.ty = 0;
+    applyFlatTransform(targetPrefix);
+  }
+
+  function updateZoomControls(targetPrefix, node) {
+    const show = !!node && !node.is360;
+    const group = document.getElementById(`zoomGroup-${targetPrefix}`);
+    const sep = document.getElementById(`zoomSep-${targetPrefix}`);
+    if (group) group.classList.toggle('visible', show);
+    if (sep) sep.classList.toggle('visible', show);
+  }
+
+  /* ---------- PIN RENDERING ---------- */
+
+  function stylePinHotspot(hotSpotDiv, args) {
+    hotSpotDiv.innerHTML =
+      `<div class="pin-node${args.isActive ? ' active' : ''}">
+         <span class="pin-bubble" style="background:${args.color}; color:${contrastInk(args.color)}">${args.num}</span>
+         ${args.text ? `<span class="pin-flag">${escapeHtml(args.text.split('\n')[0])}</span>` : ''}
+       </div>`;
+    hotSpotDiv.style.cursor = 'pointer';
+    hotSpotDiv.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openPinEditor(args.targetPrefix, args.pinId, false);
+    });
+  }
+
+  // Full re-render so numbering stays correct after add/delete
+  function renderAllPins(targetPrefix) {
+    const node = getNodeForTargetPrefix(targetPrefix);
+
+    if (node && node.is360) {
+      const viewer = getViewerInstance(targetPrefix);
+      if (viewer && typeof viewer.removeHotSpot === 'function') {
+        renderedHotspotIds[targetPrefix].forEach(id => { try { viewer.removeHotSpot(id); } catch (e) {} });
+        renderedHotspotIds[targetPrefix] = [];
+
+        (pinsVisible[targetPrefix] ? (node.annotations || []) : []).forEach((pin, i) => {
+          try {
+            viewer.addHotSpot({
+              id: pin.id,
+              pitch: pin.pitch,
+              yaw: pin.yaw,
+              cssClass: 'pin-hotspot',
+              createTooltipFunc: stylePinHotspot,
+              createTooltipArgs: {
+                num: i + 1,
+                color: pin.color || '#22d3ee',
+                text: pin.text,
+                pinId: pin.id,
+                targetPrefix: targetPrefix,
+                isActive: activePinIds[targetPrefix] === pin.id
+              }
+            });
+            renderedHotspotIds[targetPrefix].push(pin.id);
+          } catch (e) {}
+        });
+      }
+    } else {
+      redrawFlatPins(targetPrefix);
+    }
+
+    renderNotesList(targetPrefix);
+    updateNotesCount(targetPrefix);
+  }
+
+  function roundRectPath(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
   }
 
   function redrawFlatPins(targetPrefix) {
     const canvas = document.getElementById(`annoCanvas-${targetPrefix}`);
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const dpr = window.devicePixelRatio || 1;
+    const cssW = canvas.width / dpr;
+    const cssH = canvas.height / dpr;
+    ctx.clearRect(0, 0, cssW, cssH);
 
     const node = getNodeForTargetPrefix(targetPrefix);
     if (!node || node.is360) return;
+    if (!pinsVisible[targetPrefix]) return;
 
     const rect = getFlatImageRect(targetPrefix);
     if (!rect) return;
 
-    (node.annotations || []).forEach(pin => {
+    (node.annotations || []).forEach((pin, i) => {
       if (typeof pin.normX !== 'number' || typeof pin.normY !== 'number') return;
       const x = rect.left + pin.normX * rect.width;
       const y = rect.top + pin.normY * rect.height;
+      if (x < -40 || y < -40 || x > cssW + 40 || y > cssH + 40) return; // scrolled off while zoomed
+
+      const color = pin.color || '#22d3ee';
+      const isActive = activePinIds[targetPrefix] === pin.id;
+      const r = 11;
+
+      if (isActive) {
+        ctx.beginPath();
+        ctx.arc(x, y, r + 5, 0, Math.PI * 2);
+        ctx.strokeStyle = color;
+        ctx.globalAlpha = 0.55;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
 
       ctx.beginPath();
-      ctx.arc(x, y, 8, 0, Math.PI * 2);
-      ctx.fillStyle = pin.color || '#22d3ee';
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = color;
       ctx.fill();
       ctx.lineWidth = 2;
       ctx.strokeStyle = '#ffffff';
+      ctx.shadowColor = 'rgba(0,0,0,0.6)';
+      ctx.shadowBlur = 5;
       ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      ctx.fillStyle = contrastInk(color);
+      ctx.font = 'bold 11px "IBM Plex Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(i + 1), x, y + 0.5);
 
       if (pin.text) {
-        ctx.font = 'bold 12px "IBM Plex Mono", monospace';
-        ctx.fillStyle = '#ffffff';
-        ctx.shadowColor = 'rgba(0,0,0,0.85)';
-        ctx.shadowBlur = 4;
-        ctx.fillText(pin.text, x + 12, y + 4);
-        ctx.shadowBlur = 0;
+        const raw = pin.text.split('\n')[0];
+        const label = raw.length > 26 ? raw.slice(0, 26) + '…' : raw;
+        ctx.font = '11.5px Inter, sans-serif';
+        ctx.textAlign = 'left';
+        const tw = ctx.measureText(label).width;
+        let lx = x + r + 7;
+        if (lx + tw + 14 > cssW) lx = x - r - 7 - tw - 14;
+
+        roundRectPath(ctx, lx, y - 10.5, tw + 14, 21, 5);
+        ctx.fillStyle = 'rgba(13,23,18,0.9)';
+        ctx.fill();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.fillStyle = '#e6f2eb';
+        ctx.fillText(label, lx + 7, y + 0.5);
       }
     });
   }
 
-  // Hit-tests a click against a flat node's existing pins (in canvas-local
-  // pixel coordinates) and deletes the pin if one is hit.
-  function tryDeleteFlatPinAt(targetPrefix, node, localX, localY) {
+  function hitTestFlatPin(targetPrefix, node, localX, localY) {
+    if (!pinsVisible[targetPrefix]) return null;
     const rect = getFlatImageRect(targetPrefix);
-    if (!rect) return false;
+    if (!rect) return null;
     const pins = node.annotations || [];
     for (let i = pins.length - 1; i >= 0; i--) {
       const pin = pins[i];
       if (typeof pin.normX !== 'number') continue;
       const x = rect.left + pin.normX * rect.width;
       const y = rect.top + pin.normY * rect.height;
-      const dist = Math.sqrt((localX - x) ** 2 + (localY - y) ** 2);
-      if (dist <= 10) {
-        if (confirm(`Delete this pin${pin.text ? ' ("' + pin.text + '")' : ''}?`)) {
-          removePin(targetPrefix, pin.id);
-        }
-        return true;
-      }
+      if (Math.sqrt((localX - x) ** 2 + (localY - y) ** 2) <= 13) return pin;
     }
-    return false;
+    return null;
   }
 
-  function initAnnotationCanvas(targetPrefix) {
+  /* ---------- PIN CRUD ---------- */
+
+  function addPinToNode(targetPrefix, node, pinData) {
+    node.annotations = node.annotations || [];
+    node.annotations.push(pinData);
+    renderAllPins(targetPrefix);
+    openPinEditor(targetPrefix, pinData.id, true);
+  }
+
+  function removePin(targetPrefix, pinId) {
+    const node = getNodeForTargetPrefix(targetPrefix);
+    if (!node) return;
+    node.annotations = (node.annotations || []).filter(p => p.id !== pinId);
+    if (activePinIds[targetPrefix] === pinId) activePinIds[targetPrefix] = null;
+    renderAllPins(targetPrefix);
+    refreshNodeMarker(node);
+    applyFilterAndRender();
+  }
+
+  function clearAnnotations(targetPrefix) {
+    const node = getNodeForTargetPrefix(targetPrefix);
+    if (!node || !(node.annotations || []).length) return;
+    if (!confirm(`Delete all ${node.annotations.length} annotation(s) on "${node.title}"?`)) return;
+    node.annotations = [];
+    activePinIds[targetPrefix] = null;
+    renderAllPins(targetPrefix);
+    refreshNodeMarker(node);
+    applyFilterAndRender();
+  }
+
+  function refreshNodeMarker(node) {
+    if (!node || !node.marker) return;
+    node.marker.setPopupContent(buildPopupHtml(node));
+  }
+
+  function focusPin(targetPrefix, pinId) {
+    const node = getNodeForTargetPrefix(targetPrefix);
+    if (!node) return;
+    const pin = (node.annotations || []).find(p => p.id === pinId);
+    if (!pin) return;
+
+    activePinIds[targetPrefix] = pinId;
+    setPinVisibility(targetPrefix, true); // no point flying to a hidden pin
+
+    if (node.is360) {
+      const viewer = getViewerInstance(targetPrefix);
+      if (viewer && typeof viewer.lookAt === 'function') {
+        try { viewer.lookAt(pin.pitch, pin.yaw, undefined, 700); } catch (e) {}
+      }
+    } else {
+      // Centre the pin in the box (zoom in a little if we're at 1:1)
+      const base = getFlatBaseRect(targetPrefix);
+      if (base) {
+        const v = flatViews[targetPrefix];
+        if (v.scale < 2) v.scale = 2;
+        const px = base.left + pin.normX * base.width;
+        const py = base.top + pin.normY * base.height;
+        v.tx = -(px - base.boxWidth / 2) * v.scale;
+        v.ty = -(py - base.boxHeight / 2) * v.scale;
+        applyFlatTransform(targetPrefix);
+      }
+    }
+    renderAllPins(targetPrefix);
+  }
+
+  /* ---------- NOTES PANEL ---------- */
+
+  function updateNotesCount(targetPrefix) {
+    const node = getNodeForTargetPrefix(targetPrefix);
+    const count = node ? (node.annotations || []).length : 0;
+    const badge = document.getElementById(`notesCount-${targetPrefix}`);
+    if (badge) {
+      badge.innerText = count;
+      badge.classList.toggle('empty', count === 0);
+    }
+  }
+
+  const EYE_ICON = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>';
+  const EYE_OFF_ICON = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20C5 20 1 12 1 12a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M1 1l22 22"/></svg>';
+
+  function updatePinVisibilityUI(targetPrefix) {
+    const visible = pinsVisible[targetPrefix];
+    const btn = document.getElementById(`pinVisBtn-${targetPrefix}`);
+    if (btn) {
+      btn.innerHTML = visible ? EYE_ICON : EYE_OFF_ICON;
+      btn.title = visible ? 'Hide pins on image' : 'Show pins on image';
+      btn.classList.toggle('muted', !visible);
+    }
+    const label = document.getElementById(`notesHeadLabel-${targetPrefix}`);
+    if (label) label.innerText = visible ? 'Annotations' : 'Annotations · hidden';
+    const notesBtn = document.getElementById(`notesBtn-${targetPrefix}`);
+    if (notesBtn) notesBtn.classList.toggle('muted', !visible);
+  }
+
+  function setPinVisibility(targetPrefix, visible) {
+    if (pinsVisible[targetPrefix] === visible) return;
+    pinsVisible[targetPrefix] = visible;
+    updatePinVisibilityUI(targetPrefix);
+    renderAllPins(targetPrefix);
+  }
+
+  function togglePinVisibility(targetPrefix) {
+    const node = getNodeForTargetPrefix(targetPrefix);
+    setPinVisibility(targetPrefix, !pinsVisible[targetPrefix]);
+    if (node) {
+      showToast(pinsVisible[targetPrefix]
+        ? 'Pins shown on image'
+        : 'Pins hidden — notes list and saved data are unchanged');
+    }
+  }
+
+  function toggleNotesPanel(targetPrefix, force) {
+    const open = (force === undefined) ? !notesPanelOpen[targetPrefix] : force;
+    notesPanelOpen[targetPrefix] = open;
+    const panel = document.getElementById(`notesPanel-${targetPrefix}`);
+    const btn = document.getElementById(`notesBtn-${targetPrefix}`);
+    if (panel) panel.classList.toggle('open', open);
+    if (btn) btn.classList.toggle('active', open);
+    if (open) renderNotesList(targetPrefix);
+  }
+
+  function renderNotesList(targetPrefix) {
+    const list = document.getElementById(`notesList-${targetPrefix}`);
+    if (!list) return;
+    const node = getNodeForTargetPrefix(targetPrefix);
+    const pins = node ? (node.annotations || []) : [];
+
+    list.innerHTML = '';
+
+    if (!pins.length) {
+      const empty = document.createElement('div');
+      empty.className = 'notes-empty';
+      empty.innerText = 'No annotations yet. Use the pencil button, then click the image to drop a pin.';
+      list.appendChild(empty);
+      return;
+    }
+
+    pins.forEach((pin, i) => {
+      const item = document.createElement('div');
+      item.className = 'note-item' + (activePinIds[targetPrefix] === pin.id ? ' active' : '');
+
+      const color = pin.color || '#22d3ee';
+      const hasText = pin.text && pin.text.trim().length;
+      item.innerHTML =
+        `<span class="note-num" style="background:${color}; color:${contrastInk(color)}">${i + 1}</span>
+         <span class="note-text${hasText ? '' : ' untitled'}">${hasText ? escapeHtml(pin.text) : 'Untitled pin'}</span>`;
+
+      const actions = document.createElement('div');
+      actions.className = 'note-actions';
+
+      const editBtn = document.createElement('button');
+      editBtn.className = 'note-mini-btn';
+      editBtn.title = 'Edit note';
+      editBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>';
+      editBtn.addEventListener('click', (e) => { e.stopPropagation(); openPinEditor(targetPrefix, pin.id, false); });
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'note-mini-btn danger';
+      delBtn.title = 'Delete pin';
+      delBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>';
+      delBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (confirm('Delete this pin?')) removePin(targetPrefix, pin.id);
+      });
+
+      actions.appendChild(editBtn);
+      actions.appendChild(delBtn);
+      item.appendChild(actions);
+
+      item.addEventListener('click', () => focusPin(targetPrefix, pin.id));
+      list.appendChild(item);
+    });
+  }
+
+  /* ---------- PIN EDITOR MODAL ---------- */
+
+  let pinEditorCtx = null;
+
+  function setEditorColor(color) {
+    document.querySelectorAll('#pinEditorColors .color-dot').forEach(d => {
+      d.classList.toggle('active', d.getAttribute('data-color').toLowerCase() === String(color).toLowerCase());
+    });
+    if (pinEditorCtx) pinEditorCtx.color = color;
+  }
+
+  function openPinEditor(targetPrefix, pinId, isNew) {
+    const node = getNodeForTargetPrefix(targetPrefix);
+    if (!node) return;
+    const pins = node.annotations || [];
+    const pin = pins.find(p => p.id === pinId);
+    if (!pin) return;
+
+    pinEditorCtx = { targetPrefix, pinId, isNew: !!isNew, color: pin.color || '#22d3ee', openedAt: Date.now() };
+    activePinIds[targetPrefix] = pinId;
+    renderAllPins(targetPrefix);
+
+    const idx = pins.indexOf(pin) + 1;
+    document.getElementById('pinEditorTitle').innerText = isNew ? `New Annotation · Pin ${idx}` : `Edit Annotation · Pin ${idx}`;
+    document.getElementById('pinEditorDesc').innerText = isNew
+      ? 'Describe what you are marking. The note shows in the annotation list and on the pin.'
+      : `On "${node.title}". Changes apply immediately and are kept on export.`;
+    document.getElementById('pinEditorInput').value = pin.text || '';
+    setEditorColor(pin.color || '#22d3ee');
+    document.getElementById('pinEditorDeleteBtn').style.display = isNew ? 'none' : 'inline-flex';
+    document.getElementById('pinEditorModal').style.display = 'flex';
+
+    setTimeout(() => {
+      const ta = document.getElementById('pinEditorInput');
+      ta.focus();
+      ta.setSelectionRange(ta.value.length, ta.value.length);
+    }, 40);
+  }
+
+  function closePinEditor() {
+    document.getElementById('pinEditorModal').style.display = 'none';
+    pinEditorCtx = null;
+  }
+
+  function savePinEditor() {
+    if (!pinEditorCtx) return;
+    const { targetPrefix, pinId, color, isNew } = pinEditorCtx;
+    const node = getNodeForTargetPrefix(targetPrefix);
+    if (node) {
+      const pin = (node.annotations || []).find(p => p.id === pinId);
+      if (pin) {
+        pin.text = document.getElementById('pinEditorInput').value.trim();
+        pin.color = color;
+      }
+      refreshNodeMarker(node);
+    }
+    closePinEditor();
+    renderAllPins(targetPrefix);
+    applyFilterAndRender();
+    if (isNew && !notesPanelOpen[targetPrefix]) toggleNotesPanel(targetPrefix, true);
+  }
+
+  function cancelPinEditor() {
+    if (!pinEditorCtx) return;
+    const { targetPrefix, pinId, isNew } = pinEditorCtx;
+    closePinEditor();
+    if (isNew) removePin(targetPrefix, pinId);   // discard the pin just dropped
+    else renderAllPins(targetPrefix);
+  }
+
+  function deletePinFromEditor() {
+    if (!pinEditorCtx) return;
+    const { targetPrefix, pinId } = pinEditorCtx;
+    closePinEditor();
+    removePin(targetPrefix, pinId);
+  }
+
+  document.getElementById('pinEditorSaveBtn').addEventListener('click', savePinEditor);
+  document.getElementById('pinEditorCancelBtn').addEventListener('click', cancelPinEditor);
+  document.getElementById('pinEditorDeleteBtn').addEventListener('click', deletePinFromEditor);
+  document.getElementById('pinEditorModal').addEventListener('mousedown', (e) => {
+    if (e.target.id !== 'pinEditorModal') return;
+    // Ignore a stray click that arrives with the modal (e.g. the second half of
+    // a double-click that placed the pin) — otherwise it silently discards it.
+    if (pinEditorCtx && Date.now() - pinEditorCtx.openedAt < 350) return;
+    cancelPinEditor();
+  });
+  document.querySelectorAll('#pinEditorColors .color-dot').forEach(dot => {
+    dot.addEventListener('click', (e) => setEditorColor(e.target.getAttribute('data-color')));
+  });
+  document.getElementById('pinEditorInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); savePinEditor(); }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (document.getElementById('pinEditorModal').style.display === 'flex') cancelPinEditor();
+  });
+
+  /* ---------- ANNOTATION MODE ---------- */
+
+  function startAddPin(targetPrefix) {
+    if (!annoStates[targetPrefix].active) toggleAnnotationMode(targetPrefix);
+    showToast('Click the image where you want the pin');
+  }
+
+  function toggleAnnotationMode(targetPrefix) {
+    const node = getNodeForTargetPrefix(targetPrefix);
+    const st = annoStates[targetPrefix];
+    st.active = !st.active;
+    if (st.active) setPinVisibility(targetPrefix, true); // can't annotate blind
+
+    const btn = document.getElementById(`annoBtn-${targetPrefix}`);
+    const bar = document.getElementById(`annotationBar-${targetPrefix}`);
+    const canvas = document.getElementById(`annoCanvas-${targetPrefix}`);
+    const hint = document.getElementById(`annoHint-${targetPrefix}`);
+
+    if (btn) btn.classList.toggle('active', st.active);
+    if (bar) bar.style.display = st.active ? 'flex' : 'none';
+    if (canvas) {
+      canvas.classList.toggle('active', st.active);
+      canvas.classList.toggle('pannable', !st.active && !!node && !node.is360 && flatViews[targetPrefix].scale > 1);
+    }
+    if (hint && node) {
+      hint.innerText = node.is360
+        ? 'Click the panorama to drop a pin'
+        : 'Click the photo to drop a pin · drag to pan';
+    }
+    if (st.active && !notesPanelOpen[targetPrefix]) toggleNotesPanel(targetPrefix, true);
+    redrawFlatPins(targetPrefix);
+  }
+
+  /* ---------- VIEWER INTERACTION (pins, zoom, pan) ---------- */
+
+  // Angular hit-test for 360 pins. While annotation mode is on, the canvas
+  // overlay sits above the hotspots and swallows their own click handlers, so
+  // we match the clicked direction against each pin instead.
+  function hitTest360Pin(targetPrefix, node, pitch, yaw, hfov) {
+    if (!pinsVisible[targetPrefix]) return null;
+    const tolerance = Math.max(2, Math.min(8, (hfov || 100) / 25));
+    const rad = Math.PI / 180;
+    let best = null, bestSep = Infinity;
+
+    (node.annotations || []).forEach(pin => {
+      if (typeof pin.pitch !== 'number' || typeof pin.yaw !== 'number') return;
+      const cosSep = Math.sin(pitch * rad) * Math.sin(pin.pitch * rad) +
+                     Math.cos(pitch * rad) * Math.cos(pin.pitch * rad) *
+                     Math.cos((yaw - pin.yaw) * rad);
+      const sep = Math.acos(Math.min(1, Math.max(-1, cosSep))) / rad;
+      if (sep < tolerance && sep < bestSep) { best = pin; bestSep = sep; }
+    });
+    return best;
+  }
+
+  function handleViewerClick(targetPrefix, clientX, clientY) {
+    const node = getNodeForTargetPrefix(targetPrefix);
+    if (!node) return;
+    const st = annoStates[targetPrefix];
+
+    if (node.is360) {
+      if (!st.active) return; // hotspots handle their own clicks when not annotating
+      const viewer = getViewerInstance(targetPrefix);
+      if (!viewer || typeof viewer.mouseEventToCoords !== 'function') return;
+      const py = viewer.mouseEventToCoords({ clientX, clientY });
+      if (!Array.isArray(py) || py.length < 2) return;
+
+      let hfov = 100;
+      try { hfov = viewer.getHfov(); } catch (e) {}
+      const hit = hitTest360Pin(targetPrefix, node, py[0], py[1], hfov);
+      if (hit) { openPinEditor(targetPrefix, hit.id, false); return; }
+
+      addPinToNode(targetPrefix, node, { id: makePinId(), pitch: py[0], yaw: py[1], text: '', color: st.color });
+      return;
+    }
+
     const canvas = document.getElementById(`annoCanvas-${targetPrefix}`);
     if (!canvas) return;
+    const canvasRect = canvas.getBoundingClientRect();
+    const localX = clientX - canvasRect.left;
+    const localY = clientY - canvasRect.top;
+
+    // Clicking an existing pin opens it for editing, in either mode
+    const hit = hitTestFlatPin(targetPrefix, node, localX, localY);
+    if (hit) { openPinEditor(targetPrefix, hit.id, false); return; }
+
+    if (!st.active) return;
+
+    const rect = getFlatImageRect(targetPrefix);
+    if (!rect || rect.width <= 0 || rect.height <= 0) return;
+    const normX = (localX - rect.left) / rect.width;
+    const normY = (localY - rect.top) / rect.height;
+    if (normX < 0 || normX > 1 || normY < 0 || normY > 1) return; // clicked the letterbox
+
+    addPinToNode(targetPrefix, node, { id: makePinId(), normX, normY, text: '', color: st.color });
+  }
+
+  function initViewerInteractions(targetPrefix) {
+    const canvas = document.getElementById(`annoCanvas-${targetPrefix}`);
+    const box = document.getElementById(`box-${targetPrefix}`);
+    if (!canvas || !box) return;
 
     const resizeCanvas = () => {
       const rect = canvas.getBoundingClientRect();
-      canvas.width = rect.width;
-      canvas.height = rect.height;
-      redrawFlatPins(targetPrefix);
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.max(1, Math.round(rect.width * dpr));
+      canvas.height = Math.max(1, Math.round(rect.height * dpr));
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      applyFlatTransform(targetPrefix);
     };
     window.addEventListener('resize', resizeCanvas);
-    document.addEventListener('fullscreenchange', resizeCanvas);
-    if (window.ResizeObserver) {
-      new ResizeObserver(resizeCanvas).observe(canvas);
-    }
+    document.addEventListener('fullscreenchange', () => setTimeout(resizeCanvas, 80));
+    if (window.ResizeObserver) new ResizeObserver(resizeCanvas).observe(canvas);
     resizeCanvas();
 
+    // --- wheel zoom (flat photos only; pannellum owns the wheel on 360) ---
+    box.addEventListener('wheel', (e) => {
+      const node = getNodeForTargetPrefix(targetPrefix);
+      if (!node || node.is360) return;
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? 1.18 : 1 / 1.18;
+      setFlatZoomAt(targetPrefix, flatViews[targetPrefix].scale * factor, e.clientX, e.clientY);
+    }, { passive: false });
+
+    // --- double click toggles zoom ---
+    box.addEventListener('dblclick', (e) => {
+      const node = getNodeForTargetPrefix(targetPrefix);
+      if (!node || node.is360) return;
+      if (annoStates[targetPrefix].active) return; // clicks are placing pins
+      if (isChrome(e.target)) return;
+      if (flatViews[targetPrefix].scale > 1) resetFlatZoom(targetPrefix);
+      else setFlatZoomAt(targetPrefix, 2.5, e.clientX, e.clientY);
+    });
+
+    // --- pointer handling: pan / pinch on flat photos, click-to-pin on both ---
+    // NB: click detection lives in the pointer events, not in canvas mouse
+    // events. Setting pointer capture (for smooth panning) retargets the
+    // compatibility mouse events to the capture element, so a canvas 'mouseup'
+    // listener would silently never fire while a flat image was captured.
+    const pointers = new Map();
+    let dragStart = null;
+    let pinchStart = null;
     let downPt = null;
 
-    const getClientPt = (e) => {
-      if (e.changedTouches && e.changedTouches.length) {
-        return { clientX: e.changedTouches[0].clientX, clientY: e.changedTouches[0].clientY };
-      }
-      return { clientX: e.clientX, clientY: e.clientY };
+    const midpoint = () => {
+      const pts = Array.from(pointers.values());
+      return {
+        x: (pts[0].x + pts[1].x) / 2,
+        y: (pts[0].y + pts[1].y) / 2,
+        dist: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y)
+      };
     };
 
-    const onDown = (e) => { downPt = getClientPt(e); };
+    const isChrome = (target) => !!(target && target.closest &&
+      target.closest('.viewer-toolbar, .annotation-bar, .notes-panel, .pnlm-controls-container'));
 
-    const onUp = (e) => {
-      const st = annoStates[targetPrefix];
-      if (!st.active || !downPt) { downPt = null; return; }
+    box.addEventListener('pointerdown', (e) => {
+      if (isChrome(e.target)) { downPt = null; return; }
 
-      const upPt = getClientPt(e);
-      const dx = upPt.clientX - downPt.clientX;
-      const dy = upPt.clientY - downPt.clientY;
-      const moved = Math.sqrt(dx * dx + dy * dy);
-      downPt = null;
-      if (moved > 6) return; // ignore drags, only treat a real click as "place pin"
+      downPt = { x: e.clientX, y: e.clientY, id: e.pointerId };
 
       const node = getNodeForTargetPrefix(targetPrefix);
-      if (!node) return;
+      if (!node || node.is360) return;
 
-      if (node.is360) {
-        const viewer = getViewerInstance(targetPrefix);
-        if (!viewer || typeof viewer.mouseEventToCoords !== 'function') return;
-        const py = viewer.mouseEventToCoords({ clientX: upPt.clientX, clientY: upPt.clientY });
-        if (!Array.isArray(py) || py.length < 2) return;
-        const text = (prompt('Label for this pin (optional):', '') || '').trim();
-        addPinToNode(targetPrefix, node, { id: makePinId(), pitch: py[0], yaw: py[1], text, color: st.color });
-      } else {
-        const canvasRect = canvas.getBoundingClientRect();
-        const localX = upPt.clientX - canvasRect.left;
-        const localY = upPt.clientY - canvasRect.top;
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
-        // Clicking an existing pin deletes it instead of adding a new one.
-        if (tryDeleteFlatPinAt(targetPrefix, node, localX, localY)) return;
-
-        const rect = getFlatImageRect(targetPrefix);
-        if (!rect || rect.width <= 0 || rect.height <= 0) return;
-        const normX = (localX - rect.left) / rect.width;
-        const normY = (localY - rect.top) / rect.height;
-        if (normX < 0 || normX > 1 || normY < 0 || normY > 1) return; // outside the photo (letterbox area)
-
-        const text = (prompt('Label for this pin (optional):', '') || '').trim();
-        addPinToNode(targetPrefix, node, { id: makePinId(), normX, normY, text, color: st.color });
+      if (pointers.size === 2) {
+        const m = midpoint();
+        pinchStart = { dist: m.dist, scale: flatViews[targetPrefix].scale };
+        dragStart = null;
+        downPt = null; // a pinch is never a click
+      } else if (pointers.size === 1) {
+        const v = flatViews[targetPrefix];
+        dragStart = { x: e.clientX, y: e.clientY, tx: v.tx, ty: v.ty, moved: 0 };
+        if (v.scale > 1) { try { box.setPointerCapture(e.pointerId); } catch (err) {} }
       }
+    });
+
+    box.addEventListener('pointermove', (e) => {
+      if (!pointers.has(e.pointerId)) return;
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      const node = getNodeForTargetPrefix(targetPrefix);
+      if (!node || node.is360) return;
+
+      if (pointers.size === 2 && pinchStart) {
+        const m = midpoint();
+        if (pinchStart.dist > 0) setFlatZoomAt(targetPrefix, pinchStart.scale * (m.dist / pinchStart.dist), m.x, m.y);
+        return;
+      }
+
+      if (dragStart) {
+        const dx = e.clientX - dragStart.x;
+        const dy = e.clientY - dragStart.y;
+        dragStart.moved = Math.max(dragStart.moved, Math.hypot(dx, dy));
+        if (flatViews[targetPrefix].scale > 1 && dragStart.moved > 3) {
+          const v = flatViews[targetPrefix];
+          v.tx = dragStart.tx + dx;
+          v.ty = dragStart.ty + dy;
+          canvas.classList.add('panning');
+          applyFlatTransform(targetPrefix);
+        }
+      }
+    });
+
+    const releaseCapture = (id) => {
+      try { if (box.hasPointerCapture && box.hasPointerCapture(id)) box.releasePointerCapture(id); } catch (err) {}
     };
 
-    canvas.addEventListener('mousedown', onDown);
-    canvas.addEventListener('mouseup', onUp);
-    canvas.addEventListener('touchstart', onDown, { passive: true });
-    canvas.addEventListener('touchend', onUp, { passive: true });
+    box.addEventListener('pointerup', (e) => {
+      const pressed = downPt;
+      pointers.delete(e.pointerId);
+      if (pointers.size < 2) pinchStart = null;
+      if (pointers.size === 0) { dragStart = null; canvas.classList.remove('panning'); }
+      releaseCapture(e.pointerId);
+
+      if (!pressed || pressed.id !== e.pointerId) return;
+      downPt = null;
+      if (Math.hypot(e.clientX - pressed.x, e.clientY - pressed.y) > 6) return; // drag, not a click
+      handleViewerClick(targetPrefix, e.clientX, e.clientY);
+    });
+
+    box.addEventListener('pointercancel', (e) => {
+      pointers.delete(e.pointerId);
+      downPt = null;
+      if (pointers.size < 2) pinchStart = null;
+      if (pointers.size === 0) { dragStart = null; canvas.classList.remove('panning'); }
+      releaseCapture(e.pointerId);
+    });
 
     const picker = document.getElementById(`colorPicker-${targetPrefix}`);
     if (picker) {
@@ -1371,22 +2292,7 @@
     }
   }
 
-  function toggleAnnotationMode(targetPrefix) {
-    const st = annoStates[targetPrefix];
-    st.active = !st.active;
-
-    const btn = document.getElementById(`annoBtn-${targetPrefix}`);
-    const bar = document.getElementById(`annotationBar-${targetPrefix}`);
-    const canvas = document.getElementById(`annoCanvas-${targetPrefix}`);
-
-    if (btn) btn.classList.toggle('active', st.active);
-    if (bar) bar.style.display = st.active ? 'flex' : 'none';
-    if (canvas) canvas.classList.toggle('active', st.active);
-
-    redrawFlatPins(targetPrefix);
-  }
-
-  /* ---------- RECALIBRATE NORTH FUNCTION ---------- */
+  /* ---------- RECALIBRATE NORTH ---------- */
   function recalibrateNorth(role) {
     let node = null;
     let activeViewer = null;
@@ -1402,23 +2308,32 @@
     if (!node) return;
 
     if (node.is360 && activeViewer && typeof activeViewer.getYaw === 'function') {
+      // Whatever is centred in the viewer right now becomes true north.
+      // The view is deliberately left where it is: resetting yaw here would
+      // swing the panorama away from the direction just calibrated.
       const currentYaw = activeViewer.getYaw();
-      node.heading = (360 - currentYaw) % 360;
+      node.heading = ((360 - currentYaw) % 360 + 360) % 360;
       node.hasHeading = true;
-      activeViewer.setYaw(0);
     } else {
       const input = prompt("Enter new North Heading angle in degrees (0-359):", node.heading || 0);
-      if (input !== null) {
-        const val = parseFloat(input);
-        if (!isNaN(val)) {
-          node.heading = ((val % 360) + 360) % 360;
-          node.hasHeading = true;
-        }
-      }
+      if (input === null) return;
+      const val = parseFloat(input);
+      if (isNaN(val)) return;
+      node.heading = ((val % 360) + 360) % 360;
+      node.hasHeading = true;
     }
 
-    selectNode(selectedNodeId);
-    alert(`True North recalibrated for "${node.title}". Heading updated to ${Math.round(node.heading)}°.`);
+    // Refresh map + metadata WITHOUT rebuilding the viewers, which would
+    // reset the view direction and re-render every pin.
+    nodes.forEach(n => {
+      if (n.marker) {
+        n.marker.setIcon(createMarkerIcon(n, n.id === selectedNodeId, n.id === secondaryNodeId));
+        n.marker.setPopupContent(buildPopupHtml(n));
+      }
+    });
+    updateMetaPanels();
+    applyFilterAndRender();
+    showToast(`North set for "${node.title}" — heading ${Math.round(node.heading)}°`);
   }
 
   function renderViewers() {
@@ -1428,6 +2343,7 @@
     if (pViewerPrimary) { pViewerPrimary.destroy(); pViewerPrimary = null; }
     if (pViewerLeft) { pViewerLeft.destroy(); pViewerLeft = null; }
     if (pViewerRight) { pViewerRight.destroy(); pViewerRight = null; }
+    PREFIXES.forEach(p => { renderedHotspotIds[p] = []; });
 
     if (dateFilterMode === 'compare' && compareStep === 0 && primaryNode && secondaryNode) {
       document.getElementById('compareFullModal').style.display = 'flex';
@@ -1447,9 +2363,18 @@
     const tagEl = document.getElementById(`tag-${targetPrefix}`);
 
     tagEl.innerText = `${node.title} (${node.dateKeyLabel})`;
+    tagEl.title = `${node.title} · ${node.dateKeyLabel}`;
+
+    // A freshly shown image starts unzoomed with nothing highlighted
+    flatViews[targetPrefix] = { scale: 1, tx: 0, ty: 0 };
+    activePinIds[targetPrefix] = null;
+    pinsVisible[targetPrefix] = true;
+    updatePinVisibilityUI(targetPrefix);
+    updateZoomControls(targetPrefix, node);
 
     if (node.is360) {
       flatEl.style.display = 'none';
+      flatEl.removeAttribute('src');
       panoEl.style.display = 'block';
 
       const viewer = pannellum.viewer(`panorama-${targetPrefix}`, {
@@ -1465,13 +2390,7 @@
       if (role === 'left') pViewerLeft = viewer;
       if (role === 'right') pViewerRight = viewer;
 
-      // Pins are native Pannellum hotspots: the library repositions them
-      // on every render call, so they track pitch/yaw/zoom perfectly with
-      // no manual projection math needed on our side. Add them as soon as
-      // the panorama has loaded.
-      viewer.on('load', () => {
-        (node.annotations || []).forEach(pin => renderPinOnViewer(targetPrefix, node, pin));
-      });
+      viewer.on('load', () => renderAllPins(targetPrefix));
 
       viewer.on('render', () => {
         if (isSyncingViewers) return;
@@ -1492,12 +2411,24 @@
       if (role === 'left' && pViewerLeft) { pViewerLeft.destroy(); pViewerLeft = null; }
       if (role === 'right' && pViewerRight) { pViewerRight.destroy(); pViewerRight = null; }
       panoEl.style.display = 'none';
-      flatEl.onload = () => redrawFlatPins(targetPrefix);
+      panoEl.innerHTML = '';
+      flatEl.onload = () => { applyFlatTransform(targetPrefix); renderAllPins(targetPrefix); };
       flatEl.src = node.url;
       flatEl.style.display = 'block';
+      applyFlatTransform(targetPrefix);
     }
 
-    setTimeout(() => redrawFlatPins(targetPrefix), 250);
+    renderAllPins(targetPrefix);
+    setTimeout(() => { applyFlatTransform(targetPrefix); renderAllPins(targetPrefix); }, 250);
+
+    if (targetPrefix === 'primary') {
+      const cap = document.getElementById('captionText');
+      if (cap) {
+        cap.innerText = node.is360
+          ? 'Interactive 360° preview. Drag to rotate, scroll to zoom.'
+          : 'Flat photo. Scroll or double-click to zoom, drag to pan.';
+      }
+    }
   }
 
   function createMarkerIcon(node, isActive, isSecondary, viewingYaw) {
@@ -1537,7 +2468,9 @@
     const dateLabel = node.dateKeyLabel ? `<br><span style="color:#9ebdb0;">${node.dateKeyLabel}</span>` : '';
     const pitchText = (typeof node.pitch === 'number' ? ` | Pitch: ${Math.round(node.pitch)}°` : '');
     const headingLabel = (node.hasHeading && typeof node.heading === 'number') ? `<br>Heading: ${Math.round(node.heading)}°` : '';
-    return `<b>${node.title}</b>${dateLabel}${headingLabel}${pitchText}<br>Click to select node`;
+    const noteCount = (node.annotations || []).length;
+    const noteLabel = noteCount ? `<br><span style="color:#22d3ee;">${noteCount} annotation${noteCount > 1 ? 's' : ''}</span>` : '';
+    return `<b>${escapeHtml(node.title)}</b>${dateLabel}${headingLabel}${pitchText}${noteLabel}<br>Click to select node`;
   }
 
   function addNode(nodeData) {
@@ -1590,18 +2523,15 @@
     selectNode(selectedNodeId);
   }
 
-  function selectNode(id) {
-    selectedNodeId = id;
+  function updateMetaPanels() {
     const primary = nodes.find(n => n.id === selectedNodeId);
     if (!primary) return;
 
-    renderViewers();
-
-    document.getElementById('meta-device').innerHTML = `Device<b>${primary.device}</b>`;
-    document.getElementById('meta-date').innerHTML = `Captured<b>${primary.date}</b>`;
-    document.getElementById('meta-alt').innerHTML = `Altitude<b>${primary.alt}</b>`;
+    document.getElementById('meta-device').innerHTML = `Device<b>${escapeHtml(primary.device)}</b>`;
+    document.getElementById('meta-date').innerHTML = `Captured<b>${escapeHtml(primary.date)}</b>`;
+    document.getElementById('meta-alt').innerHTML = `Altitude<b>${escapeHtml(primary.alt)}</b>`;
     document.getElementById('meta-coords').innerHTML = `Coordinates<b>${Math.abs(primary.lat).toFixed(4)}°, ${Math.abs(primary.lon).toFixed(4)}°</b>`;
-    
+
     const pitchText = (typeof primary.pitch === 'number') ? `${Math.round(primary.pitch)}°` : 'N/A';
     const yawText = primary.hasHeading ? `${Math.round(primary.heading)}°` : 'N/A';
     document.getElementById('meta-orientation').innerHTML = `Pitch / Heading<b>P: ${pitchText} | H: ${yawText}</b>`;
@@ -1610,12 +2540,22 @@
     document.getElementById('coord-latlon').innerHTML = `<b>Lat</b> ${primary.lat.toFixed(6)} &nbsp; <b>Lon</b> ${primary.lon.toFixed(6)}`;
     document.getElementById('coord-orientation').innerHTML = `<b>Orientation</b> Heading: ${yawText}, Pitch: ${pitchText}`;
     document.getElementById('coord-source').innerHTML = `<b>Source</b> ${primary.hasGps ? 'EXIF GPS Data' : 'Manual Location'} &nbsp;·&nbsp; <b>Date</b> ${primary.dateKeyLabel}`;
+  }
+
+  function selectNode(id) {
+    selectedNodeId = id;
+    const primary = nodes.find(n => n.id === selectedNodeId);
+    if (!primary) return;
+
+    renderViewers();
+    updateMetaPanels();
 
     map.panTo([primary.lat, primary.lon]);
 
     nodes.forEach(n => {
       if (n.marker) {
         n.marker.setIcon(createMarkerIcon(n, n.id === selectedNodeId, n.id === secondaryNodeId));
+        n.marker.setPopupContent(buildPopupHtml(n));
       }
     });
 
@@ -1907,7 +2847,9 @@
       item.className = `node-item ${activeCls}`;
 
       const pitchTag = typeof n.pitch === 'number' ? ` <span style="color:var(--parchment-dim);">(${Math.round(n.pitch)}°)</span>` : '';
-      item.innerHTML = `<span class="node-info"><b>#${idx + 1}</b> ${n.title} <span class="node-badge ${n.is360 ? 'type-360' : 'type-flat'}">${n.is360 ? '360°' : 'Flat'}</span>${pitchTag}</span>`;
+      const noteCount = (n.annotations || []).length;
+      const noteTag = noteCount ? ` <span class="node-badge type-note" title="${noteCount} annotation(s)">✎ ${noteCount}</span>` : '';
+      item.innerHTML = `<span class="node-info"><b>#${idx + 1}</b> ${escapeHtml(n.title)} <span class="node-badge ${n.is360 ? 'type-360' : 'type-flat'}">${n.is360 ? '360°' : 'Flat'}</span>${noteTag}${pitchTag}</span>`;
       
       const delBtn = document.createElement('button');
       delBtn.className = 'node-delete-btn';
@@ -1997,9 +2939,7 @@
     document.getElementById('scaleValLabel').innerText = pct + '%';
 
     let totalOriginalBytes = 0;
-    nodes.forEach(n => {
-      totalOriginalBytes += Math.round(n.url.length * 0.75);
-    });
+    nodes.forEach(n => { totalOriginalBytes += Math.round(n.url.length * 0.75); });
 
     const scaleFactor = pct / 100;
     let estimatedTotal = 0;
@@ -2025,14 +2965,15 @@
     const keepAnnotations = document.getElementById('exportKeepAnnotations').checked;
 
     document.getElementById('exportConfigModal').style.display = 'none';
+    showToast('Building export…');
 
     const processedNodes = await Promise.all(nodes.map(async (n) => {
-      const copy = JSON.parse(JSON.stringify(n));
-      delete copy.marker;
+      // Strip the Leaflet marker BEFORE cloning: it holds circular references
+      // back to the map, which JSON.stringify cannot serialise.
+      const { marker, ...plain } = n;
+      const copy = JSON.parse(JSON.stringify(plain));
 
-      if (!keepAnnotations) {
-        copy.annotations = [];
-      }
+      if (!keepAnnotations) copy.annotations = [];
 
       if (copy.url.startsWith('data:image')) {
         copy.url = await resizeImageByPercentage(copy.url, pct, copy.is360);
@@ -2040,7 +2981,29 @@
       return copy;
     }));
 
-    let htmlString = document.documentElement.outerHTML;
+    // Serialise from a clone with runtime-only DOM stripped out, so the saved
+    // file doesn't carry a second full-size copy of the displayed image or a
+    // half-built pannellum / leaflet DOM.
+    const clone = document.documentElement.cloneNode(true);
+    clone.querySelectorAll('.panorama-frame').forEach(el => { el.innerHTML = ''; el.removeAttribute('style'); });
+    clone.querySelectorAll('.flat-frame').forEach(el => { el.removeAttribute('src'); el.style.display = 'none'; el.style.transform = ''; });
+    clone.querySelectorAll('.modal-overlay').forEach(el => { el.style.display = 'none'; });
+    clone.querySelectorAll('.notes-panel').forEach(el => el.classList.remove('open'));
+    clone.querySelectorAll('.notes-list').forEach(el => { el.innerHTML = ''; });
+    clone.querySelectorAll('.annotation-bar').forEach(el => { el.style.display = 'none'; });
+    clone.querySelectorAll('.icon-btn.active').forEach(el => el.classList.remove('active'));
+    clone.querySelectorAll('.zoom-group').forEach(el => el.classList.remove('visible'));
+    clone.querySelectorAll('.count-badge').forEach(el => { el.innerText = '0'; el.classList.add('empty'); });
+    const cloneStepBar = clone.querySelector('#compareStepBar');
+    if (cloneStepBar) cloneStepBar.style.display = 'none';
+    const cloneToasts = clone.querySelector('#toastHost');
+    if (cloneToasts) cloneToasts.innerHTML = '';
+    const cloneNodeList = clone.querySelector('#nodeContainer');
+    if (cloneNodeList) cloneNodeList.innerHTML = '';
+    const cloneMap = clone.querySelector('#map');
+    if (cloneMap) { cloneMap.innerHTML = ''; cloneMap.className = ''; cloneMap.removeAttribute('style'); }
+
+    let htmlString = clone.outerHTML;
     htmlString = htmlString.replace(/const SAVED_PROJECT_TITLE = ".*?";/, `const SAVED_PROJECT_TITLE = ${JSON.stringify(projectTitle)};`);
     htmlString = htmlString.replace(/const SAVED_BASE_NODES = \[[\s\S]*?\];/, `const SAVED_BASE_NODES = ${JSON.stringify(processedNodes)};`);
 
@@ -2049,6 +3012,7 @@
     link.href = URL.createObjectURL(blob);
     link.download = filename;
     link.click();
+    showToast(`Saved ${filename} · ${formatBytes(blob.size)}`, 3800);
   });
 
   function resizeImageByPercentage(dataUrl, percentage, is360) {
@@ -2065,16 +3029,18 @@
         canvas.width = targetW;
         canvas.height = targetH;
         const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(img, 0, 0, targetW, targetH);
         
         const jpegQuality = is360 ? 0.92 : 0.82;
         resolve(canvas.toDataURL('image/jpeg', jpegQuality));
       };
+      img.onerror = () => resolve(dataUrl);
       img.src = dataUrl;
     });
   }
 
-  // Print Comparison View to JPG
+  // Print Comparison View to JPG (flat-photo pins are burned in)
   document.getElementById('printCompareJpgBtn').addEventListener('click', async () => {
     const nodeLeft = nodes.find(n => n.id === selectedNodeId);
     const nodeRight = nodes.find(n => n.id === secondaryNodeId);
@@ -2113,6 +3079,47 @@
     ctx.drawImage(imgL, 0, headerH, w, h);
     ctx.drawImage(imgR, w + 20, headerH, w, h);
 
+    const drawPins = (node, offsetX) => {
+      if (node.is360) return;
+      (node.annotations || []).forEach((pin, i) => {
+        if (typeof pin.normX !== 'number') return;
+        const x = offsetX + pin.normX * w;
+        const y = headerH + pin.normY * h;
+        const color = pin.color || '#22d3ee';
+
+        ctx.beginPath();
+        ctx.arc(x, y, 14, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#ffffff';
+        ctx.stroke();
+
+        ctx.fillStyle = contrastInk(color);
+        ctx.font = 'bold 14px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(String(i + 1), x, y + 1);
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
+
+        if (pin.text) {
+          const label = pin.text.split('\n')[0].slice(0, 40);
+          ctx.font = '15px sans-serif';
+          const tw = ctx.measureText(label).width;
+          ctx.fillStyle = 'rgba(13,23,18,0.88)';
+          ctx.fillRect(x + 18, y - 13, tw + 14, 26);
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(x + 18, y - 13, tw + 14, 26);
+          ctx.fillStyle = '#e6f2eb';
+          ctx.fillText(label, x + 25, y + 5);
+        }
+      });
+    };
+    drawPins(nodeLeft, 0);
+    drawPins(nodeRight, w + 20);
+
     const a = document.createElement('a');
     a.download = `Survey_Comparison_${nodeLeft.dateKey}_vs_${nodeRight.dateKey}.jpg`;
     a.href = canvas.toDataURL('image/jpeg', 0.92);
@@ -2120,9 +3127,7 @@
   });
 
   window.addEventListener('DOMContentLoaded', () => {
-    initAnnotationCanvas('primary');
-    initAnnotationCanvas('compare-left');
-    initAnnotationCanvas('compare-right');
+    PREFIXES.forEach(initViewerInteractions);
 
     if (SAVED_PROJECT_TITLE) {
       projectTitle = SAVED_PROJECT_TITLE;

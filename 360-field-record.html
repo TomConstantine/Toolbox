@@ -402,6 +402,7 @@
     pointer-events: none;
   }
   .annotation-canvas.active { pointer-events: auto; cursor: crosshair; }
+  .annotation-canvas.flat-interactive { pointer-events: auto; cursor: default; }
   .annotation-canvas.pannable { pointer-events: auto; cursor: grab; }
   .annotation-canvas.panning { cursor: grabbing; }
 
@@ -437,13 +438,16 @@
   .pin-node {
     position: absolute;
     left: 0; top: 0;
+    width: 22px;
+    height: 22px;
     transform: translate(-50%, -50%);
-    display: flex;
-    align-items: center;
-    gap: 6px;
+    display: block;
     cursor: pointer;
+    pointer-events: auto;
   }
   .pin-bubble {
+    position: absolute;
+    left: 0; top: 0;
     width: 22px; height: 22px;
     border-radius: 50%;
     border: 2px solid #ffffff;
@@ -452,15 +456,20 @@
     font-size: 11px;
     font-weight: 700;
     display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
+    z-index: 2;
   }
   .pin-node.active .pin-bubble { box-shadow: 0 0 0 5px rgba(34,211,238,0.35), 0 0 8px rgba(0,0,0,0.8); }
   .pin-flag {
+    position: absolute;
+    left: 29px;
+    top: 50%;
+    margin-top: -11px;
     background: rgba(13, 23, 18, 0.92);
     border: 1px solid var(--rule);
     border-radius: 5px;
     padding: 3px 8px;
     font-size: 11.5px;
+    line-height: 1.25;
     color: var(--parchment);
     white-space: nowrap;
     max-width: 190px;
@@ -470,8 +479,10 @@
     transform: translateX(-4px);
     transition: opacity 0.15s ease, transform 0.15s ease;
     pointer-events: none;
+    z-index: 3;
   }
-  .pin-node:hover .pin-flag, .pin-node.active .pin-flag { opacity: 1; transform: translateX(0); }
+  .pin-node:hover .pin-flag, .pin-node.hover .pin-flag { opacity: 1; transform: translateX(0); }
+
 
   .caption{
     margin-top:14px;
@@ -780,7 +791,30 @@
   }
   .compare-modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--rule); }
   .compare-modal-title { font-family: 'Fraunces', serif; font-size: 20px; color: #ffffff; display: flex; align-items: center; gap: 12px; }
-  .compare-header-actions { display: flex; gap: 10px; }
+  .compare-header-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .compare-export-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--parchment-dim);
+    white-space: nowrap;
+    user-select: none;
+  }
+  .compare-export-option input {
+    width: 15px;
+    height: 15px;
+    accent-color: var(--moss);
+    cursor: pointer;
+  }
+  .compare-sync-option {
+    border-left: 1px solid var(--rule);
+    padding-left: 10px;
+  }
+  .compare-sync-option.disabled {
+    opacity: 0.42;
+  }
   .compare-modal-body { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; min-height: 0; }
 
   /* Floating Step Bar */
@@ -858,20 +892,11 @@
     width: 0; height: 0;
     border-left: 4px solid transparent;
     border-right: 4px solid transparent;
-    border-bottom: 9px solid rgba(0, 0, 0, 0.85);
-    opacity: 0.9;
-    filter: drop-shadow(0 1px 2px rgba(255,255,255,0.4));
+    border-bottom: 10px solid #38bdf8;
+    opacity: 0.95;
+    filter: drop-shadow(0 0 3px rgba(56,189,248,0.9));
   }
-  .view-cone {
-    position: absolute;
-    left: -5px; top: -24px;
-    width: 0; height: 0;
-    border-left: 5px solid transparent;
-    border-right: 5px solid transparent;
-    border-bottom: 14px solid var(--highlight);
-    opacity: 0.85;
-    filter: drop-shadow(0 0 4px var(--highlight));
-  }
+
 
   footer{
     padding:20px clamp(18px,4vw,48px) 32px;
@@ -916,6 +941,9 @@
         <button class="icon-btn" id="notesBtn-primary" title="Show annotation list" onclick="toggleNotesPanel('primary')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
           <span class="count-badge empty" id="notesCount-primary">0</span>
+        </button>
+        <button class="icon-btn" title="Export current viewport as JPG" onclick="exportViewerViewport('primary')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
         </button>
         <button class="icon-btn" title="Set current view as North (0°)" onclick="recalibrateNorth('primary')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="12 6 15 12 12 18 9 12 12 6" fill="currentColor"/></svg>
@@ -1139,6 +1167,14 @@
         <span>🔍 Side-by-Side Survey Compare View</span>
       </div>
       <div class="compare-header-actions">
+        <label class="compare-export-option" title="Use the current Pannellum viewport for 360° images when exporting the comparison.">
+          <input type="checkbox" id="compareUse360Viewport" checked>
+          360°: current viewport
+        </label>
+        <label class="compare-export-option compare-sync-option" id="compareSyncOption" title="When enabled, rotating, pitching or zooming either 360° viewer also updates the other viewer.">
+          <input type="checkbox" id="compareSync360" checked>
+          Link 360° views
+        </label>
         <button id="printCompareJpgBtn" class="upload-btn" style="font-size:10px; padding:6px 14px;">Print Comparison (Export JPG)</button>
         <button id="closeFullCompareBtn" class="upload-btn secondary" style="font-size:10px; padding:6px 14px;">Close Fullscreen Compare</button>
       </div>
@@ -1156,7 +1192,10 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
             <span class="count-badge empty" id="notesCount-compare-left">0</span>
           </button>
-          <button class="icon-btn" title="Set current view as North (0°)" onclick="recalibrateNorth('left')">
+          <button class="icon-btn" title="Export current viewport as JPG" onclick="exportViewerViewport('compare-left')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+            </button>
+            <button class="icon-btn" title="Set current view as North (0°)" onclick="recalibrateNorth('left')">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="12 6 15 12 12 18 9 12 12 6" fill="currentColor"/></svg>
           </button>
           <span class="toolbar-sep zoom-group" id="zoomSep-compare-left"></span>
@@ -1226,7 +1265,10 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
             <span class="count-badge empty" id="notesCount-compare-right">0</span>
           </button>
-          <button class="icon-btn" title="Set current view as North (0°)" onclick="recalibrateNorth('right')">
+          <button class="icon-btn" title="Export current viewport as JPG" onclick="exportViewerViewport('compare-right')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+            </button>
+            <button class="icon-btn" title="Set current view as North (0°)" onclick="recalibrateNorth('right')">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="12 6 15 12 12 18 9 12 12 6" fill="currentColor"/></svg>
           </button>
           <span class="toolbar-sep zoom-group" id="zoomSep-compare-right"></span>
@@ -1364,6 +1406,7 @@
   let pViewerLeft = null;
   let pViewerRight = null;
   let isSyncingViewers = false;
+  let compare360SyncEnabled = document.getElementById('compareSync360')?.checked !== false;
 
   // Annotation UI state per viewer box target
   const annoStates = {
@@ -1372,8 +1415,12 @@
     'compare-right': { active: false, color: '#22d3ee' }
   };
 
-  // Currently highlighted pin per viewer
+  // Currently highlighted / hovered pin per viewer
   const activePinIds = { 'primary': null, 'compare-left': null, 'compare-right': null };
+  const hoverPinIds = { 'primary': null, 'compare-left': null, 'compare-right': null };
+
+  // Cached viewport bearing for the live map arrow.
+  const viewportBearings = { 'primary': null, 'compare-left': null, 'compare-right': null };
 
   // Notes panel open state per viewer
   const notesPanelOpen = { 'primary': false, 'compare-left': false, 'compare-right': false };
@@ -1391,6 +1438,11 @@
 
   // Hotspot ids currently injected into each pannellum viewer
   const renderedHotspotIds = { 'primary': [], 'compare-left': [], 'compare-right': [] };
+
+  // Pannellum 2.5.6 does not document a continuous viewer `render` event.
+  // Keep the map arrow synced with the actual viewport using a lightweight
+  // timer so saved/exported HTML behaves identically to the live file.
+  const viewportHeadingTimers = { 'primary': null, 'compare-left': null, 'compare-right': null };
 
   const MIN_ZOOM = 1;
   const MAX_ZOOM = 8;
@@ -1571,7 +1623,10 @@
     const canvas = document.getElementById(`annoCanvas-${targetPrefix}`);
     const node = getNodeForTargetPrefix(targetPrefix);
     const st = annoStates[targetPrefix];
-    if (canvas) canvas.classList.toggle('pannable', !st.active && !!node && !node.is360 && v.scale > 1);
+    if (canvas) {
+      canvas.classList.toggle('flat-interactive', !!node && !node.is360);
+      canvas.classList.toggle('pannable', !st.active && !!node && !node.is360 && v.scale > 1);
+    }
 
     redrawFlatPins(targetPrefix);
   }
@@ -1631,7 +1686,7 @@
     hotSpotDiv.style.cursor = 'pointer';
     hotSpotDiv.addEventListener('click', (e) => {
       e.stopPropagation();
-      openPinEditor(args.targetPrefix, args.pinId, false);
+      openAnnotationTab(args.targetPrefix, args.pinId, true);
     });
   }
 
@@ -1741,7 +1796,8 @@
       ctx.textBaseline = 'middle';
       ctx.fillText(String(i + 1), x, y + 0.5);
 
-      if (pin.text) {
+      const showLabel = hoverPinIds[targetPrefix] === pin.id;
+      if (pin.text && showLabel) {
         const raw = pin.text.split('\n')[0];
         const label = raw.length > 26 ? raw.slice(0, 26) + '…' : raw;
         ctx.font = '11.5px Inter, sans-serif';
@@ -1813,21 +1869,22 @@
     node.marker.setPopupContent(buildPopupHtml(node));
   }
 
-  function focusPin(targetPrefix, pinId) {
+  function openAnnotationTab(targetPrefix, pinId, centreView = true) {
     const node = getNodeForTargetPrefix(targetPrefix);
     if (!node) return;
     const pin = (node.annotations || []).find(p => p.id === pinId);
     if (!pin) return;
 
     activePinIds[targetPrefix] = pinId;
+    hoverPinIds[targetPrefix] = null;
     setPinVisibility(targetPrefix, true); // no point flying to a hidden pin
 
-    if (node.is360) {
+    if (centreView && node.is360) {
       const viewer = getViewerInstance(targetPrefix);
       if (viewer && typeof viewer.lookAt === 'function') {
-        try { viewer.lookAt(pin.pitch, pin.yaw, undefined, 700); } catch (e) {}
+        try { viewer.lookAt(pin.pitch, pin.yaw, undefined, 500); } catch (e) {}
       }
-    } else {
+    } else if (centreView) {
       // Centre the pin in the box (zoom in a little if we're at 1:1)
       const base = getFlatBaseRect(targetPrefix);
       if (base) {
@@ -1840,7 +1897,19 @@
         applyFlatTransform(targetPrefix);
       }
     }
+
+    toggleNotesPanel(targetPrefix, true);
     renderAllPins(targetPrefix);
+
+    requestAnimationFrame(() => {
+      const item = Array.from(document.querySelectorAll(`#notesList-${targetPrefix} .note-item`))
+        .find(el => el.dataset.pinId === pinId);
+      if (item) item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    });
+  }
+
+  function focusPin(targetPrefix, pinId) {
+    openAnnotationTab(targetPrefix, pinId, true);
   }
 
   /* ---------- NOTES PANEL ---------- */
@@ -1918,6 +1987,7 @@
     pins.forEach((pin, i) => {
       const item = document.createElement('div');
       item.className = 'note-item' + (activePinIds[targetPrefix] === pin.id ? ' active' : '');
+      item.dataset.pinId = pin.id;
 
       const color = pin.color || '#22d3ee';
       const hasText = pin.text && pin.text.trim().length;
@@ -2072,6 +2142,7 @@
     if (bar) bar.style.display = st.active ? 'flex' : 'none';
     if (canvas) {
       canvas.classList.toggle('active', st.active);
+      canvas.classList.toggle('flat-interactive', !!node && !node.is360);
       canvas.classList.toggle('pannable', !st.active && !!node && !node.is360 && flatViews[targetPrefix].scale > 1);
     }
     if (hint && node) {
@@ -2120,7 +2191,7 @@
       let hfov = 100;
       try { hfov = viewer.getHfov(); } catch (e) {}
       const hit = hitTest360Pin(targetPrefix, node, py[0], py[1], hfov);
-      if (hit) { openPinEditor(targetPrefix, hit.id, false); return; }
+      if (hit) { openAnnotationTab(targetPrefix, hit.id, true); return; }
 
       addPinToNode(targetPrefix, node, { id: makePinId(), pitch: py[0], yaw: py[1], text: '', color: st.color });
       return;
@@ -2134,7 +2205,7 @@
 
     // Clicking an existing pin opens it for editing, in either mode
     const hit = hitTestFlatPin(targetPrefix, node, localX, localY);
-    if (hit) { openPinEditor(targetPrefix, hit.id, false); return; }
+    if (hit) { openAnnotationTab(targetPrefix, hit.id, true); return; }
 
     if (!st.active) return;
 
@@ -2206,6 +2277,26 @@
 
     const isChrome = (target) => !!(target && target.closest &&
       target.closest('.viewer-toolbar, .annotation-bar, .notes-panel, .pnlm-controls-container'));
+
+    // Hover text for flat-photo pins.
+    box.addEventListener('pointermove', (e) => {
+      const node = getNodeForTargetPrefix(targetPrefix);
+      if (!node || node.is360 || annoStates[targetPrefix].active) return;
+      const rect = canvas.getBoundingClientRect();
+      const hit = hitTestFlatPin(targetPrefix, node, e.clientX - rect.left, e.clientY - rect.top);
+      const nextId = hit ? hit.id : null;
+      if (hoverPinIds[targetPrefix] !== nextId) {
+        hoverPinIds[targetPrefix] = nextId;
+        redrawFlatPins(targetPrefix);
+      }
+    });
+
+    box.addEventListener('pointerleave', () => {
+      if (hoverPinIds[targetPrefix] !== null) {
+        hoverPinIds[targetPrefix] = null;
+        redrawFlatPins(targetPrefix);
+      }
+    });
 
     box.addEventListener('pointerdown', (e) => {
       if (isChrome(e.target)) { downPt = null; return; }
@@ -2327,7 +2418,14 @@
     // reset the view direction and re-render every pin.
     nodes.forEach(n => {
       if (n.marker) {
-        n.marker.setIcon(createMarkerIcon(n, n.id === selectedNodeId, n.id === secondaryNodeId));
+        let viewingBearing = undefined;
+        if (n.is360) {
+          const prefix = n.id === selectedNodeId
+            ? (dateFilterMode === 'compare' && compareStep === 0 ? 'compare-left' : 'primary')
+            : (n.id === secondaryNodeId ? 'compare-right' : null);
+          if (prefix) viewingBearing = getViewerViewportBearing(n, prefix);
+        }
+        n.marker.setIcon(createMarkerIcon(n, n.id === selectedNodeId, n.id === secondaryNodeId, viewingBearing));
         n.marker.setPopupContent(buildPopupHtml(n));
       }
     });
@@ -2336,14 +2434,84 @@
     showToast(`North set for "${node.title}" — heading ${Math.round(node.heading)}°`);
   }
 
+  function stopViewportHeadingTracking(targetPrefix) {
+    if (viewportHeadingTimers[targetPrefix]) {
+      clearInterval(viewportHeadingTimers[targetPrefix]);
+      viewportHeadingTimers[targetPrefix] = null;
+    }
+  }
+
+  function startViewportHeadingTracking(targetPrefix) {
+    stopViewportHeadingTracking(targetPrefix);
+    const tick = () => updateActiveViewerMapHeading(targetPrefix);
+    tick();
+    viewportHeadingTimers[targetPrefix] = setInterval(tick, 100);
+  }
+
+  function updateCompareSyncUI(primaryNode, secondaryNode) {
+    const option = document.getElementById('compareSyncOption');
+    const checkbox = document.getElementById('compareSync360');
+    if (!option || !checkbox) return;
+
+    const both360 = !!(primaryNode && secondaryNode && primaryNode.is360 && secondaryNode.is360);
+    checkbox.disabled = !both360;
+    option.classList.toggle('disabled', !both360);
+    option.title = both360
+      ? 'When enabled, rotating, pitching or zooming either 360° viewer also updates the other viewer.'
+      : 'Linking is available only when both comparison images are 360°.';
+
+    if (!both360) {
+      // Keep the user's preference in memory while linking is unavailable.
+      // The checkbox is shown as unavailable while either comparison image
+      // is flat, then restores the previous setting when both become 360°.
+      checkbox.checked = false;
+    } else {
+      checkbox.checked = compare360SyncEnabled;
+    }
+  }
+
+  function syncCompareViewerFrom(viewer, role) {
+    if (!compare360SyncEnabled || isSyncingViewers) return;
+    const otherViewer = role === 'left' ? pViewerRight : (role === 'right' ? pViewerLeft : null);
+    if (!otherViewer || typeof otherViewer.getYaw !== 'function') return;
+
+    isSyncingViewers = true;
+    try {
+      otherViewer.setPitch(viewer.getPitch(), false);
+      otherViewer.setYaw(viewer.getYaw(), false);
+      otherViewer.setHfov(viewer.getHfov(), false);
+    } catch (e) {}
+    isSyncingViewers = false;
+  }
+
+  function syncCompareViewerZoomFrom(viewer, role) {
+    if (!compare360SyncEnabled || isSyncingViewers) return;
+    const otherViewer = role === 'left' ? pViewerRight : (role === 'right' ? pViewerLeft : null);
+    if (!otherViewer || typeof otherViewer.setHfov !== 'function') return;
+
+    isSyncingViewers = true;
+    try {
+      otherViewer.setHfov(viewer.getHfov(), false);
+    } catch (e) {}
+    isSyncingViewers = false;
+  }
+
+  function syncCompareViewersNow() {
+    if (!compare360SyncEnabled || !pViewerLeft || !pViewerRight) return;
+    syncCompareViewerFrom(pViewerLeft, 'left');
+  }
+
   function renderViewers() {
     const primaryNode = nodes.find(n => n.id === selectedNodeId);
     const secondaryNode = nodes.find(n => n.id === secondaryNodeId);
 
+    updateCompareSyncUI(primaryNode, secondaryNode);
+
+    PREFIXES.forEach(stopViewportHeadingTracking);
     if (pViewerPrimary) { pViewerPrimary.destroy(); pViewerPrimary = null; }
     if (pViewerLeft) { pViewerLeft.destroy(); pViewerLeft = null; }
     if (pViewerRight) { pViewerRight.destroy(); pViewerRight = null; }
-    PREFIXES.forEach(p => { renderedHotspotIds[p] = []; });
+    PREFIXES.forEach(p => { renderedHotspotIds[p] = []; viewportBearings[p] = null; });
 
     if (dateFilterMode === 'compare' && compareStep === 0 && primaryNode && secondaryNode) {
       document.getElementById('compareFullModal').style.display = 'flex';
@@ -2368,7 +2536,9 @@
     // A freshly shown image starts unzoomed with nothing highlighted
     flatViews[targetPrefix] = { scale: 1, tx: 0, ty: 0 };
     activePinIds[targetPrefix] = null;
+    hoverPinIds[targetPrefix] = null;
     pinsVisible[targetPrefix] = true;
+    viewportBearings[targetPrefix] = null;
     updatePinVisibilityUI(targetPrefix);
     updateZoomControls(targetPrefix, node);
 
@@ -2390,21 +2560,20 @@
       if (role === 'left') pViewerLeft = viewer;
       if (role === 'right') pViewerRight = viewer;
 
-      viewer.on('load', () => renderAllPins(targetPrefix));
-
-      viewer.on('render', () => {
-        if (isSyncingViewers) return;
-        const otherViewer = role === 'left' ? pViewerRight : (role === 'right' ? pViewerLeft : null);
-        if (!otherViewer) return;
-
-        isSyncingViewers = true;
-        try {
-          otherViewer.setPitch(viewer.getPitch());
-          otherViewer.setYaw(viewer.getYaw());
-          otherViewer.setHfov(viewer.getHfov());
-        } catch(e){}
-        isSyncingViewers = false;
+      viewer.on('load', () => {
+        renderAllPins(targetPrefix);
+        startViewportHeadingTracking(targetPrefix);
       });
+      viewer.on('zoomchange', () => updateActiveViewerMapHeading(targetPrefix));
+      viewer.on('animatefinished', () => updateActiveViewerMapHeading(targetPrefix));
+      viewer.on('mouseup', () => updateActiveViewerMapHeading(targetPrefix));
+      viewer.on('touchend', () => updateActiveViewerMapHeading(targetPrefix));
+
+      // Optional compare linking. With the link enabled, either 360° viewer
+      // drives the other; with it disabled, each viewer is fully independent.
+      viewer.on('mouseup', () => syncCompareViewerFrom(viewer, role));
+      viewer.on('touchend', () => syncCompareViewerFrom(viewer, role));
+      viewer.on('zoomchange', () => syncCompareViewerZoomFrom(viewer, role));
 
     } else {
       if (role === 'primary' && pViewerPrimary) { pViewerPrimary.destroy(); pViewerPrimary = null; }
@@ -2431,10 +2600,10 @@
     }
   }
 
-  function createMarkerIcon(node, isActive, isSecondary, viewingYaw) {
+  function createMarkerIcon(node, isActive, isSecondary, viewingBearing) {
     const is360 = node.is360;
     const typeClass = is360 ? 'type-360' : 'type-flat';
-    
+
     let activeClass = '';
     if (isActive) activeClass = 'active';
     else if (isSecondary) activeClass = 'active-secondary';
@@ -2443,25 +2612,77 @@
     let headingHtml = '';
 
     if (node.hasHeading && typeof node.heading === 'number') {
+      // For the selected 360 image, the arrow follows the centre of the
+      // current Pannellum viewport. Otherwise it shows the stored camera heading.
+      const bearing = (is360 && isActive && typeof viewingBearing === 'number')
+        ? viewingBearing
+        : node.heading;
       headingHtml = `
-        <div class="heading-pivot" style="transform: rotate(${node.heading}deg);">
+        <div class="heading-pivot" style="transform: rotate(${bearing}deg);">
           <div class="heading-arrow"></div>
         </div>`;
     }
 
-    let viewConeHtml = '';
-    if (is360 && isActive && typeof viewingYaw === 'number') {
-      const baseHeading = node.hasHeading ? node.heading : 0;
-      const bearing = ((baseHeading + viewingYaw) % 360 + 360) % 360;
-      viewConeHtml = `<div class="heading-pivot" style="transform: rotate(${bearing}deg);"><div class="view-cone"></div></div>`;
-    }
-
     return L.divIcon({
       className: '',
-      html: `<div class="marker-wrap">${headingHtml}${viewConeHtml}<div class="${dotClasses}"></div></div>`,
+      html: `<div class="marker-wrap">${headingHtml}<div class="${dotClasses}"></div></div>`,
       iconSize: [30, 30],
       iconAnchor: [15, 15]
     });
+  }
+
+  function normaliseHeadingValue(value) {
+    // Treat genuinely missing/blank heading metadata as missing.
+    // Number(null) and Number("") both produce 0, which would incorrectly
+    // draw a North-pointing arrow when no heading is actually known.
+    if (value === null || value === undefined) return null;
+    if (typeof value === 'string' && value.trim() === '') return null;
+
+    const n = Number(value);
+    if (!Number.isFinite(n)) return null;
+    return ((n % 360) + 360) % 360;
+  }
+
+  function normaliseNodeHeading(node) {
+    if (!node) return node;
+    const h = normaliseHeadingValue(node.heading);
+    if (h === null) {
+      node.heading = null;
+      node.hasHeading = false;
+    } else {
+      node.heading = h;
+      node.hasHeading = true;
+    }
+    return node;
+  }
+
+  function getViewerViewportBearing(node, targetPrefix) {
+    if (!node || !node.is360 || !node.hasHeading || typeof node.heading !== 'number') return null;
+    const viewer = getViewerInstance(targetPrefix);
+    if (!viewer || typeof viewer.getYaw !== 'function') return null;
+    let yaw = 0;
+    try { yaw = Number(viewer.getYaw()) || 0; } catch (e) { return null; }
+    return ((node.heading + yaw) % 360 + 360) % 360;
+  }
+
+  function updateActiveViewerMapHeading(targetPrefix) {
+    const node = getNodeForTargetPrefix(targetPrefix);
+    if (!node || !node.is360 || !node.marker) return;
+    if (node.id !== selectedNodeId && node.id !== secondaryNodeId) return;
+
+    const bearing = getViewerViewportBearing(node, targetPrefix);
+    if (bearing === null) return;
+
+    const rounded = Math.round(bearing * 2) / 2;
+    if (viewportBearings[targetPrefix] === rounded) return;
+    viewportBearings[targetPrefix] = rounded;
+
+    node.marker.setIcon(createMarkerIcon(
+      node,
+      node.id === selectedNodeId,
+      node.id === secondaryNodeId,
+      bearing
+    ));
   }
 
   function buildPopupHtml(node) {
@@ -2474,6 +2695,7 @@
   }
 
   function addNode(nodeData) {
+    normaliseNodeHeading(nodeData);
     if (!nodeData.dateKey) nodeData.dateKey = 'undated';
     if (!nodeData.dateKeyLabel) nodeData.dateKeyLabel = prettifyDateKey(nodeData.dateKey);
     nodeData.annotations = nodeData.annotations || [];
@@ -2835,7 +3057,14 @@
       const isVisible = filtered.includes(n);
       if (isVisible) {
         if (!map.hasLayer(n.marker)) map.addLayer(n.marker);
-        n.marker.setIcon(createMarkerIcon(n, n.id === selectedNodeId, n.id === secondaryNodeId));
+        let viewingBearing = undefined;
+        if (n.is360) {
+          const prefix = n.id === selectedNodeId
+            ? (dateFilterMode === 'compare' && compareStep === 0 ? 'compare-left' : 'primary')
+            : (n.id === secondaryNodeId ? 'compare-right' : null);
+          if (prefix) viewingBearing = getViewerViewportBearing(n, prefix);
+        }
+        n.marker.setIcon(createMarkerIcon(n, n.id === selectedNodeId, n.id === secondaryNodeId, viewingBearing));
       } else {
         if (map.hasLayer(n.marker)) map.removeLayer(n.marker);
       }
@@ -2973,6 +3202,10 @@
       const { marker, ...plain } = n;
       const copy = JSON.parse(JSON.stringify(plain));
 
+      // Preserve the heading in a canonical numeric form so saved HTML files
+      // cannot lose the flag needed to draw the blue map arrow.
+      normaliseNodeHeading(copy);
+
       if (!keepAnnotations) copy.annotations = [];
 
       if (copy.url.startsWith('data:image')) {
@@ -2996,6 +3229,14 @@
     clone.querySelectorAll('.count-badge').forEach(el => { el.innerText = '0'; el.classList.add('empty'); });
     const cloneStepBar = clone.querySelector('#compareStepBar');
     if (cloneStepBar) cloneStepBar.style.display = 'none';
+
+    // Persist the current compare-link preference in the standalone export.
+    const cloneCompareSync = clone.querySelector('#compareSync360');
+    if (cloneCompareSync) {
+      if (compare360SyncEnabled) cloneCompareSync.setAttribute('checked', '');
+      else cloneCompareSync.removeAttribute('checked');
+      cloneCompareSync.checked = compare360SyncEnabled;
+    }
     const cloneToasts = clone.querySelector('#toastHost');
     if (cloneToasts) cloneToasts.innerHTML = '';
     const cloneNodeList = clone.querySelector('#nodeContainer');
@@ -3004,8 +3245,8 @@
     if (cloneMap) { cloneMap.innerHTML = ''; cloneMap.className = ''; cloneMap.removeAttribute('style'); }
 
     let htmlString = clone.outerHTML;
-    htmlString = htmlString.replace(/const SAVED_PROJECT_TITLE = ".*?";/, `const SAVED_PROJECT_TITLE = ${JSON.stringify(projectTitle)};`);
-    htmlString = htmlString.replace(/const SAVED_BASE_NODES = \[[\s\S]*?\];/, `const SAVED_BASE_NODES = ${JSON.stringify(processedNodes)};`);
+    htmlString = htmlString.replace(/const SAVED_PROJECT_TITLE = [^;]*;/, `const SAVED_PROJECT_TITLE = ${JSON.stringify(projectTitle)};`);
+    htmlString = htmlString.replace(/const SAVED_BASE_NODES = [\s\S]*?;\s*\n/, `const SAVED_BASE_NODES = ${JSON.stringify(processedNodes)};\n`);
 
     const blob = new Blob(['<!DOCTYPE html>\n' + htmlString], { type: 'text/html' });
     const link = document.createElement('a');
@@ -3040,11 +3281,268 @@
     });
   }
 
-  // Print Comparison View to JPG (flat-photo pins are burned in)
+  function downloadDataUrl(dataUrl, filename) {
+    if (!dataUrl) return;
+    const link = document.createElement('a');
+    link.download = filename;
+    link.href = dataUrl;
+    link.click();
+  }
+
+  function fitImageToRect(ctx, img, x, y, w, h) {
+    const srcRatio = img.width / img.height;
+    const dstRatio = w / h;
+    let dw = w, dh = h, dx = x, dy = y;
+
+    if (srcRatio > dstRatio) {
+      dh = w / srcRatio;
+      dy = y + (h - dh) / 2;
+    } else {
+      dw = h * srcRatio;
+      dx = x + (w - dw) / 2;
+    }
+
+    ctx.drawImage(img, dx, dy, dw, dh);
+    return { x: dx, y: dy, width: dw, height: dh };
+  }
+
+  function capture360Viewport(targetPrefix, includePins = true) {
+    const viewer = getViewerInstance(targetPrefix);
+    const panoEl = document.getElementById(`panorama-${targetPrefix}`);
+    const node = getNodeForTargetPrefix(targetPrefix);
+
+    if (!viewer || !panoEl || !node || typeof viewer.getRenderer !== 'function') return null;
+    if (typeof viewer.isLoaded === 'function' && !viewer.isLoaded()) return null;
+
+    let dataUrl = null;
+    try {
+      const renderer = viewer.getRenderer();
+      dataUrl = renderer.render(
+        viewer.getPitch() / 180 * Math.PI,
+        viewer.getYaw() / 180 * Math.PI,
+        viewer.getHfov() / 180 * Math.PI,
+        { returnImage: true }
+      );
+    } catch (e) {
+      return null;
+    }
+
+    if (!dataUrl) return null;
+
+    const rect = panoEl.getBoundingClientRect();
+    const pins = [];
+
+    if (includePins) {
+      panoEl.querySelectorAll('.pnlm-hotspot.pin-hotspot').forEach((hotspot) => {
+        const bubble = hotspot.querySelector('.pin-bubble');
+        if (!bubble) return;
+
+        const pinRecord = (node.annotations || []).find(p => p.id === hotspot.id);
+        const br = bubble.getBoundingClientRect();
+        const x = br.left + br.width / 2 - rect.left;
+        const y = br.top + br.height / 2 - rect.top;
+        if (x < -20 || y < -20 || x > rect.width + 20 || y > rect.height + 20) return;
+
+        pins.push({
+          x, y,
+          num: bubble.innerText,
+          color: pinRecord?.color || '#22d3ee',
+          text: pinRecord?.text || ''
+        });
+      });
+    }
+
+    return {
+      dataUrl,
+      sourceWidth: Math.max(1, rect.width),
+      sourceHeight: Math.max(1, rect.height),
+      pins
+    };
+  }
+
+  async function captureFlatViewport(targetPrefix) {
+    const canvas = document.getElementById(`annoCanvas-${targetPrefix}`);
+    const flatEl = document.getElementById(`flat-${targetPrefix}`);
+    if (!canvas || !flatEl || !flatEl.naturalWidth || !flatEl.naturalHeight) return null;
+
+    const rect = getFlatImageRect(targetPrefix);
+    if (!rect) return null;
+
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const outW = Math.max(1, Math.round(canvas.clientWidth * 2));
+        const outH = Math.max(1, Math.round(canvas.clientHeight * 2));
+        const out = document.createElement('canvas');
+        out.width = outW;
+        out.height = outH;
+
+        const ctx = out.getContext('2d');
+        ctx.fillStyle = '#060b08';
+        ctx.fillRect(0, 0, outW, outH);
+
+        const sxPerScreenPx = img.naturalWidth / rect.width;
+        const syPerScreenPx = img.naturalHeight / rect.height;
+        const visibleLeft = Math.max(0, -rect.left);
+        const visibleTop = Math.max(0, -rect.top);
+        const srcX = visibleLeft * sxPerScreenPx;
+        const srcY = visibleTop * syPerScreenPx;
+        const srcW = Math.min(img.naturalWidth - srcX, canvas.clientWidth * sxPerScreenPx);
+        const srcH = Math.min(img.naturalHeight - srcY, canvas.clientHeight * syPerScreenPx);
+
+        if (srcW > 0 && srcH > 0) {
+          ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, outW, outH);
+        }
+
+        // Burn in pin bubbles; live annotation text remains hover-only.
+        (getNodeForTargetPrefix(targetPrefix)?.annotations || []).forEach((pin, i) => {
+          if (typeof pin.normX !== 'number' || typeof pin.normY !== 'number') return;
+          const px = rect.left + pin.normX * rect.width;
+          const py = rect.top + pin.normY * rect.height;
+          if (px < 0 || py < 0 || px > canvas.clientWidth || py > canvas.clientHeight) return;
+
+          const x = px / canvas.clientWidth * outW;
+          const y = py / canvas.clientHeight * outH;
+          const color = pin.color || '#22d3ee';
+          const scale = outW / Math.max(1, canvas.clientWidth);
+          const r = 11 * scale;
+
+          ctx.beginPath();
+          ctx.arc(x, y, r, 0, Math.PI * 2);
+          ctx.fillStyle = color;
+          ctx.fill();
+          ctx.lineWidth = 2 * scale;
+          ctx.strokeStyle = '#ffffff';
+          ctx.stroke();
+
+          ctx.fillStyle = contrastInk(color);
+          ctx.font = `bold ${11 * scale}px "IBM Plex Mono", monospace`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(String(i + 1), x, y + 0.5 * scale);
+        });
+
+        resolve(out.toDataURL('image/jpeg', 0.92));
+      };
+      img.onerror = () => resolve(null);
+      img.src = flatEl.currentSrc || flatEl.src;
+    });
+  }
+
+  async function exportViewerViewport(targetPrefix) {
+    const node = getNodeForTargetPrefix(targetPrefix);
+    if (!node) return;
+
+    showToast('Rendering current viewport…');
+    let dataUrl = null;
+
+    if (node.is360) {
+      const snap = capture360Viewport(targetPrefix, true);
+      if (!snap) {
+        showToast('360 viewport export is unavailable until the panorama has loaded.');
+        return;
+      }
+
+      const img = await new Promise(resolve => {
+        const im = new Image();
+        im.onload = () => resolve(im);
+        im.onerror = () => resolve(null);
+        im.src = snap.dataUrl;
+      });
+      if (!img) return;
+
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth || img.width;
+      canvas.height = img.naturalHeight || img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+
+      const sx = canvas.width / snap.sourceWidth;
+      const sy = canvas.height / snap.sourceHeight;
+      snap.pins.forEach(pin => {
+        const x = pin.x * sx;
+        const y = pin.y * sy;
+        const scale = (sx + sy) / 2;
+        const r = 11 * scale;
+        const color = pin.color || '#22d3ee';
+
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.lineWidth = 2 * scale;
+        ctx.strokeStyle = '#ffffff';
+        ctx.stroke();
+
+        ctx.fillStyle = contrastInk(color);
+        ctx.font = `bold ${11 * scale}px "IBM Plex Mono", monospace`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(String(pin.num), x, y + 0.5 * scale);
+
+        if (pin.text) {
+          const label = pin.text.split('\n')[0].slice(0, 40);
+          ctx.font = `${11.5 * scale}px Inter, sans-serif`;
+          const tw = ctx.measureText(label).width;
+          const lx = x + r + 7 * sx;
+          ctx.fillStyle = 'rgba(13,23,18,0.9)';
+          ctx.fillRect(lx, y - 10.5 * sy, tw + 14 * sx, 21 * sy);
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 1 * scale;
+          ctx.strokeRect(lx, y - 10.5 * sy, tw + 14 * sx, 21 * sy);
+          ctx.fillStyle = '#e6f2eb';
+          ctx.textAlign = 'left';
+          ctx.fillText(label, lx + 7 * sx, y + 0.5 * sy);
+        }
+      });
+
+      dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+    } else {
+      dataUrl = await captureFlatViewport(targetPrefix);
+    }
+
+    if (!dataUrl) {
+      showToast('Could not render the current viewport.');
+      return;
+    }
+
+    const safeTitle = node.title.replace(/[^\w.-]+/g, '_').replace(/^_+|_+$/g, '') || 'image';
+    downloadDataUrl(dataUrl, `Viewport_${safeTitle}.jpg`);
+  }
+
+  const compareSyncCheckbox = document.getElementById('compareSync360');
+  if (compareSyncCheckbox) {
+    compareSyncCheckbox.addEventListener('change', () => {
+      compare360SyncEnabled = compareSyncCheckbox.checked && !compareSyncCheckbox.disabled;
+      if (compare360SyncEnabled) {
+        syncCompareViewersNow();
+      }
+    });
+  }
+
+  // Print Comparison View to JPG. 360° images use the current viewport by default.
   document.getElementById('printCompareJpgBtn').addEventListener('click', async () => {
     const nodeLeft = nodes.find(n => n.id === selectedNodeId);
     const nodeRight = nodes.find(n => n.id === secondaryNodeId);
     if (!nodeLeft || !nodeRight) { alert("Select both primary and secondary nodes first."); return; }
+
+    const use360Viewport = document.getElementById('compareUse360Viewport')?.checked !== false;
+
+    const getExportImage = async (node, targetPrefix) => {
+      if (node.is360 && use360Viewport) return capture360Viewport(targetPrefix, true);
+      return { dataUrl: node.url, sourceWidth: null, sourceHeight: null, pins: [] };
+    };
+
+    showToast('Rendering comparison export…');
+    const [leftSnap, rightSnap] = await Promise.all([
+      getExportImage(nodeLeft, 'compare-left'),
+      getExportImage(nodeRight, 'compare-right')
+    ]);
+
+    if (!leftSnap || !rightSnap) {
+      alert("One of the viewer images could not be rendered. Make sure both panoramas have finished loading.");
+      return;
+    }
 
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
@@ -3059,8 +3557,20 @@
     ctx.fillStyle = '#0d1712';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    const loadImg = (url) => new Promise(res => { const img = new Image(); img.onload = () => res(img); img.src = url; });
-    const [imgL, imgR] = await Promise.all([loadImg(nodeLeft.url), loadImg(nodeRight.url)]);
+    const loadImg = (url) => new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = url;
+    });
+
+    let imgL, imgR;
+    try {
+      [imgL, imgR] = await Promise.all([loadImg(leftSnap.dataUrl), loadImg(rightSnap.dataUrl)]);
+    } catch (e) {
+      alert("Could not prepare one of the images for export.");
+      return;
+    }
 
     ctx.fillStyle = '#2bb673';
     ctx.font = 'bold 22px sans-serif';
@@ -3076,15 +3586,17 @@
     ctx.font = '16px monospace';
     ctx.fillText(`Date: ${nodeRight.dateKeyLabel}  |  Lat: ${nodeRight.lat.toFixed(5)} Lon: ${nodeRight.lon.toFixed(5)}`, w + 40, 68);
 
-    ctx.drawImage(imgL, 0, headerH, w, h);
-    ctx.drawImage(imgR, w + 20, headerH, w, h);
+    const leftDraw = fitImageToRect(ctx, imgL, 0, headerH, w, h);
+    const rightDraw = fitImageToRect(ctx, imgR, w + 20, headerH, w, h);
 
-    const drawPins = (node, offsetX) => {
+    const drawFlatPins = (node, drawRect) => {
       if (node.is360) return;
+
       (node.annotations || []).forEach((pin, i) => {
-        if (typeof pin.normX !== 'number') return;
-        const x = offsetX + pin.normX * w;
-        const y = headerH + pin.normY * h;
+        if (typeof pin.normX !== 'number' || typeof pin.normY !== 'number') return;
+
+        const x = drawRect.x + pin.normX * drawRect.width;
+        const y = drawRect.y + pin.normY * drawRect.height;
         const color = pin.color || '#22d3ee';
 
         ctx.beginPath();
@@ -3107,23 +3619,76 @@
           const label = pin.text.split('\n')[0].slice(0, 40);
           ctx.font = '15px sans-serif';
           const tw = ctx.measureText(label).width;
+          const labelX = x + 18;
+          const labelY = y - 13;
           ctx.fillStyle = 'rgba(13,23,18,0.88)';
-          ctx.fillRect(x + 18, y - 13, tw + 14, 26);
+          ctx.fillRect(labelX, labelY, tw + 14, 26);
           ctx.strokeStyle = color;
           ctx.lineWidth = 1.5;
-          ctx.strokeRect(x + 18, y - 13, tw + 14, 26);
+          ctx.strokeRect(labelX, labelY, tw + 14, 26);
           ctx.fillStyle = '#e6f2eb';
-          ctx.fillText(label, x + 25, y + 5);
+          ctx.fillText(label, labelX + 7, y + 5);
         }
       });
     };
-    drawPins(nodeLeft, 0);
-    drawPins(nodeRight, w + 20);
 
-    const a = document.createElement('a');
-    a.download = `Survey_Comparison_${nodeLeft.dateKey}_vs_${nodeRight.dateKey}.jpg`;
-    a.href = canvas.toDataURL('image/jpeg', 0.92);
-    a.click();
+    const draw360Pins = (snap, drawRect) => {
+      if (!snap.sourceWidth || !snap.sourceHeight || !snap.pins?.length) return;
+
+      const sx = drawRect.width / snap.sourceWidth;
+      const sy = drawRect.height / snap.sourceHeight;
+
+      snap.pins.forEach((pin) => {
+        const x = drawRect.x + pin.x * sx;
+        const y = drawRect.y + pin.y * sy;
+        const color = pin.color || '#22d3ee';
+        const r = 14 * ((sx + sy) / 2);
+
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#ffffff';
+        ctx.stroke();
+
+        ctx.fillStyle = contrastInk(color);
+        ctx.font = 'bold 14px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(String(pin.num), x, y + 1);
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
+
+        if (pin.text) {
+          const label = pin.text.split('\n')[0].slice(0, 40);
+          ctx.font = '15px sans-serif';
+          const tw = ctx.measureText(label).width;
+          const labelX = x + r + 8;
+          const labelY = y - 13;
+          ctx.fillStyle = 'rgba(13,23,18,0.88)';
+          ctx.fillRect(labelX, labelY, tw + 14, 26);
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(labelX, labelY, tw + 14, 26);
+          ctx.fillStyle = '#e6f2eb';
+          ctx.fillText(label, labelX + 7, y + 5);
+        }
+      });
+    };
+
+    if (nodeLeft.is360 && use360Viewport) draw360Pins(leftSnap, leftDraw);
+    else drawFlatPins(nodeLeft, leftDraw);
+
+    if (nodeRight.is360 && use360Viewport) draw360Pins(rightSnap, rightDraw);
+    else drawFlatPins(nodeRight, rightDraw);
+
+    const safeLeft = nodeLeft.dateKey || 'undated';
+    const safeRight = nodeRight.dateKey || 'undated';
+    downloadDataUrl(
+      canvas.toDataURL('image/jpeg', 0.92),
+      `Survey_Comparison_${safeLeft}_vs_${safeRight}.jpg`
+    );
   });
 
   window.addEventListener('DOMContentLoaded', () => {

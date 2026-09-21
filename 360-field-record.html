@@ -438,8 +438,8 @@
   .pin-node {
     position: absolute;
     left: 0; top: 0;
-    width: 22px;
-    height: 22px;
+    width: 18px;
+    height: 18px;
     transform: translate(-50%, -50%);
     display: block;
     cursor: pointer;
@@ -448,27 +448,33 @@
   .pin-bubble {
     position: absolute;
     left: 0; top: 0;
-    width: 22px; height: 22px;
+    width: 18px; height: 18px;
     border-radius: 50%;
-    border: 2px solid #ffffff;
+    border: 1.5px solid #ffffff;
     box-shadow: 0 0 6px rgba(0,0,0,0.75);
     font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
+    font-size: 9.5px;
     font-weight: 700;
     display: flex; align-items: center; justify-content: center;
     z-index: 2;
+    opacity: 0.5 !important;
   }
-  .pin-node.active .pin-bubble { box-shadow: 0 0 0 5px rgba(34,211,238,0.35), 0 0 8px rgba(0,0,0,0.8); }
+  .pin-node.active .pin-bubble {
+    opacity: 1 !important;
+    box-shadow: 0 0 0 4px rgba(34,211,238,0.35), 0 0 7px rgba(0,0,0,0.8);
+  }
+  .pin-node:not(.active) .pin-bubble, .pin-bubble[data-active="0"] { opacity: 0.5 !important; }
+  .pin-node.active .pin-bubble, .pin-bubble[data-active="1"] { opacity: 1 !important; }
   .pin-flag {
     position: absolute;
-    left: 29px;
+    left: 24px;
     top: 50%;
-    margin-top: -11px;
+    margin-top: -9px;
     background: rgba(13, 23, 18, 0.92);
     border: 1px solid var(--rule);
     border-radius: 5px;
-    padding: 3px 8px;
-    font-size: 11.5px;
+    padding: 3px 7px;
+    font-size: 10.5px;
     line-height: 1.25;
     color: var(--parchment);
     white-space: nowrap;
@@ -878,6 +884,16 @@
   .custom-marker.type-flat { width: 12px; height: 12px; background-color: var(--water); border-radius: 3px; }
   .custom-marker.active { transform: translate(-50%,-50%) scale(1.4); box-shadow: 0 0 12px var(--highlight); border-color: #ffffff; }
   .custom-marker.active-secondary { transform: translate(-50%,-50%) scale(1.3); box-shadow: 0 0 12px var(--moss); border-color: var(--moss); }
+  .map-node-tooltip {
+    background: rgba(13,23,18,0.94);
+    border: 1px solid var(--moss);
+    color: var(--parchment);
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    line-height: 1.35;
+    box-shadow: 0 5px 16px rgba(0,0,0,0.5);
+  }
+  .map-node-tooltip::before { border-top-color: rgba(13,23,18,0.94) !important; }
 
   .heading-pivot {
     position: absolute;
@@ -1456,15 +1472,13 @@
   });
   const esriTopo = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Esri Topo' });
   const esriStreet = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Esri Street' });
-  const osmMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: 'OSM' });
 
-  esriImagery.addTo(map);
+  esriStreet.addTo(map);
 
   L.control.layers({
-    "Esri Satellite Imagery": esriImagery,
-    "Esri Topographic": esriTopo,
     "Esri Street Map": esriStreet,
-    "OpenStreetMap": osmMap
+    "Esri Satellite Imagery": esriImagery,
+    "Esri Topographic": esriTopo
   }).addTo(map);
 
   function toggleElementFullscreen(elementId) {
@@ -1678,15 +1692,48 @@
   /* ---------- PIN RENDERING ---------- */
 
   function stylePinHotspot(hotSpotDiv, args) {
+    const isActive = activePinIds[args.targetPrefix] === args.pinId;
+    hotSpotDiv.dataset.pinId = args.pinId || '';
     hotSpotDiv.innerHTML =
-      `<div class="pin-node${args.isActive ? ' active' : ''}">
-         <span class="pin-bubble" style="background:${args.color}; color:${contrastInk(args.color)}">${args.num}</span>
+      `<div class="pin-node${isActive ? ' active' : ''}" data-active="${isActive ? '1' : '0'}">
+         <span class="pin-bubble" style="background:${args.color}; color:${contrastInk(args.color)};" data-active="${isActive ? '1' : '0'}">${args.num}</span>
          ${args.text ? `<span class="pin-flag">${escapeHtml(args.text.split('\n')[0])}</span>` : ''}
        </div>`;
+    const initialBubble = hotSpotDiv.querySelector('.pin-bubble');
+    if (initialBubble) initialBubble.style.setProperty('opacity', isActive ? '1' : '0.5', 'important');
     hotSpotDiv.style.cursor = 'pointer';
     hotSpotDiv.addEventListener('click', (e) => {
       e.stopPropagation();
       openAnnotationTab(args.targetPrefix, args.pinId, true);
+    });
+  }
+
+  const pinObservers = {};
+  function ensure360PinObserver(targetPrefix) {
+    const host = document.getElementById(`panorama-${targetPrefix}`);
+    if (!host || pinObservers[targetPrefix]) return;
+    if (typeof MutationObserver === 'undefined') return;
+    pinObservers[targetPrefix] = new MutationObserver(() => {
+      update360PinVisual(targetPrefix);
+      requestAnimationFrame(() => update360PinVisual(targetPrefix));
+    });
+    pinObservers[targetPrefix].observe(host, { childList: true, subtree: true });
+  }
+
+  function update360PinVisual(targetPrefix) {
+    ensure360PinObserver(targetPrefix);
+    const host = document.getElementById(`panorama-${targetPrefix}`);
+    if (!host) return;
+    const activeId = activePinIds[targetPrefix];
+    host.querySelectorAll('.pnlm-hotspot.pin-hotspot').forEach((hotSpotDiv) => {
+      const pinNode = hotSpotDiv.querySelector('.pin-node');
+      const bubble = hotSpotDiv.querySelector('.pin-bubble');
+      if (!pinNode || !bubble) return;
+      const active = (hotSpotDiv.dataset.pinId || hotSpotDiv.id) === (activeId || '');
+      pinNode.classList.toggle('active', active);
+      pinNode.dataset.active = active ? '1' : '0';
+      bubble.dataset.active = active ? '1' : '0';
+      bubble.style.setProperty('opacity', active ? '1' : '0.5', 'important');
     });
   }
 
@@ -1720,6 +1767,8 @@
             renderedHotspotIds[targetPrefix].push(pin.id);
           } catch (e) {}
         });
+        requestAnimationFrame(() => update360PinVisual(targetPrefix));
+        setTimeout(() => update360PinVisual(targetPrefix), 60);
       }
     } else {
       redrawFlatPins(targetPrefix);
@@ -1727,6 +1776,10 @@
 
     renderNotesList(targetPrefix);
     updateNotesCount(targetPrefix);
+    if (node && node.is360) {
+      requestAnimationFrame(() => update360PinVisual(targetPrefix));
+      setTimeout(() => update360PinVisual(targetPrefix), 0);
+    }
   }
 
   function roundRectPath(ctx, x, y, w, h, r) {
@@ -1767,7 +1820,10 @@
 
       const color = pin.color || '#22d3ee';
       const isActive = activePinIds[targetPrefix] === pin.id;
-      const r = 11;
+      const r = 9;
+
+      ctx.save();
+      ctx.globalAlpha = isActive ? 1 : 0.5;
 
       if (isActive) {
         ctx.beginPath();
@@ -1791,16 +1847,17 @@
       ctx.shadowBlur = 0;
 
       ctx.fillStyle = contrastInk(color);
-      ctx.font = 'bold 11px "IBM Plex Mono", monospace';
+      ctx.font = 'bold 9.5px "IBM Plex Mono", monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(String(i + 1), x, y + 0.5);
+      ctx.restore();
 
       const showLabel = hoverPinIds[targetPrefix] === pin.id;
       if (pin.text && showLabel) {
         const raw = pin.text.split('\n')[0];
         const label = raw.length > 26 ? raw.slice(0, 26) + '…' : raw;
-        ctx.font = '11.5px Inter, sans-serif';
+        ctx.font = '10.5px Inter, sans-serif';
         ctx.textAlign = 'left';
         const tw = ctx.measureText(label).width;
         let lx = x + r + 7;
@@ -1847,7 +1904,10 @@
     const node = getNodeForTargetPrefix(targetPrefix);
     if (!node) return;
     node.annotations = (node.annotations || []).filter(p => p.id !== pinId);
-    if (activePinIds[targetPrefix] === pinId) activePinIds[targetPrefix] = null;
+    if (activePinIds[targetPrefix] === pinId) {
+      activePinIds[targetPrefix] = null;
+      update360PinVisual(targetPrefix);
+    }
     renderAllPins(targetPrefix);
     refreshNodeMarker(node);
     applyFilterAndRender();
@@ -1859,6 +1919,7 @@
     if (!confirm(`Delete all ${node.annotations.length} annotation(s) on "${node.title}"?`)) return;
     node.annotations = [];
     activePinIds[targetPrefix] = null;
+    update360PinVisual(targetPrefix);
     renderAllPins(targetPrefix);
     refreshNodeMarker(node);
     applyFilterAndRender();
@@ -1866,7 +1927,7 @@
 
   function refreshNodeMarker(node) {
     if (!node || !node.marker) return;
-    node.marker.setPopupContent(buildPopupHtml(node));
+    node.marker.setTooltipContent(buildPopupHtml(node));
   }
 
   function openAnnotationTab(targetPrefix, pinId, centreView = true) {
@@ -1876,6 +1937,7 @@
     if (!pin) return;
 
     activePinIds[targetPrefix] = pinId;
+    update360PinVisual(targetPrefix);
     hoverPinIds[targetPrefix] = null;
     setPinVisibility(targetPrefix, true); // no point flying to a hidden pin
 
@@ -1900,6 +1962,8 @@
 
     toggleNotesPanel(targetPrefix, true);
     renderAllPins(targetPrefix);
+    requestAnimationFrame(() => update360PinVisual(targetPrefix));
+    setTimeout(() => update360PinVisual(targetPrefix), 60);
 
     requestAnimationFrame(() => {
       const item = Array.from(document.querySelectorAll(`#notesList-${targetPrefix} .note-item`))
@@ -2042,6 +2106,7 @@
 
     pinEditorCtx = { targetPrefix, pinId, isNew: !!isNew, color: pin.color || '#22d3ee', openedAt: Date.now() };
     activePinIds[targetPrefix] = pinId;
+    update360PinVisual(targetPrefix);
     renderAllPins(targetPrefix);
 
     const idx = pins.indexOf(pin) + 1;
@@ -2426,7 +2491,7 @@
           if (prefix) viewingBearing = getViewerViewportBearing(n, prefix);
         }
         n.marker.setIcon(createMarkerIcon(n, n.id === selectedNodeId, n.id === secondaryNodeId, viewingBearing));
-        n.marker.setPopupContent(buildPopupHtml(n));
+        n.marker.setTooltipContent(buildPopupHtml(n));
       }
     });
     updateMetaPanels();
@@ -2569,6 +2634,24 @@
       viewer.on('mouseup', () => updateActiveViewerMapHeading(targetPrefix));
       viewer.on('touchend', () => updateActiveViewerMapHeading(targetPrefix));
 
+      // Clicking an unpinned area clears the current annotation selection.
+      // Pin clicks stop propagation in stylePinHotspot(), while annotation
+      // mode deliberately keeps empty clicks available for placing a pin.
+      if (!panoEl._emptyPinClearBound) {
+        panoEl._emptyPinClearBound = true;
+        panoEl.addEventListener('click', (e) => {
+          const st = annoStates[targetPrefix];
+          if (st && st.active) return;
+          if (e.target && e.target.closest && e.target.closest('.pnlm-hotspot.pin-hotspot')) return;
+          if (activePinIds[targetPrefix] !== null) {
+            activePinIds[targetPrefix] = null;
+            hoverPinIds[targetPrefix] = null;
+            update360PinVisual(targetPrefix);
+            renderNotesList(targetPrefix);
+          }
+        });
+      }
+
       // Optional compare linking. With the link enabled, either 360° viewer
       // drives the other; with it disabled, each viewer is fully independent.
       viewer.on('mouseup', () => syncCompareViewerFrom(viewer, role));
@@ -2691,7 +2774,32 @@
     const headingLabel = (node.hasHeading && typeof node.heading === 'number') ? `<br>Heading: ${Math.round(node.heading)}°` : '';
     const noteCount = (node.annotations || []).length;
     const noteLabel = noteCount ? `<br><span style="color:#22d3ee;">${noteCount} annotation${noteCount > 1 ? 's' : ''}</span>` : '';
-    return `<b>${escapeHtml(node.title)}</b>${dateLabel}${headingLabel}${pitchText}${noteLabel}<br>Click to select node`;
+    return `<b>${escapeHtml(node.title)}</b>${dateLabel}${headingLabel}${pitchText}${noteLabel}`;
+  }
+
+  function bindHoverInfo(marker, node) {
+    marker.bindTooltip(buildPopupHtml(node), {
+      direction: 'top',
+      offset: [0, -10],
+      opacity: 0.96,
+      className: 'map-node-tooltip',
+      sticky: true
+    });
+
+    // Replace Leaflet's immediate automatic tooltip behaviour with a short delay.
+    marker.off('mouseover');
+    marker.off('mouseout');
+    let hoverTimer = null;
+    marker.on('mouseover', function () {
+      if (hoverTimer) clearTimeout(hoverTimer);
+      hoverTimer = setTimeout(function () {
+        if (map.hasLayer(marker)) marker.openTooltip();
+      }, 320);
+    });
+    marker.on('mouseout', function () {
+      if (hoverTimer) { clearTimeout(hoverTimer); hoverTimer = null; }
+      marker.closeTooltip();
+    });
   }
 
   function addNode(nodeData) {
@@ -2700,12 +2808,21 @@
     if (!nodeData.dateKeyLabel) nodeData.dateKeyLabel = prettifyDateKey(nodeData.dateKey);
     nodeData.annotations = nodeData.annotations || [];
 
+    // Treat missing/placeholder 0,0 coordinates as unlocated and keep the
+    // marker clearly offshore rather than dropping it at a misleading site.
+    if (!Number.isFinite(Number(nodeData.lat)) || !Number.isFinite(Number(nodeData.lon)) ||
+        (Math.abs(Number(nodeData.lat)) < 1e-9 && Math.abs(Number(nodeData.lon)) < 1e-9)) {
+      nodeData.lat = DEFAULT_LAT + (Math.random() - 0.5) * 0.02;
+      nodeData.lon = DEFAULT_LON - 0.10 + (Math.random() - 0.5) * 0.02;
+      nodeData.hasGps = false;
+    }
+
     const marker = L.marker([nodeData.lat, nodeData.lon], {
       icon: createMarkerIcon(nodeData, false, false),
       draggable: false
     }).addTo(map);
 
-    marker.bindPopup(buildPopupHtml(nodeData));
+    bindHoverInfo(marker, nodeData);
     marker.on('click', () => handleNodeClick(nodeData.id));
 
     nodeData.marker = marker;
@@ -2777,7 +2894,7 @@
     nodes.forEach(n => {
       if (n.marker) {
         n.marker.setIcon(createMarkerIcon(n, n.id === selectedNodeId, n.id === secondaryNodeId));
-        n.marker.setPopupContent(buildPopupHtml(n));
+        n.marker.setTooltipContent(buildPopupHtml(n));
       }
     });
 
@@ -2834,8 +2951,10 @@
               const latRef = EXIF.getTag(this, "GPSLatitudeRef") || "N";
               const lonRef = EXIF.getTag(this, "GPSLongitudeRef") || "W";
 
-              let latDec = DEFAULT_LAT + (Math.random() - 0.5) * 0.01;
-              let lonDec = DEFAULT_LON + (Math.random() - 0.5) * 0.01;
+              // Deliberately place unlocated images west/offshore so they are
+              // visibly separate from the real survey positions.
+              let latDec = DEFAULT_LAT + (Math.random() - 0.5) * 0.02;
+              let lonDec = DEFAULT_LON - 0.10 + (Math.random() - 0.5) * 0.02;
               let hasGps = false;
 
               if (lat && lon) {
@@ -3306,6 +3425,68 @@
     return { x: dx, y: dy, width: dw, height: dh };
   }
 
+  function project360Annotation(viewer, pin, viewW, viewH) {
+    if (!viewer || !pin || typeof pin.yaw !== 'number' || typeof pin.pitch !== 'number') return null;
+
+    let camYaw = 0, camPitch = 0, hfov = 90;
+    try {
+      camYaw = Number(viewer.getYaw()) || 0;
+      camPitch = Number(viewer.getPitch()) || 0;
+      hfov = Number(viewer.getHfov()) || 90;
+    } catch (e) { return null; }
+
+    const aspect = Math.max(0.1, viewW / Math.max(1, viewH));
+    const hRad = hfov * Math.PI / 180;
+    const vRad = 2 * Math.atan(Math.tan(hRad / 2) / aspect);
+
+    // Convert the pin and camera orientation into 3D camera-relative axes.
+    // This is independent of Pannellum's DOM hotspot refresh timing.
+    const yaw = pin.yaw * Math.PI / 180;
+    const pitch = pin.pitch * Math.PI / 180;
+    const cy = camYaw * Math.PI / 180;
+    const cp = camPitch * Math.PI / 180;
+
+    const vx = Math.sin(yaw) * Math.cos(pitch);
+    const vy = Math.sin(pitch);
+    const vz = Math.cos(yaw) * Math.cos(pitch);
+
+    const rx = Math.cos(cy);
+    const rz = -Math.sin(cy);
+    const ux = -Math.sin(cy) * Math.sin(cp);
+    const uy = Math.cos(cp);
+    const uz = -Math.cos(cy) * Math.sin(cp);
+    const fx = Math.sin(cy) * Math.cos(cp);
+    const fy = Math.sin(cp);
+    const fz = Math.cos(cy) * Math.cos(cp);
+
+    const xCam = vx * rx + vz * rz;
+    const yCam = vx * ux + vy * uy + vz * uz;
+    const zCam = vx * fx + vy * fy + vz * fz;
+    if (!(zCam > 0)) return null;
+
+    const xProj = (xCam / zCam) / Math.tan(hRad / 2);
+    const yProj = (yCam / zCam) / Math.tan(vRad / 2);
+    if (Math.abs(xProj) > 1 || Math.abs(yProj) > 1) return null;
+
+    return {
+      x: (0.5 + 0.5 * xProj) * viewW,
+      y: (0.5 - 0.5 * yProj) * viewH
+    };
+  }
+
+  function getVisible360Pins(targetPrefix, node, viewer, viewW, viewH) {
+    if (!node || !viewer || !pinsVisible[targetPrefix]) return [];
+    return (node.annotations || []).map(function (pin, i) {
+      const pos = project360Annotation(viewer, pin, viewW, viewH);
+      if (!pos) return null;
+      return {
+        x: pos.x, y: pos.y, num: i + 1,
+        color: pin.color || '#22d3ee', text: pin.text || '',
+        active: activePinIds[targetPrefix] === pin.id
+      };
+    }).filter(Boolean);
+  }
+
   function capture360Viewport(targetPrefix, includePins = true) {
     const viewer = getViewerInstance(targetPrefix);
     const panoEl = document.getElementById(`panorama-${targetPrefix}`);
@@ -3330,27 +3511,9 @@
     if (!dataUrl) return null;
 
     const rect = panoEl.getBoundingClientRect();
-    const pins = [];
-
-    if (includePins) {
-      panoEl.querySelectorAll('.pnlm-hotspot.pin-hotspot').forEach((hotspot) => {
-        const bubble = hotspot.querySelector('.pin-bubble');
-        if (!bubble) return;
-
-        const pinRecord = (node.annotations || []).find(p => p.id === hotspot.id);
-        const br = bubble.getBoundingClientRect();
-        const x = br.left + br.width / 2 - rect.left;
-        const y = br.top + br.height / 2 - rect.top;
-        if (x < -20 || y < -20 || x > rect.width + 20 || y > rect.height + 20) return;
-
-        pins.push({
-          x, y,
-          num: bubble.innerText,
-          color: pinRecord?.color || '#22d3ee',
-          text: pinRecord?.text || ''
-        });
-      });
-    }
+    const pins = includePins
+      ? getVisible360Pins(targetPrefix, node, viewer, Math.max(1, rect.width), Math.max(1, rect.height))
+      : [];
 
     return {
       dataUrl,
@@ -3405,8 +3568,11 @@
           const y = py / canvas.clientHeight * outH;
           const color = pin.color || '#22d3ee';
           const scale = outW / Math.max(1, canvas.clientWidth);
-          const r = 11 * scale;
+          const r = 9 * scale;
+          const pinAlpha = activePinIds[targetPrefix] === pin.id ? 1 : 0.5;
 
+          ctx.save();
+          ctx.globalAlpha = pinAlpha;
           ctx.beginPath();
           ctx.arc(x, y, r, 0, Math.PI * 2);
           ctx.fillStyle = color;
@@ -3416,10 +3582,11 @@
           ctx.stroke();
 
           ctx.fillStyle = contrastInk(color);
-          ctx.font = `bold ${11 * scale}px "IBM Plex Mono", monospace`;
+          ctx.font = `bold ${9.5 * scale}px "IBM Plex Mono", monospace`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(String(i + 1), x, y + 0.5 * scale);
+          ctx.restore();
         });
 
         resolve(out.toDataURL('image/jpeg', 0.92));
@@ -3463,9 +3630,12 @@
         const x = pin.x * sx;
         const y = pin.y * sy;
         const scale = (sx + sy) / 2;
-        const r = 11 * scale;
+        const r = 9 * scale;
         const color = pin.color || '#22d3ee';
+        const pinAlpha = pin.active ? 1 : 0.5;
 
+        ctx.save();
+        ctx.globalAlpha = pinAlpha;
         ctx.beginPath();
         ctx.arc(x, y, r, 0, Math.PI * 2);
         ctx.fillStyle = color;
@@ -3475,10 +3645,11 @@
         ctx.stroke();
 
         ctx.fillStyle = contrastInk(color);
-        ctx.font = `bold ${11 * scale}px "IBM Plex Mono", monospace`;
+        ctx.font = `bold ${9.5 * scale}px "IBM Plex Mono", monospace`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(String(pin.num), x, y + 0.5 * scale);
+        ctx.restore();
 
         if (pin.text) {
           const label = pin.text.split('\n')[0].slice(0, 40);
@@ -3589,7 +3760,7 @@
     const leftDraw = fitImageToRect(ctx, imgL, 0, headerH, w, h);
     const rightDraw = fitImageToRect(ctx, imgR, w + 20, headerH, w, h);
 
-    const drawFlatPins = (node, drawRect) => {
+    const drawFlatPins = (node, drawRect, prefix) => {
       if (node.is360) return;
 
       (node.annotations || []).forEach((pin, i) => {
@@ -3598,7 +3769,10 @@
         const x = drawRect.x + pin.normX * drawRect.width;
         const y = drawRect.y + pin.normY * drawRect.height;
         const color = pin.color || '#22d3ee';
+        const isActive = activePinIds[prefix] === pin.id;
 
+        ctx.save();
+        ctx.globalAlpha = isActive ? 1 : 0.5;
         ctx.beginPath();
         ctx.arc(x, y, 14, 0, Math.PI * 2);
         ctx.fillStyle = color;
@@ -3629,6 +3803,7 @@
           ctx.fillStyle = '#e6f2eb';
           ctx.fillText(label, labelX + 7, y + 5);
         }
+        ctx.restore();
       });
     };
 
@@ -3644,6 +3819,8 @@
         const color = pin.color || '#22d3ee';
         const r = 14 * ((sx + sy) / 2);
 
+        ctx.save();
+        ctx.globalAlpha = pin.active ? 1 : 0.5;
         ctx.beginPath();
         ctx.arc(x, y, r, 0, Math.PI * 2);
         ctx.fillStyle = color;
@@ -3674,14 +3851,15 @@
           ctx.fillStyle = '#e6f2eb';
           ctx.fillText(label, labelX + 7, y + 5);
         }
+        ctx.restore();
       });
     };
 
     if (nodeLeft.is360 && use360Viewport) draw360Pins(leftSnap, leftDraw);
-    else drawFlatPins(nodeLeft, leftDraw);
+    else drawFlatPins(nodeLeft, leftDraw, 'compare-left');
 
     if (nodeRight.is360 && use360Viewport) draw360Pins(rightSnap, rightDraw);
-    else drawFlatPins(nodeRight, rightDraw);
+    else drawFlatPins(nodeRight, rightDraw, 'compare-right');
 
     const safeLeft = nodeLeft.dateKey || 'undated';
     const safeRight = nodeRight.dateKey || 'undated';
@@ -3703,6 +3881,1119 @@
       SAVED_BASE_NODES.forEach(n => addNode(n));
     }
   });
+</script>
+
+
+<!-- ======================================================================
+     SITE REPORT MODULE  ·  paste both <script> tags immediately before </body>
+     Adds: "add view to report" button on every viewer toolbar, a Report
+     button in the header (and in the compare window), a report builder with
+     per-view comments, and an A4 portrait PDF export with two views per page.
+     ====================================================================== -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  // A saved copy of this file already contains the injected UI; clear it so nothing is duplicated.
+  document.querySelectorAll('[data-rpt]').forEach(function (el) { el.remove(); });
+
+  /* ------------------------------------------------------------------
+     Config
+     ------------------------------------------------------------------ */
+  const JSPDF_URL = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+  const FALLBACK_TILES = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}';
+  const MAP_W = 800, MAP_H = 600;             // rendered map size in px (4:3)
+  const MAX_COMMENT = 800;
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const COMPASS = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+
+  let items = [];
+  let busy = false;
+  let seq = 0;
+
+  /* ------------------------------------------------------------------
+     Small helpers
+     ------------------------------------------------------------------ */
+  const $ = function (id) { return document.getElementById(id); };
+  const toast = function (msg, ms) {
+    if (typeof showToast === 'function') showToast(msg, ms); else console.log(msg);
+  };
+  const esc = function (s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  };
+  const svg = function (inner, size) {
+    return '<svg width="' + (size || 14) + '" height="' + (size || 14) + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + inner + '</svg>';
+  };
+  const ICON_ADD   = svg('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M12 18v-6M9 15h6"/>');
+  const ICON_X     = svg('<path d="M18 6 6 18M6 6l12 12"/>');
+  const ICON_UP    = svg('<path d="m6 15 6-6 6 6"/>');
+  const ICON_DOWN  = svg('<path d="m6 9 6 6 6-6"/>');
+  const ICON_TRASH = svg('<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>');
+
+  function todayKey() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function prettyDate(key) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(key || '');
+    return m ? (+m[3]) + ' ' + MONTHS[+m[2] - 1] + ' ' + m[1] : '';
+  }
+  function capturedLabel(node) {
+    const raw = String(node.date || '');
+    const m = raw.match(/^(\d{4}):(\d{2}):(\d{2})[ T](\d{2}):(\d{2})/);
+    if (m) return prettyDate(m[1] + '-' + m[2] + '-' + m[3]) + ' ' + m[4] + ':' + m[5];
+    if (node.dateKey && node.dateKey !== 'undated') return prettyDate(node.dateKey);
+    return (raw && raw !== 'Unknown Date') ? raw : '';
+  }
+  function hexToRgb(hex) {
+    const h = String(hex || '#22d3ee').replace('#', '');
+    return [parseInt(h.substr(0, 2), 16) || 0, parseInt(h.substr(2, 2), 16) || 0, parseInt(h.substr(4, 2), 16) || 0];
+  }
+  function inkFor(rgb) {
+    return (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]) / 255 > 0.6 ? [13, 23, 18] : [255, 255, 255];
+  }
+  function loadImage(src, cors) {
+    return new Promise(function (resolve) {
+      const im = new Image();
+      if (cors) im.crossOrigin = 'anonymous';
+      const t = cors ? setTimeout(function () { resolve(null); }, 9000) : null;
+      im.onload = function () { if (t) clearTimeout(t); resolve(im); };
+      im.onerror = function () { if (t) clearTimeout(t); resolve(null); };
+      im.src = src;
+    });
+  }
+
+  /* ------------------------------------------------------------------
+     Styles (reuses the page's colour tokens and modal / button classes)
+     ------------------------------------------------------------------ */
+  const style = document.createElement('style');
+  style.setAttribute('data-rpt', '');
+  style.textContent = [
+    '.rpt-pill{display:inline-block;margin-left:8px;min-width:16px;height:16px;padding:0 5px;border-radius:8px;background:var(--highlight);color:var(--ink);font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:700;line-height:16px;text-align:center;}',
+    '.rpt-pill.empty{display:none;}',
+    '.rpt-overlay{z-index:10000;}',
+    '.modal-content.rpt-modal{width:min(1000px,96vw);font-family:Arial,Helvetica,sans-serif;}',
+    '.rpt-modal,.rpt-modal *{font-family:Arial,Helvetica,sans-serif !important;}',
+    '.rpt-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}',
+    '.rpt-head h3{margin-bottom:6px;}',
+    '.rpt-meta-row{grid-template-columns:1fr 200px;}',
+    '.rpt-modal .form-group input[type="date"]{background:var(--stone-2);border:1px solid var(--rule);color:var(--parchment);padding:9px 12px;border-radius:6px;font-family:"Inter",sans-serif;font-size:13.5px;outline:none;width:100%;color-scheme:dark;}',
+    '.rpt-modal .form-group input[type="date"]:focus{border-color:var(--moss);}',
+    '.rpt-options{display:flex;align-items:center;gap:8px;margin:4px 0 10px;font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--parchment-dim);}',
+    '.rpt-options label{display:flex;align-items:center;gap:7px;cursor:pointer;color:var(--parchment);}',
+    '.rpt-options input{accent-color:var(--moss);width:15px;height:15px;}',
+    '.rpt-options span{opacity:.8;}',
+    '.rpt-title-desc{width:100%;min-height:68px;resize:vertical;background:var(--stone-2);border:1px solid var(--rule);color:var(--parchment);border-radius:6px;padding:8px 10px;font-family:"Inter",sans-serif;font-size:13px;line-height:1.45;outline:none;}',
+    '.rpt-title-desc:focus{border-color:var(--moss);}',
+    '.rpt-map-options{display:grid;grid-template-columns:170px 1fr;gap:8px 12px;align-items:center;margin:8px 0 12px;padding:9px 0;border-top:1px dashed var(--rule);border-bottom:1px dashed var(--rule);}',
+    '.rpt-map-options label{font-size:11px;color:var(--moss);text-transform:uppercase;letter-spacing:.08em;}',
+    '.rpt-map-options select,.rpt-map-options input{background:var(--stone-2);border:1px solid var(--rule);color:var(--parchment);border-radius:5px;padding:6px 8px;font-size:11px;outline:none;width:100%;}',
+    '.rpt-map-bounds{display:none;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;grid-column:1/-1;}',
+    '.rpt-map-bounds.visible{display:grid;}',
+    '.rpt-map-bounds span{display:block;font-size:9px;color:var(--parchment-dim);margin-bottom:3px;text-transform:uppercase;letter-spacing:.06em;}',
+    '@media (max-width:760px){.rpt-map-options{grid-template-columns:1fr;}.rpt-map-bounds{grid-template-columns:repeat(2,minmax(0,1fr));}}',
+    '.rpt-list{display:flex;flex-direction:column;gap:10px;max-height:50vh;overflow-y:auto;padding:2px 4px 2px 0;}',
+    '.rpt-empty{padding:34px 16px;text-align:center;font-size:13px;line-height:1.6;color:var(--parchment-dim);border:1px dashed var(--rule);border-radius:8px;}',
+    '.rpt-item{display:grid;grid-template-columns:32px 230px minmax(0,1fr) 112px;gap:12px;align-items:start;background:var(--stone-2);border:1px solid var(--rule);border-radius:8px;padding:10px;}',
+    '.rpt-item.busy{opacity:.55;pointer-events:none;}',
+    '.rpt-order{display:flex;flex-direction:column;align-items:center;gap:3px;}',
+    '.rpt-index{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:600;color:var(--moss);margin-bottom:2px;}',
+    '.rpt-order .icon-btn:disabled{opacity:.3;cursor:default;background:transparent;color:var(--parchment-dim);border-color:transparent;}',
+    '.rpt-order .icon-btn.rpt-danger:hover{color:#f87171;background:rgba(239,68,68,.15);}',
+    '.rpt-thumb{width:100%;display:block;border-radius:5px;border:1px solid var(--rule);background:#060b08;}',
+    '.rpt-main{display:flex;flex-direction:column;gap:7px;min-width:0;}',
+    '.rpt-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--parchment-dim);min-width:0;}',
+    '.rpt-meta b{color:var(--parchment);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;}',
+    '.rpt-comment{width:100%;min-height:56px;resize:vertical;background:var(--ink);border:1px solid var(--rule);color:var(--parchment);border-radius:6px;padding:8px 10px;font-family:"Inter",sans-serif;font-size:13px;line-height:1.45;outline:none;}',
+    '.rpt-comment:focus{border-color:var(--moss);}',
+    '.rpt-mapcol{display:flex;flex-direction:column;gap:6px;}',
+    '.rpt-mapthumb{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;border-radius:5px;border:1px solid var(--rule);background:var(--ink);}',
+    '.rpt-zoom{display:flex;align-items:center;justify-content:space-between;font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--parchment-dim);}',
+    '.rpt-zoom button{background:var(--ink);border:1px solid var(--rule);color:var(--parchment);border-radius:4px;width:26px;height:22px;cursor:pointer;font-size:14px;line-height:1;padding:0;}',
+    '.rpt-zoom button:hover{border-color:var(--highlight);color:var(--highlight);}',
+    '.rpt-warn{font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:#f59e0b;}',
+    '.upload-btn:disabled{opacity:.4;cursor:default;box-shadow:none;}',
+    '@media (max-width:760px){.rpt-item{grid-template-columns:30px 1fr;}.rpt-item .rpt-main,.rpt-item .rpt-mapcol{grid-column:1 / -1;}.rpt-meta-row{grid-template-columns:1fr;}}'
+  ].join('\n');
+  document.head.appendChild(style);
+
+  /* ------------------------------------------------------------------
+     Inject buttons: header, compare window, every viewer toolbar
+     ------------------------------------------------------------------ */
+  function makeTextButton(extraStyle) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('data-rpt', '');
+    b.className = 'upload-btn secondary';
+    if (extraStyle) b.style.cssText = extraStyle;
+    b.innerHTML = 'Report<span class="rpt-pill empty rpt-count">0</span>';
+    b.title = 'Open the site report';
+    b.addEventListener('click', openModal);
+    return b;
+  }
+
+  const headerActions = document.querySelector('.header-actions');
+  if (headerActions) {
+    const uploadLabel = headerActions.querySelector('label[for="imageUpload"]');
+    const hb = makeTextButton();
+    if (uploadLabel) headerActions.insertBefore(hb, uploadLabel); else headerActions.appendChild(hb);
+  }
+
+  const compareActions = document.querySelector('.compare-header-actions');
+  if (compareActions) {
+    compareActions.insertBefore(makeTextButton('font-size:10px; padding:6px 14px;'), compareActions.firstChild);
+  }
+
+  ['primary', 'compare-left', 'compare-right'].forEach(function (prefix) {
+    const bar = document.querySelector('#box-' + prefix + ' .viewer-toolbar');
+    if (!bar) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.setAttribute('data-rpt', '');
+    btn.className = 'icon-btn';
+    btn.title = 'Add current view to report';
+    btn.innerHTML = ICON_ADD + '<span class="count-badge empty rpt-count">0</span>';
+    btn.addEventListener('click', function () { addToReport(prefix); });
+    const anchor = Array.prototype.find.call(bar.querySelectorAll('button'), function (b) {
+      return (b.getAttribute('onclick') || '').indexOf("exportViewerViewport('" + prefix + "')") !== -1;
+    });
+    if (anchor) anchor.after(btn); else bar.appendChild(btn);
+  });
+
+  /* ------------------------------------------------------------------
+     Report builder modal
+     ------------------------------------------------------------------ */
+  const modal = document.createElement('div');
+  modal.id = 'rptModal';
+  modal.className = 'modal-overlay rpt-overlay';
+  modal.setAttribute('data-rpt', '');
+  modal.style.display = 'none';
+  modal.innerHTML =
+    '<div class="modal-content rpt-modal">' +
+      '<div class="rpt-head">' +
+        '<div><h3>Site report</h3>' +
+        '<div class="modal-desc" style="margin-bottom:14px;">Add views with the report button on a viewer toolbar. Comment on each, then generate an A4 portrait PDF with two views per page.</div></div>' +
+        '<button type="button" class="icon-btn" id="rptClose" title="Close">' + ICON_X + '</button>' +
+      '</div>' +
+      '<div class="form-row rpt-meta-row">' +
+        '<div class="form-group"><label for="rptTitle">Report title</label><input type="text" id="rptTitle" maxlength="90" placeholder="e.g. Site visit - riverbank inspection"></div>' +
+        '<div class="form-group"><label for="rptDate">Date</label><input type="date" id="rptDate"></div>' +
+      '</div>' +
+      '<div class="rpt-options"><label><input type="checkbox" id="rptTitlePage"> Include title page</label><span>Overview map, description and report view index</span></div>' +
+      '<div class="form-group"><label for="rptDescription">Title page description</label><textarea id="rptDescription" class="rpt-title-desc" maxlength="1200" placeholder="Enter the site / inspection summary, scope, observations or other report introduction..."></textarea></div>' +
+      '<div class="rpt-map-options" id="rptMapOptions">' +
+        '<label for="rptMapExtentMode">Title-page map extent</label>' +
+        '<select id="rptMapExtentMode">' +
+          '<option value="auto">Auto-fit report images</option>' +
+          '<option value="current">Use current map view</option>' +
+          '<option value="custom">Custom bounds</option>' +
+        '</select>' +
+        '<div class="rpt-map-bounds" id="rptMapBounds">' +
+          '<div><span>West</span><input type="number" id="rptWest" step="0.000001" placeholder="longitude"></div>' +
+          '<div><span>South</span><input type="number" id="rptSouth" step="0.000001" placeholder="latitude"></div>' +
+          '<div><span>East</span><input type="number" id="rptEast" step="0.000001" placeholder="longitude"></div>' +
+          '<div><span>North</span><input type="number" id="rptNorth" step="0.000001" placeholder="latitude"></div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="rpt-list" id="rptList"></div>' +
+      '<div class="modal-actions" style="justify-content:space-between;">' +
+        '<button type="button" id="rptClear" class="upload-btn secondary" style="border-color:#ef4444;color:#f87171;">Clear all</button>' +
+        '<div style="display:flex;gap:10px;">' +
+          '<button type="button" id="rptDone" class="upload-btn secondary">Close</button>' +
+          '<button type="button" id="rptGenerate" class="upload-btn">Generate PDF</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(modal);
+
+  function syncOverviewBoundsFromCurrentMap() {
+    try {
+      if (typeof map === 'undefined' || !map.getBounds) return;
+      const b = map.getBounds();
+      if (b && b.isValid()) {
+        $('rptWest').value = b.getWest().toFixed(6);
+        $('rptSouth').value = b.getSouth().toFixed(6);
+        $('rptEast').value = b.getEast().toFixed(6);
+        $('rptNorth').value = b.getNorth().toFixed(6);
+      }
+    } catch (e) {}
+  }
+
+  function updateOverviewMapControls() {
+    const custom = $('rptMapExtentMode') && $('rptMapExtentMode').value === 'custom';
+    const box = $('rptMapBounds');
+    if (box) box.classList.toggle('visible', custom);
+  }
+
+  $('rptMapExtentMode').addEventListener('change', function () {
+    if (this.value === 'custom') syncOverviewBoundsFromCurrentMap();
+    updateOverviewMapControls();
+  });
+
+  updateOverviewMapControls();
+
+  function updateCount() {
+    document.querySelectorAll('.rpt-count').forEach(function (el) {
+      el.textContent = items.length;
+      el.classList.toggle('empty', !items.length);
+    });
+  }
+
+  function isOpen() { return modal.style.display === 'flex'; }
+
+  function openModal() {
+    if (!$('rptDate').value) $('rptDate').value = todayKey();
+    renderList();
+    modal.style.display = 'flex';
+  }
+  function closeModal() {
+    modal.style.display = 'none';
+    // Drop the thumbnails from the DOM so a saved copy of this file never carries them.
+    $('rptList').innerHTML = '';
+  }
+
+  function renderList() {
+    const list = $('rptList');
+    const keep = list.scrollTop;
+    list.innerHTML = '';
+
+    if (!items.length) {
+      list.innerHTML = '<div class="rpt-empty">No views added yet.<br>Use the report button on a viewer toolbar to capture the current view.</div>';
+    }
+
+    items.forEach(function (it, i) {
+      const card = document.createElement('div');
+      card.className = 'rpt-item';
+      card.dataset.id = it.id;
+      const pinBadge = it.pins.length
+        ? '<span class="node-badge type-note">' + it.pins.length + ' pin' + (it.pins.length > 1 ? 's' : '') + '</span>' : '';
+      const mapBlock = it.mapImage
+        ? '<img class="rpt-mapthumb" alt="" src="' + it.mapImage + '">'
+        : '<div class="rpt-mapthumb"></div>';
+      card.innerHTML =
+        '<div class="rpt-order">' +
+          '<span class="rpt-index">' + (i + 1) + '</span>' +
+          '<button type="button" class="icon-btn" data-act="up" title="Move up"' + (i === 0 ? ' disabled' : '') + '>' + ICON_UP + '</button>' +
+          '<button type="button" class="icon-btn" data-act="down" title="Move down"' + (i === items.length - 1 ? ' disabled' : '') + '>' + ICON_DOWN + '</button>' +
+          '<button type="button" class="icon-btn rpt-danger" data-act="del" title="Remove from report">' + ICON_TRASH + '</button>' +
+        '</div>' +
+        '<img class="rpt-thumb" alt="" src="' + it.image + '">' +
+        '<div class="rpt-main">' +
+          '<div class="rpt-meta"><b>' + esc(it.title) + '</b>' +
+            '<span class="node-badge ' + (it.is360 ? 'type-360' : 'type-flat') + '">' + (it.is360 ? '360°' : 'Flat') + '</span>' + pinBadge + '</div>' +
+          '<textarea class="rpt-comment" maxlength="' + MAX_COMMENT + '" placeholder="Comment (optional)"></textarea>' +
+        '</div>' +
+        '<div class="rpt-mapcol">' + mapBlock +
+          '<div class="rpt-zoom"><button type="button" data-act="zout" title="Map zoom out">−</button>' +
+            '<span class="rpt-zval">zoom ' + it.mapZoom + '</span>' +
+            '<button type="button" data-act="zin" title="Map zoom in">+</button></div>' +
+          (it.mapOk ? '' : '<div class="rpt-warn">map tiles unavailable</div>') +
+        '</div>';
+      card.querySelector('textarea').value = it.comment;
+      list.appendChild(card);
+    });
+
+    list.scrollTop = keep;
+    $('rptGenerate').disabled = !items.length;
+    $('rptClear').disabled = !items.length;
+  }
+
+  $('rptList').addEventListener('input', function (e) {
+    if (!e.target.classList.contains('rpt-comment')) return;
+    const card = e.target.closest('.rpt-item');
+    const it = card && items.find(function (x) { return x.id === card.dataset.id; });
+    if (it) it.comment = e.target.value;
+  });
+
+  $('rptList').addEventListener('click', async function (e) {
+    const b = e.target.closest('[data-act]');
+    if (!b) return;
+    const card = b.closest('.rpt-item');
+    const id = card.dataset.id;
+    const i = items.findIndex(function (x) { return x.id === id; });
+    if (i < 0) return;
+    const act = b.dataset.act;
+
+    if (act === 'up' && i > 0) {
+      items.splice(i - 1, 0, items.splice(i, 1)[0]);
+      renderList();
+    } else if (act === 'down' && i < items.length - 1) {
+      items.splice(i + 1, 0, items.splice(i, 1)[0]);
+      renderList();
+    } else if (act === 'del') {
+      items.splice(i, 1);
+      updateCount();
+      renderList();
+    } else if (act === 'zin' || act === 'zout') {
+      const it = items[i];
+      const z = Math.min(19, Math.max(12, it.mapZoom + (act === 'zin' ? 1 : -1)));
+      if (z === it.mapZoom) return;
+      it.mapZoom = z;
+      card.classList.add('busy');
+      const m = await renderMap(it);
+      it.mapImage = m.dataUrl;
+      it.mapOk = m.ok;
+      const live = $('rptList').querySelector('.rpt-item[data-id="' + id + '"]');
+      if (live) {
+        const img = live.querySelector('img.rpt-mapthumb');
+        if (img && m.dataUrl) img.src = m.dataUrl;
+        live.querySelector('.rpt-zval').textContent = 'zoom ' + z;
+        live.classList.remove('busy');
+      }
+    }
+  });
+
+  $('rptClose').addEventListener('click', closeModal);
+  $('rptDone').addEventListener('click', closeModal);
+  $('rptClear').addEventListener('click', function () {
+    if (!items.length || !confirm('Remove all ' + items.length + ' view(s) from the report?')) return;
+    items = [];
+    updateCount();
+    renderList();
+  });
+  $('rptGenerate').addEventListener('click', generatePdf);
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && isOpen()) closeModal();
+  });
+
+  /* ------------------------------------------------------------------
+     Snapshots
+     ------------------------------------------------------------------ */
+  // Pins are sized so they print at the same physical size (~4.6 mm across) whatever the image shape.
+  function pinRadius(w, h) {
+    const printW = Math.min(195, 130 * (w / h));   // width in mm the image will occupy on the page
+    return Math.max(9, Math.round(2.3 / printW * w));
+  }
+
+  function drawPin(ctx, x, y, r, num, color, active) {
+    const ink = inkFor(hexToRgb(color));
+    ctx.save();
+    ctx.globalAlpha = active ? 1 : 0.5;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.shadowColor = 'rgba(0,0,0,0.55)';
+    ctx.shadowBlur = r * 0.5;
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.lineWidth = Math.max(2, r * 0.18);
+    ctx.strokeStyle = '#ffffff';
+    ctx.stroke();
+    ctx.fillStyle = 'rgb(' + ink.join(',') + ')';
+    ctx.font = 'bold ' + Math.round(r * 1.05) + 'px "IBM Plex Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(num), x, y + r * 0.06);
+    ctx.restore();
+  }
+
+  // 360: exactly what the viewer is showing right now, with the pins that are in view burned in.
+  async function snap360(prefix, node) {
+    const snap = capture360Viewport(prefix, true);
+    if (!snap) return null;
+
+    const im = await loadImage(snap.dataUrl, false);
+    if (!im) return null;
+    const W = im.naturalWidth, H = im.naturalHeight;
+    const c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(im, 0, 0);
+
+    const sx = W / Math.max(1, snap.sourceWidth);
+    const sy = H / Math.max(1, snap.sourceHeight);
+    const r = pinRadius(W, H);
+    snap.pins.forEach(function (p) {
+      drawPin(ctx, p.x * sx, p.y * sy, r, p.num, p.color, !!p.active);
+    });
+
+    return {
+      url: c.toDataURL('image/jpeg', 0.9), w: W, h: H,
+      pins: snap.pins.map(function (p) { return { num: p.num, color: p.color, text: p.text, active: !!p.active }; })
+    };
+  }
+
+  // Flat: the visible part of the photo at native resolution (no letterbox bars), pins burned in.
+  function snapFlat(prefix, node) {
+    const img = $('flat-' + prefix), cv = $('annoCanvas-' + prefix);
+    if (!img || !cv || !img.naturalWidth || img.style.display === 'none') return null;
+    const r = getFlatImageRect(prefix);
+    if (!r) return null;
+
+    const bw = cv.clientWidth, bh = cv.clientHeight;
+    const x0 = Math.max(0, r.left), y0 = Math.max(0, r.top);
+    const x1 = Math.min(bw, r.left + r.width), y1 = Math.min(bh, r.top + r.height);
+    const vw = x1 - x0, vh = y1 - y0;
+    if (vw < 4 || vh < 4) return null;
+
+    const k = img.naturalWidth / r.width;                       // source px per screen px
+    const sx = (x0 - r.left) * k, sy = (y0 - r.top) * k, sw = vw * k, sh = vh * k;
+    const f = Math.min(1, 2600 / Math.max(sw, sh));
+    const W = Math.max(1, Math.round(sw * f)), H = Math.max(1, Math.round(sh * f));
+
+    const c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    const ctx = c.getContext('2d');
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, W, H);
+
+    const pins = [];
+    if (pinsVisible[prefix]) {
+      (node.annotations || []).forEach(function (p, i) {
+        if (typeof p.normX !== 'number' || typeof p.normY !== 'number') return;
+        const px = r.left + p.normX * r.width, py = r.top + p.normY * r.height;
+        if (px < x0 || px > x1 || py < y0 || py > y1) return;
+        pins.push({
+          x: (px - x0) / vw * W,
+          y: (py - y0) / vh * H,
+          num: i + 1,
+          color: p.color || '#22d3ee',
+          text: p.text || '',
+          active: activePinIds[prefix] === p.id
+        });
+      });
+    }
+    const rad = pinRadius(W, H);
+    pins.forEach(function (p) { drawPin(ctx, p.x, p.y, rad, p.num, p.color, !!p.active); });
+
+    return {
+      url: c.toDataURL('image/jpeg', 0.9), w: W, h: H,
+      pins: pins.map(function (p) { return { num: p.num, color: p.color, text: p.text, active: !!p.active }; })
+    };
+  }
+
+  /* ------------------------------------------------------------------
+     Map render (drawn from tiles onto a canvas, so it does not depend on
+     what the live map is doing)
+     ------------------------------------------------------------------ */
+  function activeBase() {
+    const cands = [];
+    if (typeof esriStreet !== 'undefined') cands.push([esriStreet, '© Esri']);
+    if (typeof esriImagery !== 'undefined') cands.push([esriImagery, '© Esri']);
+    if (typeof esriTopo !== 'undefined') cands.push([esriTopo, '© Esri']);
+    const hit = cands.find(function (c) { return map.hasLayer(c[0]); });
+    return hit && hit[0]._url ? { url: hit[0]._url, credit: hit[1] } : {
+      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+      credit: '© Esri'
+    };
+  }
+
+  function drawNorthArrow(ctx, x, y) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.beginPath(); ctx.arc(x, y, 33, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#0d1712';
+    ctx.beginPath();
+    ctx.moveTo(x, y - 26); ctx.lineTo(x + 11, y + 4); ctx.lineTo(x, y - 1); ctx.lineTo(x - 11, y + 4);
+    ctx.closePath(); ctx.fill();
+    ctx.font = 'bold 18px Arial, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('N', x, y + 20);
+    ctx.restore();
+  }
+
+  function drawScaleBar(ctx, H, lat, z) {
+    const mpp = 156543.03392 * Math.cos(lat * Math.PI / 180) / Math.pow(2, z);
+    const steps = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
+    let m = steps[0];
+    steps.forEach(function (s) { if (s / mpp <= 240) m = s; });
+    const px = m / mpp, x = 26, y = H - 40;
+    const label = m >= 1000 ? (m / 1000) + ' km' : m + ' m';
+    ctx.save();
+    ctx.font = 'bold 22px Arial, sans-serif';
+    const boxW = Math.max(px, ctx.measureText(label).width) + 20;
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.fillRect(x - 10, y - 42, boxW, 64);
+    ctx.strokeStyle = '#0d1712'; ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(x, y - 7); ctx.lineTo(x, y + 8);
+    ctx.moveTo(x, y + 1); ctx.lineTo(x + px, y + 1);
+    ctx.moveTo(x + px, y - 7); ctx.lineTo(x + px, y + 8);
+    ctx.stroke();
+    ctx.fillStyle = '#0d1712'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.fillText(label, x, y - 14);
+    ctx.restore();
+  }
+
+  async function renderMap(it) {
+    const W = MAP_W, H = MAP_H, z = it.mapZoom;
+    const c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#dde6e0';
+    ctx.fillRect(0, 0, W, H);
+
+    const base = activeBase();
+    const centre = map.project([it.lat, it.lon], z);
+    const left = centre.x - W / 2, top = centre.y - H / 2;
+    const n = Math.pow(2, z);
+    const jobs = [];
+    for (let ty = Math.floor(top / 256); ty <= Math.floor((top + H - 1) / 256); ty++) {
+      for (let tx = Math.floor(left / 256); tx <= Math.floor((left + W - 1) / 256); tx++) {
+        if (ty < 0 || ty >= n) continue;
+        const wx = ((tx % n) + n) % n;
+        const url = base.url.replace('{s}', 'a').replace('{z}', z).replace('{x}', wx).replace('{y}', ty);
+        jobs.push(loadImage(url, true).then(function (im) { return { im: im, dx: tx * 256 - left, dy: ty * 256 - top }; }));
+      }
+    }
+    const tiles = await Promise.all(jobs);
+    let loaded = 0;
+    tiles.forEach(function (t) {
+      if (!t.im) return;
+      ctx.drawImage(t.im, Math.round(t.dx), Math.round(t.dy), 256, 256);
+      loaded++;
+    });
+
+    const cx = W / 2, cy = H / 2;
+
+    // Viewing direction: a field-of-view wedge for 360°, an arrow for flat photos
+    if (typeof it.bearing === 'number') {
+      const th = (it.bearing - 90) * Math.PI / 180;
+      ctx.save();
+      if (it.is360 && it.fov) {
+        const half = Math.min(80, Math.max(8, it.fov / 2)) * Math.PI / 180;
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, 150, th - half, th + half); ctx.closePath();
+        ctx.fillStyle = 'rgba(34,211,238,0.38)'; ctx.fill();
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(13,23,18,0.55)'; ctx.stroke();
+        ctx.lineWidth = 3; ctx.strokeStyle = '#22d3ee'; ctx.stroke();
+      } else {
+        const L = 110, tx = cx + L * Math.cos(th), ty = cy + L * Math.sin(th);
+        ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(tx, ty);
+        ctx.lineWidth = 9; ctx.strokeStyle = 'rgba(13,23,18,0.55)'; ctx.stroke();
+        ctx.lineWidth = 5; ctx.strokeStyle = '#22d3ee'; ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(tx + 12 * Math.cos(th), ty + 12 * Math.sin(th));
+        ctx.lineTo(tx + 24 * Math.cos(th + 2.55), ty + 24 * Math.sin(th + 2.55));
+        ctx.lineTo(tx + 24 * Math.cos(th - 2.55), ty + 24 * Math.sin(th - 2.55));
+        ctx.closePath();
+        ctx.fillStyle = '#22d3ee'; ctx.fill();
+        ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(13,23,18,0.55)'; ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // Camera position, drawn like the live map (round = 360°, square = flat)
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 8;
+    ctx.fillStyle = it.is360 ? '#2bb673' : '#008d96';
+    ctx.lineWidth = 4; ctx.strokeStyle = '#ffffff';
+    if (it.is360) {
+      ctx.beginPath(); ctx.arc(cx, cy, 12, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    } else {
+      ctx.fillRect(cx - 11, cy - 11, 22, 22); ctx.strokeRect(cx - 11, cy - 11, 22, 22);
+    }
+    ctx.restore();
+
+    drawNorthArrow(ctx, W - 50, 50);
+    drawScaleBar(ctx, H, it.lat, z);
+
+    ctx.save();
+    ctx.font = '17px Arial, sans-serif';
+    const cw = ctx.measureText(base.credit).width;
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.fillRect(W - cw - 20, H - 30, cw + 20, 30);
+    ctx.fillStyle = '#333'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillText(base.credit, W - 10, H - 15);
+    ctx.restore();
+
+    let dataUrl = null;
+    try { dataUrl = c.toDataURL('image/jpeg', 0.88); } catch (e) { dataUrl = null; }
+    return { dataUrl: dataUrl, ok: loaded > 0 && !!dataUrl };
+  }
+
+  /* ------------------------------------------------------------------
+     Report overview map (title page)
+     ------------------------------------------------------------------ */
+  function buildMapReferences(reportItems) {
+    const groups = [];
+    const byKey = new Map();
+    reportItems.forEach(function (it, i) {
+      const lat = Number(it.lat), lon = Number(it.lon);
+      let key = null;
+      if (Number.isFinite(lat) && Number.isFinite(lon) && !(Math.abs(lat) < 1e-9 && Math.abs(lon) < 1e-9)) {
+        key = lat.toFixed(6) + ',' + lon.toFixed(6);
+      }
+      if (!key) {
+        it.reportRef = String(i + 1);
+        return;
+      }
+      let g = byKey.get(key);
+      if (!g) {
+        g = { key: key, number: groups.length + 1, items: [] };
+        byKey.set(key, g); groups.push(g);
+      }
+      g.items.push(i);
+    });
+    groups.forEach(function (g) {
+      g.items.forEach(function (idx, letterIdx) {
+        const suffix = g.items.length > 1 ? String.fromCharCode(65 + letterIdx) : '';
+        reportItems[idx].reportRef = String(g.number) + suffix;
+        reportItems[idx].mapMarkerRef = String(g.number);
+        reportItems[idx].mapMarkerLetters = g.items.length > 1 ? g.items.map(function (_, j) { return String.fromCharCode(65 + j); }) : [];
+      });
+    });
+    return groups;
+  }
+
+  function normaliseBounds(west, south, east, north) {
+    const vals = [Number(west), Number(south), Number(east), Number(north)];
+    if (!vals.every(Number.isFinite)) return null;
+    if (vals[0] >= vals[2] || vals[1] >= vals[3]) return null;
+    return { west: vals[0], south: vals[1], east: vals[2], north: vals[3] };
+  }
+
+  function getOverviewMapConfig(reportItems) {
+    const valid = reportItems.filter(it => Number.isFinite(Number(it.lat)) && Number.isFinite(Number(it.lon)) && !(Math.abs(Number(it.lat)) < 1e-9 && Math.abs(Number(it.lon)) < 1e-9));
+    if (!valid.length || typeof map === 'undefined') return null;
+
+    const mode = $('rptMapExtentMode') ? $('rptMapExtentMode').value : 'auto';
+    let bounds = null;
+    let fixedZoom = null;
+
+    if (mode === 'custom') {
+      bounds = normaliseBounds($('rptWest').value, $('rptSouth').value, $('rptEast').value, $('rptNorth').value);
+    }
+    if (!bounds) {
+      if (mode === 'current' && map.getBounds) {
+        const b = map.getBounds();
+        if (b && b.isValid()) {
+          bounds = { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() };
+        }
+      }
+    }
+    if (!bounds) {
+      const lats = valid.map(it => Number(it.lat)), lons = valid.map(it => Number(it.lon));
+      bounds = {
+        west: Math.min(...lons), south: Math.min(...lats),
+        east: Math.max(...lons), north: Math.max(...lats)
+      };
+    }
+
+    // Add modest padding to point-derived/custom extents. Current-map mode already has its own margins.
+    if (mode !== 'current') {
+      const latSpan = Math.max(0.00001, bounds.north - bounds.south);
+      const lonSpan = Math.max(0.00001, bounds.east - bounds.west);
+      const pad = 0.04;
+      bounds.west -= lonSpan * pad; bounds.east += lonSpan * pad;
+      bounds.south -= latSpan * pad; bounds.north += latSpan * pad;
+    }
+
+    return { bounds: bounds, valid: valid, fixedZoom: fixedZoom, mode: mode };
+  }
+
+  async function renderOverviewMap(reportItems) {
+    const W = 1200, H = 760;
+    const c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#dde6e0';
+    ctx.fillRect(0, 0, W, H);
+
+    buildMapReferences(reportItems);
+    const cfg = getOverviewMapConfig(reportItems);
+    if (!cfg || typeof map === 'undefined') {
+      return { dataUrl: c.toDataURL('image/jpeg', 0.88), ok: false };
+    }
+
+    const b = cfg.bounds;
+    const centreLat = (b.south + b.north) / 2;
+    const centreLon = (b.west + b.east) / 2;
+    const spanPx = function (z) {
+      const a = map.project([b.south, b.west], z);
+      const q = map.project([b.north, b.east], z);
+      return { x: Math.abs(q.x - a.x), y: Math.abs(q.y - a.y) };
+    };
+
+    let z = 19;
+    while (z > 3) {
+      const sp = spanPx(z);
+      if (sp.x <= W * 0.92 && sp.y <= H * 0.92) break;
+      z--;
+    }
+    z = Math.min(19, Math.max(3, z));
+    if (cfg.mode === 'current' && typeof map.getZoom === 'function') {
+      const currentZ = Math.round(map.getZoom());
+      const sp = spanPx(currentZ);
+      if (sp.x <= W * 0.96 && sp.y <= H * 0.96) z = Math.min(19, Math.max(3, currentZ));
+    }
+
+    const centre = map.project([centreLat, centreLon], z);
+    const left = centre.x - W / 2, top = centre.y - H / 2;
+    const n = Math.pow(2, z);
+    const base = activeBase();
+    const jobs = [];
+    for (let ty = Math.floor(top / 256); ty <= Math.floor((top + H - 1) / 256); ty++) {
+      for (let tx = Math.floor(left / 256); tx <= Math.floor((left + W - 1) / 256); tx++) {
+        if (ty < 0 || ty >= n) continue;
+        const wx = ((tx % n) + n) % n;
+        const url = base.url.replace('{s}', 'a').replace('{z}', z).replace('{x}', wx).replace('{y}', ty);
+        jobs.push(loadImage(url, true).then(im => ({ im, dx: tx * 256 - left, dy: ty * 256 - top })));
+      }
+    }
+    const tiles = await Promise.all(jobs);
+    let loaded = 0;
+    tiles.forEach(t => { if (t.im) { ctx.drawImage(t.im, Math.round(t.dx), Math.round(t.dy), 256, 256); loaded++; } });
+
+    drawNorthArrow(ctx, W - 55, 55);
+    drawScaleBar(ctx, H, centreLat, z);
+
+    const groups = buildMapReferences(reportItems);
+    groups.forEach(function (g) {
+      const it = reportItems[g.items[0]];
+      const pt = map.project([Number(it.lat), Number(it.lon)], z);
+      const x = pt.x - left, y = pt.y - top;
+      const r = 19;
+      ctx.save();
+      ctx.globalAlpha = 0.95;
+      ctx.shadowColor = 'rgba(0,0,0,0.65)'; ctx.shadowBlur = 8;
+      ctx.fillStyle = it.is360 ? '#2bb673' : '#008d96';
+      ctx.lineWidth = 4; ctx.strokeStyle = '#ffffff';
+      if (it.is360) { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
+      else { ctx.fillRect(x - r, y - r, r * 2, r * 2); ctx.strokeRect(x - r, y - r, r * 2, r * 2); }
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = contrastInk(it.is360 ? '#2bb673' : '#008d96');
+      ctx.font = 'bold 17px Arial, Helvetica, sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(String(g.number), x, y + 1);
+      if (g.items.length > 1) {
+        ctx.font = 'bold 13px Arial, Helvetica, sans-serif';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(g.items.map(function(_, j){ return String.fromCharCode(65+j); }).join('/'), x, y + r + 15);
+      }
+      ctx.restore();
+    });
+
+    ctx.save();
+    ctx.font = '18px Arial, Helvetica, sans-serif';
+    const creditW = ctx.measureText(base.credit).width;
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.fillRect(W - creditW - 22, H - 34, creditW + 22, 34);
+    ctx.fillStyle = '#333'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillText(base.credit, W - 11, H - 17);
+    ctx.restore();
+
+    let dataUrl = null;
+    try { dataUrl = c.toDataURL('image/jpeg', 0.88); } catch (e) {}
+    return { dataUrl, ok: loaded > 0 && !!dataUrl, zoom: z, bounds: b };
+  }
+
+  /* ------------------------------------------------------------------
+     Add current view
+     ------------------------------------------------------------------ */
+  async function addToReport(prefix) {
+    if (busy) return;
+    let node = null;
+    try { node = getNodeForTargetPrefix(prefix); } catch (e) { node = null; }
+    if (!node) { toast('Nothing to capture yet'); return; }
+
+    busy = true;
+    try {
+      let snap = null, bearing = null, fov = null;
+      if (node.is360) {
+        snap = await snap360(prefix, node);
+        const viewer = getViewerInstance(prefix);
+        try { fov = viewer.getHfov(); } catch (e) { fov = null; }
+        bearing = getViewerViewportBearing(node, prefix);
+      } else {
+        snap = snapFlat(prefix, node);
+        bearing = node.hasHeading && typeof node.heading === 'number' ? node.heading : null;
+      }
+      if (!snap) { toast('Could not capture this view - wait for the image to finish loading.', 3400); return; }
+
+      const it = {
+        id: 'rpt_' + Date.now() + '_' + (++seq),
+        title: node.title, captured: capturedLabel(node),
+        lat: node.lat, lon: node.lon, hasGps: !!node.hasGps,
+        is360: !!node.is360, bearing: bearing, fov: fov,
+        image: snap.url, imgW: snap.w, imgH: snap.h, pins: snap.pins,
+        mapZoom: Math.min(19, Math.max(16, Math.round(map.getZoom()))),
+        mapImage: null, mapOk: false, comment: ''
+      };
+      const m = await renderMap(it);
+      it.mapImage = m.dataUrl; it.mapOk = m.ok;
+
+      items.push(it);
+      updateCount();
+      if (isOpen()) renderList();
+      toast('Added to report · ' + items.length + (items.length === 1 ? ' view' : ' views') + (m.ok ? '' : ' (map tiles unavailable)'), 3000);
+    } catch (err) {
+      console.error(err);
+      toast('Could not add this view to the report.', 3400);
+    } finally {
+      busy = false;
+    }
+  }
+
+  /* ------------------------------------------------------------------
+     PDF
+     ------------------------------------------------------------------ */
+  const MM = 25.4 / 72;   // 1 pt in mm
+
+  // jsPDF's built-in fonts are Latin-1 only, so map/strip anything else.
+  function pdfSafe(s) {
+    return String(s == null ? '' : s)
+      .replace(/\r\n?/g, '\n').replace(/\t/g, ' ')
+      .replace(/[\u2018\u2019\u201B\u2032]/g, "'").replace(/[\u201C\u201D\u201F\u2033]/g, '"')
+      .replace(/[\u2010-\u2015\u2212]/g, '-').replace(/\u2026/g, '...')
+      .replace(/[\u2009\u200A\u202F\u2007]/g, ' ').replace(/\u2192/g, '->').replace(/\u2248/g, '~').replace(/\u2022/g, '-')
+      .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '?')
+      .replace(/[^\n\x20-\x7E\xA0-\xFF]/g, '?');
+  }
+  function wrapText(doc, text, w) {
+    const out = [];
+    String(text).split('\n').forEach(function (para) {
+      if (!para.trim()) { out.push(''); return; }
+      doc.splitTextToSize(para, w).forEach(function (l) { out.push(l); });
+    });
+    return out;
+  }
+  function fitWidth(doc, str, w) {
+    if (doc.getTextWidth(str) <= w) return str;
+    let s = str;
+    while (s.length > 1 && doc.getTextWidth(s + '...') > w) s = s.slice(0, -1);
+    return s + '...';
+  }
+  function compass(b) { return COMPASS[Math.round((((b % 360) + 360) % 360) / 22.5) % 16]; }
+
+  function fitImage(doc, image, boxX, boxY, boxW, boxH, imgW, imgH) {
+    if (!image || !imgW || !imgH || boxW <= 0 || boxH <= 0) return null;
+    const ar = imgW / imgH;
+    let w = boxW, h = w / ar;
+    if (h > boxH) { h = boxH; w = h * ar; }
+    const x = boxX + (boxW - w) / 2, y = boxY + (boxH - h) / 2;
+    doc.addImage(image, 'JPEG', x, y, w, h, undefined, 'FAST');
+    return { x, y, w, h };
+  }
+
+  const PDF_HEAD = [15, 107, 120];
+  const PDF_SECONDARY = [63, 127, 124];
+  const PDF_INK = [17, 24, 20], PDF_MUTED = [112, 122, 117], PDF_RULE = [201, 209, 204];
+
+  function pdfSetArial(doc, weight, size, color) {
+    doc.setFont('helvetica', weight || 'normal');
+    doc.setFontSize(size || 9);
+    if (color) doc.setTextColor(...color);
+  }
+
+  function drawPdfHeader(doc, title, dateLabel, pageNo, totalPages) {
+    const PW = 210, M = 10;
+    pdfSetArial(doc, 'bold', 11, PDF_HEAD);
+    doc.text(fitWidth(doc, title, 145), M, 12.5);
+    pdfSetArial(doc, 'normal', 8.5, PDF_MUTED);
+    doc.text((dateLabel ? dateLabel + '     ' : '') + pageNo + ' / ' + totalPages, PW - M, 12.5, { align: 'right' });
+    doc.setDrawColor(...PDF_SECONDARY); doc.setLineWidth(0.35); doc.line(M, 16, PW - M, 16);
+  }
+
+  function drawItemSlot(doc, it, itemNo, slotY, slotH, title, dateLabel) {
+    const M = 10, PW = 210, CW = PW - 2 * M;
+    const top = slotY + 3;
+    const ref = it.reportRef || String(itemNo).padStart(2, '0');
+
+    pdfSetArial(doc, 'bold', 9.5, PDF_HEAD);
+    doc.text(ref, M, top + 5);
+    pdfSetArial(doc, 'bold', 9.5, PDF_INK);
+    doc.text(fitWidth(doc, pdfSafe(it.title), CW - 58), M + 17, top + 5);
+    pdfSetArial(doc, 'normal', 8, PDF_MUTED);
+    doc.text(pdfSafe(it.captured || dateLabel || ''), PW - M, top + 5, { align: 'right' });
+
+    // Wider main image with a deliberately narrower map column.
+    const imageBoxX = M, imageBoxY = top + 9, imageBoxW = 142, imageBoxH = 84;
+    const mapX = M + 148, mapW = CW - 148, mapH = Math.min(28, mapW * 0.66);
+    const imageRect = fitImage(doc, it.image, imageBoxX, imageBoxY, imageBoxW, imageBoxH, it.imgW, it.imgH);
+    if (imageRect) { doc.setDrawColor(...PDF_RULE); doc.setLineWidth(0.25); doc.rect(imageRect.x, imageRect.y, imageRect.w, imageRect.h, 'S'); }
+
+    if (it.mapImage) {
+      doc.addImage(it.mapImage, 'JPEG', mapX, imageBoxY, mapW, mapH, undefined, 'FAST');
+    } else {
+      doc.setFillColor(236, 240, 238); doc.rect(mapX, imageBoxY, mapW, mapH, 'F');
+    }
+    doc.setDrawColor(...PDF_RULE); doc.setLineWidth(0.25); doc.rect(mapX, imageBoxY, mapW, mapH, 'S');
+
+    // Smaller, lighter comment area.
+    const commentY = imageBoxY + imageBoxH + 3.5;
+    const commentW = imageBoxW;
+    pdfSetArial(doc, 'bold', 7.2, PDF_HEAD);
+    doc.text('COMMENT', imageBoxX, commentY);
+    const comment = pdfSafe(it.comment).trim();
+    if (comment) {
+      let fs = 8, lines = [];
+      [8, 7.5, 7].some(function(s) {
+        fs = s; pdfSetArial(doc, 'normal', s, PDF_INK); lines = wrapText(doc, comment, commentW);
+        return lines.length * s * MM * 1.2 <= 16;
+      });
+      const maxLines = Math.max(1, Math.floor(16 / (fs * MM * 1.2)));
+      if (lines.length > maxLines) {
+        lines = lines.slice(0, maxLines);
+        lines[maxLines - 1] = fitWidth(doc, lines[maxLines - 1] + '...', commentW);
+      }
+      pdfSetArial(doc, 'normal', fs, PDF_INK); doc.setLineHeightFactor(1.2); doc.text(lines, imageBoxX, commentY + 4.3);
+    } else {
+      pdfSetArial(doc, 'italic', 7.2, PDF_MUTED);
+      doc.text('No comment', imageBoxX, commentY + 4.3);
+    }
+
+    // Map metadata.
+    let ry = imageBoxY + mapH + 3.5;
+    pdfSetArial(doc, 'normal', 7.2, PDF_MUTED);
+    const lat = Number(it.lat), lon = Number(it.lon);
+    if (Number.isFinite(lat) && Number.isFinite(lon) && !(Math.abs(lat) < 1e-9 && Math.abs(lon) < 1e-9)) {
+      doc.text(lat.toFixed(6) + ', ' + lon.toFixed(6) + (it.hasGps ? '' : ' (manual)'), mapX, ry);
+      ry += 3.7;
+    }
+    if (typeof it.bearing === 'number') {
+      doc.text('Facing ' + Math.round(it.bearing) + '\xB0 ' + compass(it.bearing), mapX, ry);
+      ry += 3.7;
+    }
+
+    const pins = (it.pins || []).filter(p => p.text && p.text.trim());
+    if (pins.length) {
+      pdfSetArial(doc, 'bold', 7.5, PDF_HEAD);
+      doc.text('ANNOTATIONS', mapX, ry + 1.5); ry += 5;
+      const textX = mapX + 6, textW = Math.max(8, mapW - 6);
+      pins.slice(0, 3).forEach(function(p) {
+        const rgb = hexToRgb(p.color), ink = inkFor(rgb);
+        doc.saveGraphicsState();
+        doc.setGState && doc.setGState(new doc.GState({ opacity: p.active ? 1 : 0.5 }));
+        doc.setFillColor(rgb[0], rgb[1], rgb[2]); doc.setDrawColor(70,80,75); doc.setLineWidth(0.2);
+        doc.circle(mapX + 2.2, ry + 1.2, 2.1, 'FD');
+        doc.setFont('helvetica','bold'); doc.setFontSize(6.5); doc.setTextColor(ink[0], ink[1], ink[2]);
+        doc.text(String(p.num), mapX + 2.2, ry + 2, {align:'center'});
+        doc.restoreGraphicsState();
+        pdfSetArial(doc, 'normal', 7.2, PDF_INK);
+        const lines = wrapText(doc, pdfSafe(p.text).trim(), textW).slice(0,2);
+        doc.text(lines, textX, ry + 1.6);
+        ry += Math.max(4.6, lines.length * 7.2 * MM * 1.2 + 1.5);
+      });
+      if (pins.length > 3) { pdfSetArial(doc, 'italic', 6.8, PDF_MUTED); doc.text('+ ' + (pins.length - 3) + ' more', mapX, Math.min(ry, slotY + slotH - 3)); }
+    }
+
+    doc.setDrawColor(...PDF_SECONDARY); doc.setLineWidth(0.25); doc.line(M, slotY + slotH - 1.5, PW - M, slotY + slotH - 1.5);
+  }
+
+  function drawTitlePage(doc, reportItems, title, dateLabel, description, pageNo, totalPages, overview) {
+    const PW = 210, PH = 297, M = 10;
+    const INK = PDF_INK, MUTED = PDF_MUTED, RULE = PDF_RULE;
+    pdfSetArial(doc, 'bold', 24, PDF_HEAD);
+    doc.text(fitWidth(doc, title, PW - 2*M), M, 27);
+    pdfSetArial(doc, 'normal', 10, PDF_SECONDARY);
+    doc.text(dateLabel || todayKey(), M, 36);
+    pdfSetArial(doc, 'normal', 9, MUTED);
+    doc.text(pageNo + ' / ' + totalPages, PW - M, 36, {align:'right'});
+    doc.setDrawColor(...PDF_SECONDARY); doc.setLineWidth(0.35); doc.line(M, 42, PW - M, 42);
+
+    // Unshaded description — clean text block rather than a boxed panel.
+    pdfSetArial(doc, 'bold', 9, PDF_HEAD); doc.text('REPORT DESCRIPTION', M, 52);
+    const descY = 57;
+    const desc = pdfSafe(description || '').trim();
+    pdfSetArial(doc, 'normal', 9, INK); doc.setLineHeightFactor(1.35);
+    if (desc) {
+      const lines = wrapText(doc, desc, PW - 2*M).slice(0, 7);
+      doc.text(lines, M, descY);
+    } else {
+      pdfSetArial(doc, 'italic', 8.5, MUTED); doc.text('No description entered.', M, descY);
+    }
+
+    const mapHeadingY = descY + (desc ? Math.min(44, Math.max(20, wrapText(doc, desc, PW - 2*M).slice(0,7).length * 4.5)) : 12) + 7;
+    pdfSetArial(doc, 'bold', 9, PDF_HEAD); doc.text('IMAGE LOCATIONS', M, mapHeadingY);
+    const mapY = mapHeadingY + 4, mapW = PW - 2*M, mapH = 112;
+    if (overview && overview.dataUrl) doc.addImage(overview.dataUrl, 'JPEG', M, mapY, mapW, mapH, undefined, 'FAST');
+    else { doc.setFillColor(236,240,238); doc.rect(M,mapY,mapW,mapH,'F'); }
+    doc.setDrawColor(...RULE); doc.setLineWidth(0.25); doc.rect(M,mapY,mapW,mapH,'S');
+
+    // Index of report views, with letter suffixes when several views share one map point.
+    const indexY = mapY + mapH + 10;
+    pdfSetArial(doc, 'bold', 9, PDF_HEAD); doc.text('REPORT VIEWS', M, indexY);
+    const colW = (PW - 2*M - 8) / 2;
+    const leftX = M, rightX = M + colW + 8;
+    reportItems.forEach(function(it, i) {
+      const col = i % 2, row = Math.floor(i / 2);
+      const x = col ? rightX : leftX, y = indexY + 7 + row * 8;
+      if (y > PH - 8) return;
+      pdfSetArial(doc, 'bold', 8, PDF_HEAD); doc.text(it.reportRef || String(i+1).padStart(2,'0'), x, y);
+      pdfSetArial(doc, 'normal', 7.8, INK);
+      doc.text(fitWidth(doc, pdfSafe(it.title), colW - 34), x + 16, y);
+      pdfSetArial(doc, 'normal', 7.5, MUTED);
+      doc.text(it.is360 ? '360°' : 'Flat', x + colW, y, {align:'right'});
+    });
+    const maxRows = Math.floor((PH - 8 - (indexY + 7)) / 8) + 1;
+    const maxItems = Math.max(2, maxRows * 2);
+    if (reportItems.length > maxItems) {
+      pdfSetArial(doc, 'italic', 7.5, MUTED);
+      doc.text('+ ' + (reportItems.length - maxItems) + ' additional views in the report', M, PH - 8);
+    }
+  }
+
+  function ensureJsPdf() {
+    if (window.jspdf && window.jspdf.jsPDF) return Promise.resolve(true);
+    return new Promise(function (resolve) {
+      const s = document.createElement('script');
+      s.setAttribute('data-rpt', '');
+      s.src = JSPDF_URL;
+      s.onload = function () { resolve(!!(window.jspdf && window.jspdf.jsPDF)); };
+      s.onerror = function () { resolve(false); };
+      document.head.appendChild(s);
+    });
+  }
+
+  async function generatePdf() {
+    if (!items.length) return;
+    const btn = $('rptGenerate');
+    btn.disabled = true;
+    const label = btn.textContent;
+    btn.textContent = 'Building…';
+    try {
+      if (!(await ensureJsPdf())) {
+        toast('The PDF library could not be loaded - check your internet connection.', 4200);
+        return;
+      }
+      await new Promise(r => setTimeout(r, 30));
+
+      const JsPDF = window.jspdf.jsPDF;
+      const rawTitle = $('rptTitle').value.trim();
+      const title = pdfSafe(rawTitle) || 'Site report';
+      const dateKey = $('rptDate').value || todayKey();
+      const dateLabel = prettyDate(dateKey);
+      const includeTitlePage = !!$('rptTitlePage').checked;
+      const description = $('rptDescription').value.trim();
+      const totalPages = (includeTitlePage ? 1 : 0) + Math.ceil(items.length / 2);
+      const doc = new JsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
+
+      let pageNo = 1;
+      if (includeTitlePage) {
+        const overview = await renderOverviewMap(items);
+        drawTitlePage(doc, items, title, dateLabel, description, pageNo, totalPages, overview);
+        pageNo++;
+      }
+
+      for (let i = 0; i < items.length; i += 2) {
+        if (i > 0 || includeTitlePage) doc.addPage('a4', 'portrait');
+        drawPdfHeader(doc, title, dateLabel, pageNo, totalPages);
+        const bodyTop = 20, slotH = (297 - bodyTop - 10) / 2;
+        drawItemSlot(doc, items[i], i + 1, bodyTop, slotH, title, dateLabel);
+        if (items[i + 1]) drawItemSlot(doc, items[i + 1], i + 2, bodyTop + slotH, slotH, title, dateLabel);
+        pageNo++;
+      }
+
+      doc.setProperties({ title: title });
+      const slug = (rawTitle || 'Site_report').replace(/[^\w.-]+/g, '_').replace(/^_+|_+$/g, '') || 'Site_report';
+      doc.save(slug + '_' + dateKey + '.pdf');
+      toast('PDF saved · ' + totalPages + (totalPages === 1 ? ' page' : ' pages'), 3000);
+    } catch (err) {
+      console.error(err);
+      toast('Could not build the PDF - see the browser console for details.', 4200);
+    } finally {
+      btn.textContent = label;
+      btn.disabled = !items.length;
+    }
+  }
+
+  updateCount();
+})();
 </script>
 </body>
 </html>

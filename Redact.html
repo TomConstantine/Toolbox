@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Redact — blur faces and plates, keep the metadata</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/piexifjs@1.0.6/piexif.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tracking.js/1.1.3/tracking-min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tracking.js/1.1.3/data/face-min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/libheif-js@1.17.1/libheif/libheif.js"></script>
+<style>
+  :root {
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+
+    --bg: #F3F1EA;
+    --surface: #FFFFFF;
+    --surface-2: #EBE8DF;
+    --border: #DCD8CC;
+    --text: #201D17;
+    --text-muted: #706B5C;
+    --accent: #A8700A;
+    --accent-strong: #7E5507;
+    --accent-soft: rgba(168, 112, 10, 0.12);
+    --danger: #A63A2E;
+    --danger-soft: rgba(166, 58, 46, 0.1);
+    --canvas-well: #14161B;
+    --canvas-well-line: #2A2E38;
+    --radius-s: 5px;
+    --radius-m: 10px;
+    --shadow: 0 1px 2px rgba(32, 29, 23, 0.08);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14161B;
+      --surface: #1B1E25;
+      --surface-2: #232732;
+      --border: #323847;
+      --text: #E9E7E0;
+      --text-muted: #98978C;
+      --accent: #E8B341;
+      --accent-strong: #F5C765;
+      --accent-soft: rgba(232, 179, 65, 0.14);
+      --danger: #E2645A;
+      --danger-soft: rgba(226, 100, 90, 0.14);
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #14161B;
+    --surface: #1B1E25;
+    --surface-2: #232732;
+    --border: #323847;
+    --text: #E9E7E0;
+    --text-muted: #98978C;
+    --accent: #E8B341;
+    --accent-strong: #F5C765;
+    --accent-soft: rgba(232, 179, 65, 0.14);
+    --danger: #E2645A;
+    --danger-soft: rgba(226, 100, 90, 0.14);
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  }
+
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  *, *::before, *::after { box-sizing: inherit; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3 { font-family: 'Space Grotesk', 'Inter', sans-serif; margin: 0; }
+  code, .mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+
+  button { font: inherit; }
+  input[type="checkbox"] { accent-color: var(--accent); }
+
+  .app { max-width: 1180px; margin: 0 auto; padding: 28px 20px 60px; }
+
+  .topbar { padding-bottom: 22px; border-bottom: 1px solid var(--border); margin-bottom: 24px; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-mark { display: flex; gap: 3px; flex-shrink: 0; }
+  .brand-mark span { display: block; width: 6px; height: 22px; background: var(--accent); border-radius: 1px; }
+  .brand-mark span:nth-child(2) { height: 16px; align-self: flex-end; }
+  .brand-mark span:nth-child(3) { height: 22px; }
+  .brand h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.01em; }
+  .tagline { margin: 10px 0 0; color: var(--text-muted); font-size: 0.98rem; max-width: 62ch; }
+
+  .trust-row { display: flex; flex-wrap: wrap; gap: 20px; margin-top: 16px; }
+  .trust-row div { flex: 1 1 220px; font-size: 0.86rem; color: var(--text-muted); padding-left: 12px; border-left: 2px solid var(--border); }
+  .trust-row strong { display: block; color: var(--text); font-weight: 600; font-size: 0.86rem; margin-bottom: 2px; }
+
+  .workspace { display: grid; grid-template-columns: 1fr; gap: 18px; }
+  @media (min-width: 900px) {
+    .workspace { grid-template-columns: 1fr 320px; align-items: start; }
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-m);
+    padding: 16px;
+    box-shadow: var(--shadow);
+  }
+  .panel + .panel { margin-top: 14px; }
+  .panel h2 { font-size: 0.82rem; font-weight: 600; color: var(--text-muted); margin-bottom: 12px; }
+
+  .canvas-toolbar {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-m); padding: 10px 12px; margin-bottom: 12px; box-shadow: var(--shadow);
+  }
+  .toolbar-group { display: flex; align-items: center; gap: 8px; }
+  .toolbar-divider { width: 1px; align-self: stretch; background: var(--border); margin: 0 2px; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--surface-2); color: var(--text);
+    border: 1px solid var(--border); border-radius: var(--radius-s);
+    padding: 7px 12px; font-size: 0.86rem; font-weight: 500; cursor: pointer;
+    transition: background 120ms ease, border-color 120ms ease;
+  }
+  .btn:hover:not(:disabled) { border-color: var(--accent); }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #1B1400; font-weight: 600; }
+  .btn-primary:hover:not(:disabled) { background: var(--accent-strong); border-color: var(--accent-strong); }
+  .btn-primary:disabled { background: var(--surface-2); color: var(--text-muted); border-color: var(--border); }
+  .btn-ghost { background: transparent; border-color: transparent; padding: 6px 8px; color: var(--text-muted); }
+  .btn-ghost:hover:not(:disabled) { color: var(--danger); }
+  .btn.is-active { border-color: var(--accent); background: var(--accent-soft); }
+
+  select.btn { padding: 7px 10px; }
+
+  .slider-field { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: var(--text-muted); }
+  .slider-field input[type="range"] { accent-color: var(--accent); width: 110px; }
+
+  .canvas-well {
+    background: var(--canvas-well);
+    background-image: linear-gradient(45deg, var(--canvas-well-line) 25%, transparent 25%),
+      linear-gradient(-45deg, var(--canvas-well-line) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, var(--canvas-well-line) 75%),
+      linear-gradient(-45deg, transparent 75%, var(--canvas-well-line) 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+    border-radius: var(--radius-m);
+    border: 1px solid var(--border);
+    min-height: 320px;
+    max-height: 72vh;
+    overflow: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding: 12px;
+  }
+
+  .dropzone {
+    text-align: center; color: #C7CAD3; padding: 40px 24px;
+    border: 1.5px dashed #454B5A; border-radius: var(--radius-m);
+    cursor: pointer; width: 100%; max-width: 420px;
+  }
+  .dropzone:hover, .dropzone.is-dragover { border-color: var(--accent); color: #EFE3C4; }
+  .dropzone strong { display: block; font-family: 'Space Grotesk', sans-serif; font-size: 1.05rem; margin-bottom: 6px; color: inherit; }
+  .dropzone span { font-size: 0.85rem; opacity: 0.75; }
+  .dropzone input { display: none; }
+
+  .canvas-frame { position: relative; line-height: 0; display: none; touch-action: none; }
+  .canvas-frame.has-image { display: block; }
+  .canvas-frame canvas { max-width: 100%; height: auto; display: block; border-radius: 2px; }
+  .draw-overlay { position: absolute; inset: 0; cursor: crosshair; }
+  .draw-box {
+    position: absolute; border: 1.5px solid var(--accent);
+    background: rgba(232, 179, 65, 0.18); pointer-events: none;
+  }
+
+  .canvas-footer {
+    display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    font-size: 0.78rem; color: var(--text-muted); margin-top: 10px; padding: 0 2px;
+  }
+
+  .region-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .region-list li {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: var(--radius-s); padding: 7px 10px; font-size: 0.82rem;
+  }
+  .region-list .dim { color: var(--text-muted); font-size: 0.76rem; }
+  .empty-note { color: var(--text-muted); font-size: 0.82rem; }
+
+  .meta-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  .meta-table tr:not(:last-child) td { border-bottom: 1px solid var(--border); }
+  .meta-table td { padding: 6px 0; vertical-align: top; }
+  .meta-table td:first-child { color: var(--text-muted); width: 40%; padding-right: 8px; }
+  .meta-table td:last-child { font-family: 'IBM Plex Mono', monospace; word-break: break-word; }
+
+  .check-row { display: flex; align-items: flex-start; gap: 8px; margin-top: 12px; font-size: 0.8rem; color: var(--text-muted); }
+  .check-row label { cursor: pointer; }
+
+  .status-line { font-size: 0.8rem; color: var(--text-muted); margin-top: 10px; min-height: 1.1em; }
+
+  .disclaimer {
+    margin-top: 30px; padding-top: 18px; border-top: 1px solid var(--border);
+    font-size: 0.78rem; color: var(--text-muted); max-width: 74ch;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></span>
+      <h1>Redact</h1>
+    </div>
+    <p class="tagline">Blur faces and number plates in a photo, right in your browser. Every other pixel of the original file — including GPS and camera metadata — stays untouched.</p>
+    <div class="trust-row">
+      <div><strong>Nothing is uploaded</strong>The image never leaves this device or browser tab.</div>
+      <div><strong>Metadata is preserved</strong>Camera and GPS EXIF data are copied into the file you download.</div>
+      <div><strong>You control the redaction</strong>Draw boxes by hand, or start from automatic face detection.</div>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <section>
+      <div class="canvas-toolbar">
+        <div class="toolbar-group">
+          <button class="btn is-active" id="modePixelate" type="button" title="Scramble the region into blocky pixels">Pixelate</button>
+          <button class="btn" id="modeBlackbox" type="button" title="Fill the region solid black">Black box</button>
+        </div>
+        <div class="toolbar-divider"></div>
+        <div class="slider-field">
+          <span>Strength</span>
+          <input type="range" id="strengthSlider" min="2" max="24" value="6" step="1" aria-label="Pixelation strength">
+        </div>
+        <div class="toolbar-divider"></div>
+        <div class="toolbar-group">
+          <button class="btn" id="autoDetectBtn" type="button" disabled title="Finds clear, front-facing faces automatically — always double-check the result">Auto-detect faces</button>
+          <button class="btn" id="undoBtn" type="button" disabled>Undo</button>
+          <button class="btn" id="clearBtn" type="button" disabled>Clear all</button>
+        </div>
+      </div>
+
+      <div class="canvas-well" id="canvasWell">
+        <label class="dropzone" id="dropzone" for="fileInput">
+          <strong>Drop a photo here, or tap to choose one</strong>
+          <span>JPEG, HEIC and PNG all work — HEIC (iPhone photos) is decoded right here in your browser</span>
+          <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif">
+        </label>
+        <div class="canvas-frame" id="canvasFrame">
+          <canvas id="workCanvas"></canvas>
+          <div class="draw-overlay" id="drawOverlay"></div>
+        </div>
+      </div>
+
+      <div class="canvas-footer">
+        <span id="dimsLabel">No image loaded</span>
+        <span id="regionCountLabel"></span>
+      </div>
+    </section>
+
+    <aside>
+      <div class="panel" id="uploadPanel">
+        <h2>Image</h2>
+        <button class="btn" id="replaceBtn" type="button" style="display:none; width:100%; justify-content:center;">Replace image</button>
+        <p class="empty-note" id="uploadHint">Upload a photo to begin. Everything below fills in once it's loaded.</p>
+      </div>
+
+      <div class="panel">
+        <h2>Redaction regions</h2>
+        <ul class="region-list" id="regionList"></ul>
+        <p class="empty-note" id="regionEmptyNote">Draw a box on the photo over each face or plate.</p>
+      </div>
+
+      <div class="panel">
+        <h2>Metadata found in this file</h2>
+        <table class="meta-table" id="metaTable"></table>
+        <p class="empty-note" id="metaEmptyNote">No image loaded yet.</p>
+        <div class="check-row">
+          <input type="checkbox" id="stripGpsCheck">
+          <label for="stripGpsCheck">Remove GPS location before download (camera metadata is kept either way)</label>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Download</h2>
+        <button class="btn btn-primary" id="downloadBtn" type="button" style="width:100%; justify-content:center;" disabled>Download redacted photo</button>
+        <p class="status-line" id="statusLine"></p>
+      </div>
+    </aside>
+  </main>
+
+  <p class="disclaimer">HEIC photos are decoded and downloaded as JPEG, since browsers can't write HEIC directly; metadata is carried across on a best-effort basis for HEIC, and reliably for JPEG. This tool helps you obscure identifiable faces and plates before sharing a photo, but it isn't legal advice and can't guarantee UK GDPR compliance on its own — check your redactions carefully, and consider whether the image needs further review before you publish it. Automatic face detection is a starting point, not a guarantee; it works best on clear, front-facing faces, so always check its results yourself and add boxes by hand for anything it misses.</p>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ---------- elements ----------
+  const fileInput = document.getElementById('fileInput');
+  const dropzone = document.getElementById('dropzone');
+  const canvasWell = document.getElementById('canvasWell');
+  const canvasFrame = document.getElementById('canvasFrame');
+  const workCanvas = document.getElementById('workCanvas');
+  const workCtx = workCanvas.getContext('2d');
+  const drawOverlay = document.getElementById('drawOverlay');
+  const dimsLabel = document.getElementById('dimsLabel');
+  const regionCountLabel = document.getElementById('regionCountLabel');
+  const regionList = document.getElementById('regionList');
+  const regionEmptyNote = document.getElementById('regionEmptyNote');
+  const metaTable = document.getElementById('metaTable');
+  const metaEmptyNote = document.getElementById('metaEmptyNote');
+  const stripGpsCheck = document.getElementById('stripGpsCheck');
+  const downloadBtn = document.getElementById('downloadBtn');
+  const statusLine = document.getElementById('statusLine');
+  const undoBtn = document.getElementById('undoBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const autoDetectBtn = document.getElementById('autoDetectBtn');
+  const modePixelateBtn = document.getElementById('modePixelate');
+  const modeBlackboxBtn = document.getElementById('modeBlackbox');
+  const strengthSlider = document.getElementById('strengthSlider');
+  const replaceBtn = document.getElementById('replaceBtn');
+  const uploadHint = document.getElementById('uploadHint');
+
+  // ---------- state ----------
+  let originalFile = null;
+  let exifObj = null;
+  let hasExif = false;
+  let naturalW = 0, naturalH = 0;
+  let sourceCanvas = document.createElement('canvas');
+  let sourceCtx = sourceCanvas.getContext('2d');
+  let regions = [];
+  let regionIdSeq = 1;
+  let blurMode = 'pixelate';
+
+  // ---------- helpers ----------
+  function fmtBytes(n) {
+    if (n < 1024) return n + ' B';
+    if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+    return (n / (1024 * 1024)).toFixed(2) + ' MB';
+  }
+
+  function blobToDataURL(blob) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result);
+      r.onerror = reject;
+      r.readAsDataURL(blob);
+    });
+  }
+
+  function dataURLtoBlob(dataURL) {
+    const parts = dataURL.split(',');
+    const mimeMatch = parts[0].match(/:(.*?);/);
+    const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+    const binary = atob(parts[1]);
+    const arr = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) arr[i] = binary.charCodeAt(i);
+    return new Blob([arr], { type: mime });
+  }
+
+  function objectHasContent(obj) {
+    if (!obj) return false;
+    return Object.keys(obj).some(k => obj[k] && typeof obj[k] === 'object' && Object.keys(obj[k]).length > 0);
+  }
+
+  // Best-effort fallback for containers piexif can't parse directly (e.g. HEIC/HEIF):
+  // scan the raw bytes for an embedded "Exif\0\0" block and hand the tail to piexif,
+  // the same way it already handles a JPEG APP1 segment.
+  function scanForEmbeddedExif(arrayBuffer) {
+    const bytes = new Uint8Array(arrayBuffer);
+    const marker = [0x45, 0x78, 0x69, 0x66, 0x00, 0x00]; // "Exif\0\0"
+    const limit = bytes.length - marker.length;
+    for (let i = 0; i < limit; i++) {
+      if (bytes[i] !== marker[0]) continue;
+      let match = true;
+      for (let j = 1; j < marker.length; j++) {
+        if (bytes[i + j] !== marker[j]) { match = false; break; }
+      }
+      if (!match) continue;
+      const end = Math.min(bytes.length, i + 4 * 1024 * 1024);
+      let bin = '';
+      for (let k = i; k < end; k++) bin += String.fromCharCode(bytes[k]);
+      try {
+        const parsed = piexif.load(bin);
+        if (objectHasContent(parsed)) return parsed;
+      } catch (e) { /* keep scanning past a false-positive match */ }
+    }
+    return null;
+  }
+
+  function dmsToDecimal(dms, ref) {
+    if (!dms || dms.length < 3) return null;
+    const d = dms[0][0] / dms[0][1];
+    const m = dms[1][0] / dms[1][1];
+    const s = dms[2][0] / dms[2][1];
+    let dec = d + m / 60 + s / 3600;
+    if (ref === 'S' || ref === 'W') dec = -dec;
+    return dec;
+  }
+
+  // ---------- image loading ----------
+  function resetForNewImage() {
+    regions = [];
+    exifObj = null;
+    hasExif = false;
+    statusLine.textContent = '';
+    updateRegionList();
+  }
+
+  function isHeicFile(file) {
+    return /\.(heic|heif)$/i.test(file.name || '') ||
+      file.type === 'image/heic' || file.type === 'image/heif';
+  }
+
+  function getHeifNamespace() {
+    let ns = window.libheif;
+    if (typeof ns === 'function') ns = ns();
+    return ns;
+  }
+
+  function finishImageLoad(file) {
+    workCanvas.width = naturalW;
+    workCanvas.height = naturalH;
+
+    dropzone.style.display = 'none';
+    canvasFrame.classList.add('has-image');
+    render();
+
+    dimsLabel.textContent = naturalW + ' × ' + naturalH + ' px · ' + fmtBytes(file.size) + ' · ' + (file.type || 'image');
+    replaceBtn.style.display = 'inline-flex';
+    uploadHint.textContent = file.name;
+    downloadBtn.disabled = false;
+    undoBtn.disabled = false;
+    clearBtn.disabled = false;
+    autoDetectBtn.disabled = false;
+
+    renderMetadata();
+    updateRegionList();
+    statusLine.textContent = '';
+  }
+
+  async function handleFile(file) {
+    if (!file || (!file.type.startsWith('image/') && !isHeicFile(file))) return;
+    resetForNewImage();
+    originalFile = file;
+    statusLine.textContent = 'Loading photo…';
+
+    let buffer;
+    try {
+      buffer = await file.arrayBuffer();
+    } catch (e) {
+      statusLine.textContent = 'Could not read this file.';
+      return;
+    }
+
+    // --- metadata: try a direct JPEG parse first, then a raw-byte fallback scan ---
+    try {
+      const dataURL = await blobToDataURL(file);
+      const parsed = piexif.load(dataURL);
+      if (objectHasContent(parsed)) { exifObj = parsed; hasExif = true; }
+    } catch (e) { /* not a plain JPEG APP1 segment — try the fallback below */ }
+
+    if (!hasExif) {
+      const fallback = scanForEmbeddedExif(buffer);
+      if (fallback) { exifObj = fallback; hasExif = true; }
+    }
+
+    // --- pixels ---
+    const heic = isHeicFile(file);
+
+    if (heic) {
+      statusLine.textContent = 'Decoding HEIC photo…';
+      try {
+        const heifNS = getHeifNamespace();
+        if (!heifNS || !heifNS.HeifDecoder) throw new Error('libheif unavailable');
+        const decoder = new heifNS.HeifDecoder();
+        const images = decoder.decode(new Uint8Array(buffer));
+        if (!images || !images.length) throw new Error('No image found in HEIC file');
+        const heicImg = images[0];
+        naturalW = heicImg.get_width();
+        naturalH = heicImg.get_height();
+        sourceCanvas.width = naturalW;
+        sourceCanvas.height = naturalH;
+        const imgData = sourceCtx.createImageData(naturalW, naturalH);
+        await new Promise((resolve, reject) => {
+          heicImg.display(imgData, (displayData) => {
+            if (!displayData) return reject(new Error('HEIC display failed'));
+            resolve();
+          });
+        });
+        sourceCtx.putImageData(imgData, 0, 0);
+        finishImageLoad(file);
+      } catch (err) {
+        statusLine.textContent = "Couldn't decode this HEIC file in this browser — try converting it to JPEG first.";
+      }
+      return;
+    }
+
+    const dataURL = await blobToDataURL(file);
+    const img = new Image();
+    img.onload = () => {
+      naturalW = img.naturalWidth;
+      naturalH = img.naturalHeight;
+      sourceCanvas.width = naturalW;
+      sourceCanvas.height = naturalH;
+      sourceCtx.drawImage(img, 0, 0, naturalW, naturalH);
+      finishImageLoad(file);
+    };
+    img.onerror = () => { statusLine.textContent = 'Could not read this image file.'; };
+    img.src = dataURL;
+  }
+
+  fileInput.addEventListener('change', (e) => {
+    if (e.target.files && e.target.files[0]) handleFile(e.target.files[0]);
+  });
+
+  ['dragover', 'dragenter'].forEach(evt => {
+    canvasWell.addEventListener(evt, (e) => {
+      e.preventDefault();
+      dropzone.classList.add('is-dragover');
+    });
+  });
+  ['dragleave', 'drop'].forEach(evt => {
+    canvasWell.addEventListener(evt, (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('is-dragover');
+    });
+  });
+  canvasWell.addEventListener('drop', (e) => {
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+  });
+
+  replaceBtn.addEventListener('click', () => fileInput.click());
+
+  // ---------- metadata panel ----------
+  function renderMetadata() {
+    metaTable.innerHTML = '';
+    if (!hasExif || !exifObj) {
+      metaEmptyNote.textContent = 'No EXIF metadata was found in this file. Nothing to preserve or strip.';
+      metaEmptyNote.style.display = 'block';
+      return;
+    }
+    metaEmptyNote.style.display = 'none';
+
+    const rows = [];
+    const zeroth = exifObj['0th'] || {};
+    const exif = exifObj['Exif'] || {};
+    const gps = exifObj['GPS'] || {};
+
+    const make = zeroth[piexif.ImageIFD.Make];
+    const model = zeroth[piexif.ImageIFD.Model];
+    const dateTime = exif[piexif.ExifIFD.DateTimeOriginal] || zeroth[piexif.ImageIFD.DateTime];
+    const lens = exif[piexif.ExifIFD.LensModel];
+
+    if (make || model) rows.push(['Camera', [make, model].filter(Boolean).join(' ')]);
+    if (lens) rows.push(['Lens', lens]);
+    if (dateTime) rows.push(['Captured', dateTime]);
+
+    if (gps[piexif.GPSIFD.GPSLatitude] && gps[piexif.GPSIFD.GPSLongitude]) {
+      const lat = dmsToDecimal(gps[piexif.GPSIFD.GPSLatitude], gps[piexif.GPSIFD.GPSLatitudeRef]);
+      const lon = dmsToDecimal(gps[piexif.GPSIFD.GPSLongitude], gps[piexif.GPSIFD.GPSLongitudeRef]);
+      if (lat !== null && lon !== null) {
+        rows.push(['GPS location', lat.toFixed(6) + ', ' + lon.toFixed(6)]);
+      }
+    }
+    if (gps[piexif.GPSIFD.GPSAltitude]) {
+      const alt = gps[piexif.GPSIFD.GPSAltitude];
+      rows.push(['GPS altitude', (alt[0] / alt[1]).toFixed(1) + ' m']);
+    }
+
+    rows.push(['Dimensions', naturalW + ' × ' + naturalH + ' px']);
+
+    if (rows.length === 0) {
+      metaEmptyNote.textContent = 'EXIF data is present but no common fields were recognised. It will still be preserved.';
+      metaEmptyNote.style.display = 'block';
+      return;
+    }
+
+    rows.forEach(([label, value]) => {
+      const tr = document.createElement('tr');
+      const td1 = document.createElement('td');
+      td1.textContent = label;
+      const td2 = document.createElement('td');
+      td2.textContent = value;
+      tr.appendChild(td1);
+      tr.appendChild(td2);
+      metaTable.appendChild(tr);
+    });
+  }
+
+  // ---------- redaction rendering ----------
+  function applyRegion(ctx, source, r) {
+    if (blurMode === 'blackbox') {
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(r.x, r.y, r.w, r.h);
+      return;
+    }
+    const blocksAcross = parseInt(strengthSlider.value, 10);
+    const blockPx = Math.max(3, Math.round(Math.min(r.w, r.h) / blocksAcross));
+    const bw = Math.max(1, Math.round(r.w / blockPx));
+    const bh = Math.max(1, Math.round(r.h / blockPx));
+
+    const temp = document.createElement('canvas');
+    temp.width = bw;
+    temp.height = bh;
+    const tctx = temp.getContext('2d');
+    tctx.imageSmoothingEnabled = true;
+    tctx.drawImage(source, r.x, r.y, r.w, r.h, 0, 0, bw, bh);
+
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(temp, 0, 0, bw, bh, r.x, r.y, r.w, r.h);
+    ctx.restore();
+  }
+
+  function render() {
+    if (!naturalW) return;
+    workCtx.clearRect(0, 0, naturalW, naturalH);
+    workCtx.drawImage(sourceCanvas, 0, 0);
+    regions.forEach(r => applyRegion(workCtx, sourceCanvas, r));
+  }
+
+  function updateRegionList() {
+    regionList.innerHTML = '';
+    regionCountLabel.textContent = regions.length
+      ? regions.length + (regions.length === 1 ? ' region' : ' regions')
+      : '';
+    regionEmptyNote.style.display = regions.length ? 'none' : 'block';
+
+    regions.forEach((r, i) => {
+      const li = document.createElement('li');
+      const label = document.createElement('span');
+      label.textContent = 'Region ' + (i + 1) + ' ';
+      const dim = document.createElement('span');
+      dim.className = 'dim';
+      dim.textContent = Math.round(r.w) + '×' + Math.round(r.h) + ' px';
+      label.appendChild(dim);
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'btn btn-ghost';
+      delBtn.type = 'button';
+      delBtn.setAttribute('aria-label', 'Remove region ' + (i + 1));
+      delBtn.textContent = 'Remove';
+      delBtn.addEventListener('click', () => {
+        regions = regions.filter(x => x.id !== r.id);
+        render();
+        updateRegionList();
+      });
+
+      li.appendChild(label);
+      li.appendChild(delBtn);
+      regionList.appendChild(li);
+    });
+  }
+
+  // ---------- drawing interaction ----------
+  let drawing = false;
+  let startPt = null;
+  let tempBox = null;
+
+  function overlayToCanvasPoint(clientX, clientY) {
+    const rect = drawOverlay.getBoundingClientRect();
+    const localX = Math.min(Math.max(clientX - rect.left, 0), rect.width);
+    const localY = Math.min(Math.max(clientY - rect.top, 0), rect.height);
+    const sx = naturalW / rect.width;
+    const sy = naturalH / rect.height;
+    return { x: localX * sx, y: localY * sy, localX, localY };
+  }
+
+  drawOverlay.addEventListener('pointerdown', (e) => {
+    if (!naturalW) return;
+    drawing = true;
+    drawOverlay.setPointerCapture(e.pointerId);
+    startPt = overlayToCanvasPoint(e.clientX, e.clientY);
+
+    tempBox = document.createElement('div');
+    tempBox.className = 'draw-box';
+    tempBox.style.left = startPt.localX + 'px';
+    tempBox.style.top = startPt.localY + 'px';
+    tempBox.style.width = '0px';
+    tempBox.style.height = '0px';
+    drawOverlay.appendChild(tempBox);
+  });
+
+  drawOverlay.addEventListener('pointermove', (e) => {
+    if (!drawing) return;
+    const pt = overlayToCanvasPoint(e.clientX, e.clientY);
+    const left = Math.min(startPt.localX, pt.localX);
+    const top = Math.min(startPt.localY, pt.localY);
+    const w = Math.abs(pt.localX - startPt.localX);
+    const h = Math.abs(pt.localY - startPt.localY);
+    tempBox.style.left = left + 'px';
+    tempBox.style.top = top + 'px';
+    tempBox.style.width = w + 'px';
+    tempBox.style.height = h + 'px';
+    tempBox._end = pt;
+  });
+
+  function finishDrawing(e) {
+    if (!drawing) return;
+    drawing = false;
+    const endPt = tempBox && tempBox._end
+      ? tempBox._end
+      : overlayToCanvasPoint(e.clientX, e.clientY);
+
+    const x = Math.min(startPt.x, endPt.x);
+    const y = Math.min(startPt.y, endPt.y);
+    const w = Math.abs(endPt.x - startPt.x);
+    const h = Math.abs(endPt.y - startPt.y);
+
+    if (tempBox) { tempBox.remove(); tempBox = null; }
+
+    if (w > 4 && h > 4) {
+      regions.push({ id: regionIdSeq++, x, y, w, h });
+      render();
+      updateRegionList();
+    }
+  }
+
+  drawOverlay.addEventListener('pointerup', finishDrawing);
+  drawOverlay.addEventListener('pointercancel', finishDrawing);
+
+  // ---------- toolbar ----------
+  modePixelateBtn.addEventListener('click', () => {
+    blurMode = 'pixelate';
+    modePixelateBtn.classList.add('is-active');
+    modeBlackboxBtn.classList.remove('is-active');
+    render();
+  });
+  modeBlackboxBtn.addEventListener('click', () => {
+    blurMode = 'blackbox';
+    modeBlackboxBtn.classList.add('is-active');
+    modePixelateBtn.classList.remove('is-active');
+    render();
+  });
+  strengthSlider.addEventListener('input', render);
+
+  undoBtn.addEventListener('click', () => {
+    regions.pop();
+    render();
+    updateRegionList();
+  });
+  clearBtn.addEventListener('click', () => {
+    regions = [];
+    render();
+    updateRegionList();
+  });
+
+  function detectFacesOnCanvas(canvasEl) {
+    return new Promise((resolve, reject) => {
+      if (typeof tracking === 'undefined' || !tracking.ObjectTracker) {
+        reject(new Error('detector not loaded'));
+        return;
+      }
+      const tracker = new tracking.ObjectTracker('face');
+      tracker.setInitialScale(4);
+      tracker.setStepSize(1.7);
+      tracker.setEdgesDensity(0.1);
+
+      let settled = false;
+      const task = tracking.track(canvasEl, tracker);
+      tracker.on('track', (event) => {
+        if (settled) return;
+        settled = true;
+        if (task && typeof task.stop === 'function') task.stop();
+        resolve(event.data || []);
+      });
+      setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        if (task && typeof task.stop === 'function') task.stop();
+        resolve([]);
+      }, 8000);
+    });
+  }
+
+  autoDetectBtn.addEventListener('click', async () => {
+    if (!naturalW) return;
+    autoDetectBtn.disabled = true;
+    const originalLabel = autoDetectBtn.textContent;
+    autoDetectBtn.textContent = 'Detecting…';
+    statusLine.textContent = 'Scanning for faces…';
+
+    try {
+      const maxDim = 800;
+      const scale = Math.min(1, maxDim / Math.max(naturalW, naturalH));
+      const dw = Math.max(1, Math.round(naturalW * scale));
+      const dh = Math.max(1, Math.round(naturalH * scale));
+      const detectCanvas = document.createElement('canvas');
+      detectCanvas.width = dw;
+      detectCanvas.height = dh;
+      detectCanvas.getContext('2d').drawImage(sourceCanvas, 0, 0, dw, dh);
+
+      const faces = await detectFacesOnCanvas(detectCanvas);
+      const pad = 0.3;
+      faces.forEach(f => {
+        const x = f.x / scale, y = f.y / scale, w = f.width / scale, h = f.height / scale;
+        const padX = w * pad, padY = h * pad;
+        regions.push({
+          id: regionIdSeq++,
+          x: Math.max(0, x - padX),
+          y: Math.max(0, y - padY),
+          w: Math.min(naturalW - Math.max(0, x - padX), w + padX * 2),
+          h: Math.min(naturalH - Math.max(0, y - padY), h + padY * 2)
+        });
+      });
+      render();
+      updateRegionList();
+      statusLine.textContent = faces.length
+        ? 'Found ' + faces.length + ' face' + (faces.length === 1 ? '' : 's') + ' — check them, and add boxes by hand for any it missed or for plates.'
+        : 'No faces found automatically. It works best on clear, front-facing faces — add boxes by hand for anything else.';
+    } catch (err) {
+      statusLine.textContent = "The automatic detector didn't load — draw boxes by hand instead.";
+    } finally {
+      autoDetectBtn.disabled = false;
+      autoDetectBtn.textContent = originalLabel;
+    }
+  });
+
+  // ---------- download ----------
+  function buildFilename(name, ext) {
+    const base = (name || 'photo').replace(/\.[^./\\]+$/, '');
+    return base + '-redacted.' + ext;
+  }
+
+  async function fallbackDownload(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 15000);
+    statusLine.textContent = 'Saved.';
+  }
+
+  downloadBtn.addEventListener('click', async () => {
+    if (!naturalW) return;
+    downloadBtn.disabled = true;
+    statusLine.textContent = 'Preparing file…';
+
+    try {
+      const isPng = originalFile.type === 'image/png';
+      const outMime = isPng ? 'image/png' : 'image/jpeg';
+      const ext = isPng ? 'png' : 'jpg';
+
+      const blob = await new Promise(resolve =>
+        workCanvas.toBlob(resolve, outMime, outMime === 'image/jpeg' ? 0.93 : undefined)
+      );
+
+      let finalBlob = blob;
+
+      if (outMime === 'image/jpeg' && hasExif && exifObj) {
+        const dataURL = await blobToDataURL(blob);
+        const exifForInsert = JSON.parse(JSON.stringify(exifObj));
+        if (stripGpsCheck.checked) exifForInsert.GPS = {};
+        if (exifForInsert.thumbnail) delete exifForInsert.thumbnail;
+        if (exifForInsert['1st']) exifForInsert['1st'] = {};
+        const exifBytes = piexif.dump(exifForInsert);
+        const withExif = piexif.insert(exifBytes, dataURL);
+        finalBlob = dataURLtoBlob(withExif);
+      }
+
+      const filename = buildFilename(originalFile.name, ext);
+
+      let dl = null;
+      if (window.claude && typeof window.claude.use === 'function') {
+        try { dl = await window.claude.use('downloads'); } catch (e) { dl = null; }
+      }
+
+      if (dl) {
+        try {
+          await dl.save({ filename, data: finalBlob });
+          statusLine.textContent = 'Saved.';
+        } catch (err) {
+          if (err && err.code === 'declined') {
+            statusLine.textContent = 'Download cancelled.';
+          } else {
+            await fallbackDownload(finalBlob, filename);
+          }
+        }
+      } else {
+        await fallbackDownload(finalBlob, filename);
+      }
+    } catch (err) {
+      statusLine.textContent = 'Something went wrong preparing the file — please try again.';
+    } finally {
+      downloadBtn.disabled = false;
+    }
+  });
+})();
+</script>
+</body>
+</html>

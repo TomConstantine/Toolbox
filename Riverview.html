@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>360° Viewer — River Navigation</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- Leaflet CSS & JS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<!-- EXIF JS -->
+<script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
+<!-- Pannellum 360 Viewer CSS & JS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css"/>
+<script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
+
+<style>
+  :root {
+    --ink: #111417;
+    --stone: #181c20;
+    --stone-2: #20252a;
+    --forest-green: #0f766e;
+    --moss: #149a8b;
+    --water: #0f766e;
+    --highlight: #22d3ee;
+    --parchment: #e5e7eb;
+    --parchment-dim: #9ca3af;
+    --rule: #30363d;
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    width: 100%;
+    height: 100%;
+    min-height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: #000 !important;
+    font-family: Arial, Helvetica, sans-serif !important;
+    color: var(--parchment);
+  }
+
+  header {
+    position: fixed !important;
+    top: 0; left: 0; right: 0;
+    height: 0;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    z-index: 5000;
+    pointer-events: none;
+  }
+
+  .header-actions {
+    position: fixed !important;
+    top: 12px !important;
+    right: 12px !important;
+    margin: 0 !important;
+    z-index: 5001;
+    pointer-events: auto;
+    display: flex;
+    gap: 10px;
+  }
+
+  .upload-btn {
+    background: rgba(20, 24, 28, 0.92) !important;
+    border: 1px solid rgba(255,255,255,.25) !important;
+    color: #fff !important;
+    border-radius: 18px !important;
+    padding: 8px 14px !important;
+    font-size: 12px !important;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 10px rgba(0,0,0,.4) !important;
+    backdrop-filter: blur(6px);
+    transition: all 0.2s ease;
+  }
+
+  .upload-btn:hover {
+    background: rgba(35,40,45,.96) !important;
+    border-color: var(--highlight) !important;
+  }
+
+  #imageUpload { display: none; }
+
+  main {
+    position: fixed;
+    inset: 0;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 330px !important;
+    gap: 0 !important;
+    background: #000 !important;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  .viewer-panel {
+    position: relative;
+    padding: 0 !important;
+    background: #000 !important;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .viewer-box {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: #000 !important;
+  }
+
+  .panorama-frame {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  /* Responsive Top Bar */
+  .viewer-top-bar {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    right: 170px;
+    z-index: 1000;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    pointer-events: none;
+    flex-wrap: wrap;
+  }
+
+  .nav-controls-group {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    pointer-events: auto;
+    flex-wrap: wrap;
+  }
+
+  .image-info-overlay {
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 20px;
+    background: rgba(20, 24, 28, 0.88);
+    color: #ffffff;
+    font: 500 12px/1.2 Arial, Helvetica, sans-serif;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(6px);
+    white-space: nowrap;
+    max-width: 100%;
+  }
+
+  .image-info-overlay .info-sep { color: rgba(255, 255, 255, 0.4); }
+  .image-info-overlay #riverSnapBadge { color: var(--highlight); font-weight: 600; }
+  .image-info-overlay #imageDateBadge { color: #e5e7eb; }
+
+  .immersive-control {
+    min-height: 36px;
+    padding: 6px 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid rgba(255,255,255,.25);
+    border-radius: 20px;
+    background: rgba(20,24,28,.88);
+    color: #fff;
+    font: 12px Arial, Helvetica, sans-serif;
+    box-shadow: 0 2px 10px rgba(0,0,0,.35);
+    backdrop-filter: blur(6px);
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+
+  .immersive-control:hover:not(:disabled) {
+    background: rgba(45,52,58,.96);
+    border-color: var(--highlight);
+  }
+
+  .immersive-control:disabled {
+    opacity: 0.38;
+    cursor: not-allowed;
+  }
+
+  .north-glyph {
+    width: 18px; height: 18px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: #fff; color: #111; font-weight: 700; font-size: 10px;
+  }
+
+  .river-arrow { font-size: 13px; line-height: 1; font-weight: 700; }
+
+  .pnlm-controls-container .pnlm-zoom-controls,
+  .pnlm-zoom-controls { display: none !important; }
+
+  /* Map Panel */
+  .map-panel {
+    position: relative;
+    padding: 0 !important;
+    background: #181c20 !important;
+    border-left: 1px solid #30363d;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  #map {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    z-index: 1;
+  }
+
+  /* Map Direction Arrow & Node Marker */
+  .marker-node-wrap {
+    width: 32px;
+    height: 32px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .heading-arrow {
+    position: absolute;
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-bottom: 14px solid var(--highlight);
+    top: -5px;
+    transform-origin: 6px 21px;
+    display: none;
+    filter: drop-shadow(0px 0px 4px rgba(34, 211, 238, 0.9));
+  }
+
+  .custom-marker.type-360 {
+    width: 14px;
+    height: 14px;
+    border: 2px solid #fff;
+    background-color: var(--moss);
+    border-radius: 50%;
+    box-shadow: 0 0 6px rgba(0,0,0,0.5);
+    z-index: 2;
+  }
+
+  .marker-node-wrap.active .custom-marker {
+    background-color: var(--highlight);
+    transform: scale(1.25);
+  }
+
+  .marker-node-wrap.active .heading-arrow {
+    display: block;
+  }
+
+  /* Toasts */
+  #toastHost {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10001;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+    pointer-events: none;
+  }
+  .toast {
+    background: var(--stone);
+    border: 1px solid var(--moss);
+    color: var(--parchment);
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 12px;
+    padding: 8px 16px;
+    border-radius: 20px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+  }
+
+  @media (max-width: 900px) {
+    .viewer-top-bar { right: 12px; top: 50px; }
+    .header-actions { top: 10px !important; right: 12px !important; }
+    main {
+      grid-template-columns: 1fr !important;
+      grid-template-rows: minmax(0, 1fr) 220px !important;
+    }
+    .map-panel { border-left: 0; border-top: 1px solid #30363d; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-actions">
+    <label for="imageUpload" class="upload-btn">Upload 360° Images</label>
+    <input type="file" id="imageUpload" accept="image/jpeg, image/png" multiple>
+  </div>
+</header>
+
+<main>
+  <section class="viewer-panel">
+    <div class="viewer-box" id="box-primary">
+      
+      <!-- Integrated Top Navigation Bar -->
+      <div class="viewer-top-bar">
+        <div class="nav-controls-group">
+          <button type="button" class="immersive-control" onclick="setManualNorth()" title="Set Current View as North">
+            <span class="north-glyph">N</span><span>Set North</span>
+          </button>
+          <button type="button" id="riverNavUpstream" class="immersive-control" onclick="navigateRiver('upstream')" title="Navigate Upstream along River" disabled>
+            <span class="river-arrow">▲</span><span>Upstream</span>
+          </button>
+          <button type="button" id="riverNavDownstream" class="immersive-control" onclick="navigateRiver('downstream')" title="Navigate Downstream along River" disabled>
+            <span>Downstream</span><span class="river-arrow">▼</span>
+          </button>
+        </div>
+
+        <div class="image-info-overlay" id="imageInfoOverlay">
+          <span id="riverSnapBadge">Loading River Data...</span>
+          <span class="info-sep">•</span>
+          <span id="imageDateBadge">No Image Selected</span>
+        </div>
+      </div>
+
+      <div id="panorama-primary" class="panorama-frame"></div>
+    </div>
+  </section>
+
+  <section class="map-panel">
+    <div id="map"></div>
+  </section>
+</main>
+
+<div id="toastHost"></div>
+
+<script>
+  const DEFAULT_LAT = 52.415300;
+  const DEFAULT_LON = -4.082900;
+
+  let nodes = [];
+  let selectedNodeId = null;
+  let pViewerPrimary = null;
+
+  // Leaflet Map Setup
+  let map = L.map('map').setView([DEFAULT_LAT, DEFAULT_LON], 11);
+
+  const esriStreet = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Esri' }).addTo(map);
+  const esriImagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Esri Satellite' });
+
+  L.control.layers({ "Street Map": esriStreet, "Satellite": esriImagery }).addTo(map);
+
+  // Natural Resources Wales Main Rivers Data
+  const MAIN_RIVERS_WFS_URL = 'https://datamap.gov.wales/geoserver/ows?outputFormat=json&request=GetFeature&service=WFS&srsName=EPSG%3A4326&typename=inspire-nrw%3ANRW_MAIN_RIVERS&version=1.0.0';
+  let mainRiversGeoJSON = null;
+  let mainRiversLoadPromise = null;
+
+  function riverName(feature) {
+    const p = (feature && feature.properties) || {};
+    return p.WCRS_NAME || p.ALT_NAME || 'Main River';
+  }
+
+  async function loadMainRivers() {
+    if (mainRiversGeoJSON) return mainRiversGeoJSON;
+    if (mainRiversLoadPromise) return mainRiversLoadPromise;
+
+    mainRiversLoadPromise = fetch(MAIN_RIVERS_WFS_URL, { credentials: 'omit' })
+      .then(r => r.json())
+      .then(data => {
+        if (!data || !Array.isArray(data.features)) throw new Error('Invalid GeoJSON');
+        mainRiversGeoJSON = data;
+        L.geoJSON(data, {
+          style: { color: '#008d96', weight: 3, opacity: 0.8 },
+          onEachFeature: (feature, layer) => {
+            layer.bindTooltip(riverName(feature), { sticky: true });
+          }
+        }).addTo(map);
+        return data;
+      })
+      .catch(err => {
+        console.warn('Main Rivers layer could not be loaded:', err);
+        showToast('River network layer offline.');
+        return null;
+      });
+
+    return mainRiversLoadPromise;
+  }
+
+  loadMainRivers();
+
+  /* Helper: Compute geographic bearing between two Lat/Lon points */
+  function calculateBearing(lat1, lon1, lat2, lon2) {
+    const toRad = Math.PI / 180;
+    const toDeg = 180 / Math.PI;
+    const dLon = (lon2 - lon1) * toRad;
+    const y = Math.sin(dLon) * Math.cos(lat2 * toRad);
+    const x = Math.cos(lat1 * toRad) * Math.sin(lat2 * toRad) -
+              Math.sin(lat1 * toRad) * Math.cos(lat2 * toRad) * Math.cos(dLon);
+    let brng = Math.atan2(y, x) * toDeg;
+    return (brng + 360) % 360;
+  }
+
+  function projectLocal(lon, lat, lat0) {
+    const R = 6371008.8;
+    const k = Math.PI / 180;
+    return { x: (lon * k) * R * Math.cos(lat0 * k), y: (lat * k) * R };
+  }
+
+  function nearestPointOnMainRivers(lat, lon) {
+    if (!mainRiversGeoJSON || !Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+    const p = projectLocal(lon, lat, lat);
+    let best = null;
+
+    function testLine(coords, feature) {
+      let cumulative = 0;
+      for (let i = 1; i < coords.length; i++) {
+        const a = coords[i - 1], b = coords[i];
+        if (!a || !b) continue;
+        const pa = projectLocal(Number(a[0]), Number(a[1]), lat);
+        const pb = projectLocal(Number(b[0]), Number(b[1]), lat);
+        const dx = pb.x - pa.x, dy = pb.y - pa.y;
+        const len2 = dx * dx + dy * dy;
+        let t = len2 ? ((p.x - pa.x) * dx + (p.y - pa.y) * dy) / len2 : 0;
+        t = Math.max(0, Math.min(1, t));
+
+        const x = pa.x + t * dx;
+        const y = pa.y + t * dy;
+        const d2 = (p.x - x) * (p.x - x) + (p.y - y) * (p.y - y);
+
+        if (!best || d2 < best.d2) {
+          best = {
+            lat: Number(a[1]) + (Number(b[1]) - Number(a[1])) * t,
+            lon: Number(a[0]) + (Number(b[0]) - Number(a[0])) * t,
+            d2,
+            name: riverName(feature),
+            alongM: cumulative + Math.sqrt(len2) * t
+          };
+        }
+        cumulative += Math.sqrt(len2);
+      }
+    }
+
+    for (const feature of mainRiversGeoJSON.features) {
+      const g = feature && feature.geometry;
+      if (!g) continue;
+      if (g.type === 'LineString') testLine(g.coordinates, feature);
+      else if (g.type === 'MultiLineString') g.coordinates.forEach(c => testLine(c, feature));
+    }
+
+    return best ? { ...best, distanceM: Math.sqrt(best.d2) } : null;
+  }
+
+  async function snapNodeToNearestMainRiver(node) {
+    if (!node || !node.hasGps) return;
+    await loadMainRivers();
+    const hit = nearestPointOnMainRivers(node.lat, node.lon);
+    if (!hit) return;
+
+    node.snappedToMainRiver = true;
+    node.mainRiverName = hit.name;
+    node.mainRiverAlongM = hit.alongM;
+    node.lat = hit.lat;
+    node.lon = hit.lon;
+
+    if (node.marker) node.marker.setLatLng([hit.lat, hit.lon]);
+    if (node.id === selectedNodeId) updateHUD(node);
+    updateRiverNavigationUI();
+  }
+
+  /* File Upload & EXIF Metadata Parsing */
+  document.getElementById('imageUpload').addEventListener('change', async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+
+    showToast(`Processing ${files.length} image(s)...`);
+
+    for (const file of files) {
+      const url = URL.createObjectURL(file);
+      const node = {
+        id: 'node_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+        title: file.name,
+        src: url,
+        lat: DEFAULT_LAT,
+        lon: DEFAULT_LON,
+        hasGps: false,
+        northOffset: 0,
+        date: new Date().toLocaleDateString('en-GB')
+      };
+
+      EXIF.getData(file, function() {
+        const lat = EXIF.getTag(this, 'GPSLatitude');
+        const lon = EXIF.getTag(this, 'GPSLongitude');
+        const latRef = EXIF.getTag(this, 'GPSLatitudeRef');
+        const lonRef = EXIF.getTag(this, 'GPSLongitudeRef');
+        const dateTime = EXIF.getTag(this, 'DateTimeOriginal');
+
+        if (lat && lon) {
+          let decLat = lat[0] + lat[1]/60 + lat[2]/3600;
+          let decLon = lon[0] + lon[1]/60 + lon[2]/3600;
+          if (latRef === 'S') decLat = -decLat;
+          if (lonRef === 'W') decLon = -decLon;
+          node.lat = decLat;
+          node.lon = decLon;
+          node.hasGps = true;
+        }
+
+        if (dateTime) {
+          node.date = dateTime.split(' ')[0].replace(/:/g, '-');
+        }
+
+        addNode(node);
+      });
+    }
+  });
+
+  function addNode(node) {
+    nodes.push(node);
+    
+    const icon = L.divIcon({
+      className: 'marker-wrap-outer',
+      html: `
+        <div class="marker-node-wrap ${node.id === selectedNodeId ? 'active' : ''}" id="wrap-${node.id}">
+          <div class="heading-arrow" id="arrow-${node.id}"></div>
+          <div class="custom-marker type-360"></div>
+        </div>
+      `,
+      iconSize: [32, 32],
+      iconAnchor: [16, 16]
+    });
+
+    node.marker = L.marker([node.lat, node.lon], { icon }).addTo(map);
+    node.marker.on('click', () => selectNode(node.id));
+
+    snapNodeToNearestMainRiver(node);
+    if (!selectedNodeId) selectNode(node.id);
+  }
+
+  function selectNode(id, initialYaw = null) {
+    selectedNodeId = id;
+    const node = nodes.find(n => n.id === id);
+    if (!node) return;
+
+    nodes.forEach(n => {
+      const wrapEl = document.getElementById(`wrap-${n.id}`);
+      if (wrapEl) {
+        wrapEl.classList.toggle('active', n.id === id);
+      }
+    });
+
+    map.panTo([node.lat, node.lon]);
+    renderPanorama(node, initialYaw);
+    updateHUD(node);
+    updateRiverNavigationUI();
+  }
+
+  /* Panorama Rendering & Viewport Interaction */
+  function renderPanorama(node, initialYaw = null) {
+    const container = document.getElementById('panorama-primary');
+    
+    if (pViewerPrimary) {
+      try { pViewerPrimary.destroy(); } catch (e) {}
+      pViewerPrimary = null;
+    }
+
+    container.innerHTML = '';
+
+    // Default yaw is 0 if not supplied by river navigation direction
+    let targetYaw = initialYaw !== null ? initialYaw : 0;
+
+    // Standardize Pannellum Yaw bounds (-180 to 180)
+    targetYaw = targetYaw % 360;
+    if (targetYaw > 180) targetYaw -= 360;
+    if (targetYaw < -180) targetYaw += 360;
+
+    pViewerPrimary = pannellum.viewer('panorama-primary', {
+      type: 'equirectangular',
+      panorama: node.src,
+      autoLoad: true,
+      showControls: false,
+      compass: false,
+      yaw: targetYaw
+    });
+
+    pViewerPrimary.on('load', () => {
+      pViewerPrimary.resize();
+      updateMapHeading();
+    });
+
+    setTimeout(() => { if (pViewerPrimary) pViewerPrimary.resize(); }, 200);
+  }
+
+  /* Updates the Small Arrow Direction on the Map */
+  function updateMapHeading() {
+    const node = nodes.find(n => n.id === selectedNodeId);
+    if (!node || !pViewerPrimary) return;
+
+    const currentYaw = pViewerPrimary.getYaw();
+    const heading = (currentYaw + (node.northOffset || 0)) % 360;
+
+    const arrowEl = document.getElementById(`arrow-${node.id}`);
+    if (arrowEl) {
+      arrowEl.style.transform = `rotate(${heading}deg)`;
+    }
+  }
+
+  const panContainer = document.getElementById('panorama-primary');
+  ['mousemove', 'touchmove', 'mouseup', 'touchend', 'wheel'].forEach(evt => {
+    panContainer.addEventListener(evt, () => {
+      requestAnimationFrame(updateMapHeading);
+    });
+  });
+
+  /* Calibrate Current View as North */
+  function setManualNorth() {
+    const node = nodes.find(n => n.id === selectedNodeId);
+    if (!node || !pViewerPrimary) return;
+
+    const currentYaw = pViewerPrimary.getYaw();
+    node.northOffset = -currentYaw;
+
+    updateMapHeading();
+    showToast("Current view calibrated as North!");
+  }
+
+  /* Upstream / Downstream Navigation with Travel Bearing Orientation */
+  function updateRiverNavigationUI() {
+    const current = nodes.find(n => n.id === selectedNodeId);
+    const btnUp = document.getElementById('riverNavUpstream');
+    const btnDown = document.getElementById('riverNavDownstream');
+
+    if (!current || !current.snappedToMainRiver || !current.mainRiverName) {
+      btnUp.disabled = true;
+      btnDown.disabled = true;
+      return;
+    }
+
+    const riverNodes = nodes
+      .filter(n => n.snappedToMainRiver && n.mainRiverName === current.mainRiverName)
+      .sort((a, b) => (a.mainRiverAlongM || 0) - (b.mainRiverAlongM || 0));
+
+    const currIdx = riverNodes.findIndex(n => n.id === current.id);
+
+    btnUp.disabled = (currIdx <= 0);
+    btnDown.disabled = (currIdx < 0 || currIdx >= riverNodes.length - 1);
+  }
+
+  function navigateRiver(dir) {
+    const current = nodes.find(n => n.id === selectedNodeId);
+    if (!current || !current.mainRiverName) return;
+
+    const riverNodes = nodes
+      .filter(n => n.snappedToMainRiver && n.mainRiverName === current.mainRiverName)
+      .sort((a, b) => (a.mainRiverAlongM || 0) - (b.mainRiverAlongM || 0));
+
+    const currIdx = riverNodes.findIndex(n => n.id === current.id);
+    if (currIdx === -1) return;
+
+    const targetIdx = dir === 'upstream' ? currIdx - 1 : currIdx + 1;
+    if (targetIdx >= 0 && targetIdx < riverNodes.length) {
+      const targetNode = riverNodes[targetIdx];
+
+      // Calculate travel bearing direction from current to target image
+      const travelBearing = calculateBearing(current.lat, current.lon, targetNode.lat, targetNode.lon);
+
+      // Convert travel bearing into Pannellum relative yaw using target image's northOffset
+      const travelYaw = travelBearing - (targetNode.northOffset || 0);
+
+      selectNode(targetNode.id, travelYaw);
+    }
+  }
+
+  /* HUD Overlay Updates */
+  function updateHUD(node) {
+    const riverBadge = document.getElementById('riverSnapBadge');
+    const dateBadge = document.getElementById('imageDateBadge');
+
+    if (node.snappedToMainRiver && node.mainRiverName) {
+      riverBadge.textContent = `River ${node.mainRiverName}`;
+    } else if (node.hasGps) {
+      riverBadge.textContent = "Off River Network";
+    } else {
+      riverBadge.textContent = "No GPS Location";
+    }
+
+    dateBadge.textContent = node.date || 'Unknown Date';
+  }
+
+  function showToast(msg) {
+    const host = document.getElementById('toastHost');
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.textContent = msg;
+    host.appendChild(t);
+    setTimeout(() => t.remove(), 2500);
+  }
+
+  window.addEventListener('resize', () => {
+    if (pViewerPrimary) pViewerPrimary.resize();
+    map.invalidateSize();
+  });
+</script>
+</body>
+</html>
+

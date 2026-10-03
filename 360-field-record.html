@@ -10,6 +10,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <!-- EXIF JS -->
 <script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exifr@7.1.3/dist/full.umd.js"></script>
 <!-- Pannellum 360 Viewer CSS & JS -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css"/>
 <script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
@@ -995,6 +996,120 @@ main{background:var(--rule);}
 .map-node-tooltip{background:rgba(24,28,32,.97);border-color:var(--rule);font-family:Arial,Helvetica,sans-serif;}
 footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--ink);}
 
+
+/* ---------- Metadata Editor / Export UI ---------- */
+.metadata-editor-modal{
+  width:min(1040px,94vw);
+  padding:0;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  max-height:92vh;
+}
+.metadata-editor-head{
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:18px 24px 14px;border-bottom:1px solid var(--rule);flex:0 0 auto;
+}
+.metadata-editor-head h3{margin:0;font-size:21px;}
+.metadata-editor-body{
+  padding:18px 24px 20px;overflow-y:auto;overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;flex:1 1 auto;min-height:0;
+  scrollbar-width:thin;scrollbar-color:#4b5563 transparent;
+}
+.metadata-editor-body::-webkit-scrollbar{width:9px;}
+.metadata-editor-body::-webkit-scrollbar-track{background:transparent;}
+.metadata-editor-body::-webkit-scrollbar-thumb{background:#4b5563;border-radius:8px;border:2px solid var(--stone);}
+.metadata-editor-current{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  background:#1d2227;border:1px solid var(--rule);border-radius:5px;
+  padding:8px 10px;margin-bottom:14px;
+}
+.metadata-editor-current-label{font-size:10px;color:var(--parchment-dim);}
+.metadata-editor-current strong{font-size:12.5px;color:#fff;word-break:break-all;}
+.metadata-editor-status{margin-left:auto;font-size:10px;padding:3px 8px;border-radius:12px;background:#263039;color:#cbd5e1;}
+.metadata-editor-status.changed{background:#24392f;color:#7ee2c5;border:1px solid #315f51;}
+.metadata-editor-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(240px,.75fr);gap:18px;}
+.metadata-editor-location-head{
+  display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin:2px 0 6px;
+}
+.metadata-editor-location-head label{font:600 11px Arial,Helvetica,sans-serif;color:#d1d5db;}
+.metadata-editor-map{
+  width:100%;height:280px;border:1px solid var(--rule);border-radius:5px;
+  overflow:hidden;margin-bottom:10px;background:#0b0e10;
+}
+.metadata-editor-map .leaflet-control-zoom a{background:#1b2025;color:#d1d5db;border-color:#3b424a;}
+.metadata-editor-map .leaflet-control-attribution{background:rgba(17,20,23,.78);color:#9ca3af;}
+.metadata-editor-location-status{
+  background:#1c2227;border:1px dashed #3b424a;border-radius:4px;
+  padding:7px 9px;color:#9ca3af;font-size:10.5px;margin:0 0 13px;
+}
+.metadata-editor-side{background:#1b2025;border:1px solid var(--rule);border-radius:5px;padding:13px;align-self:start;}
+.metadata-editor-head-label,.export-section-label{font:600 11px Arial,Helvetica,sans-serif;color:#d1d5db;}
+.metadata-editor-summary{display:flex;flex-direction:column;gap:8px;margin-top:9px;}
+.metadata-editor-summary-row{
+  display:flex;justify-content:space-between;gap:10px;padding-bottom:7px;
+  border-bottom:1px solid #2b3238;font-size:11px;
+}
+.metadata-editor-summary-row:last-child{border-bottom:none;padding-bottom:0;}
+.metadata-editor-summary-row span{color:var(--parchment-dim);}
+.metadata-editor-summary-row strong{color:#fff;text-align:right;word-break:break-word;}
+.metadata-editor-actions{
+  display:flex;justify-content:flex-end;gap:10px;padding:12px 24px 18px;
+  border-top:1px solid var(--rule);flex:0 0 auto;
+}
+.export-modal{
+  width:min(820px,94vw);padding:0;overflow:hidden;display:flex;flex-direction:column;max-height:92vh;
+}
+.export-modal-head{
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:18px 24px 14px;border-bottom:1px solid var(--rule);flex:0 0 auto;
+}
+.export-modal-head h3{margin:0;font-size:21px;}
+.export-modal-body{
+  padding:18px 24px 20px;overflow-y:auto;overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;min-height:0;flex:1 1 auto;
+  scrollbar-width:thin;scrollbar-color:#4b5563 transparent;
+}
+.export-modal-body::-webkit-scrollbar{width:9px;}
+.export-modal-body::-webkit-scrollbar-track{background:transparent;}
+.export-modal-body::-webkit-scrollbar-thumb{background:#4b5563;border-radius:8px;border:2px solid var(--stone);}
+.export-section{
+  border:1px solid var(--rule);background:#1b2025;border-radius:5px;padding:14px;margin-bottom:14px;
+}
+.export-section:last-child{margin-bottom:0;}
+.export-section-head{display:flex;justify-content:space-between;align-items:flex-start;gap:15px;margin-bottom:10px;}
+.export-section-title{font-size:13px;font-weight:600;color:#fff;}
+.export-count{font-size:11px;color:#fff;margin-top:3px;}
+.export-image-list{
+  max-height:240px;overflow:auto;border:1px solid var(--rule);border-radius:5px;background:#161a1e;
+  scrollbar-width:thin;scrollbar-color:#4b5563 transparent;
+}
+.export-image-list::-webkit-scrollbar{width:8px;}
+.export-image-list::-webkit-scrollbar-thumb{background:#4b5563;border-radius:8px;}
+.export-image-row{
+  display:grid;grid-template-columns:minmax(0,1fr) 70px 105px;gap:10px;align-items:center;
+  padding:8px 10px;border-bottom:1px solid #2a3036;
+}
+.export-image-row:last-child{border-bottom:none;}
+.export-image-row .name{font-size:11px;color:#e5e7eb;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.export-image-row .type,.export-image-row .state{font-size:10px;color:#9ca3af;}
+.export-image-row .state.changed{color:#7ee2c5;}
+.export-image-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;}
+.export-action-card{display:flex;flex-direction:column;gap:7px;padding:11px;background:#20252a;border:1px solid #30373d;border-radius:5px;}
+.export-action-card strong{font-size:12px;color:#fff;}
+.export-status{font-size:10.5px;color:#9ca3af;margin-top:10px;}
+.export-html-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:14px;}
+.export-modal-foot{display:flex;justify-content:flex-end;gap:10px;align-items:center;padding:12px 24px 18px;border-top:1px solid var(--rule);flex:0 0 auto;}
+@media(max-width:760px){
+  .metadata-editor-modal,.export-modal{max-height:94vh;}
+  .metadata-editor-head,.export-modal-head{padding:15px 16px 12px;}
+  .metadata-editor-body,.export-modal-body{padding:15px 16px 18px;}
+  .metadata-editor-grid{grid-template-columns:1fr;}
+  .metadata-editor-map{height:220px;}
+  .metadata-editor-actions,.export-modal-foot{padding-left:16px;padding-right:16px;}
+  .export-image-actions{grid-template-columns:1fr;}
+  .export-image-row{grid-template-columns:minmax(0,1fr) 58px 82px;}
+}
 </style>
 </head>
 <body>
@@ -1003,9 +1118,9 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
   <h1 id="main-title">360° Field Record</h1>
   
   <div class="header-actions">
-    <button id="saveBtn" class="upload-btn secondary">Save All Images to File</button>
+    <button id="exportBtn" class="upload-btn secondary">Export</button>
     <label for="imageUpload" class="upload-btn">Upload Images</label>
-    <input type="file" id="imageUpload" accept="image/jpeg, image/png" multiple>
+    <input type="file" id="imageUpload" accept="image/jpeg, image/jpg, image/heic, image/heif, image/png, .jpg, .jpeg, .heic, .heif, .png" multiple>
   </div>
 
   <div class="meta-strip">
@@ -1212,37 +1327,77 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
   </div>
 </div>
 
-<!-- Download HTML Configuration Modal -->
+<!-- Export -->
 <div id="exportConfigModal" class="modal-overlay" style="display:none;">
-  <div class="modal-content">
-    <h3>Save Field Record HTML</h3>
-    <div class="modal-desc">Adjust output filename, scale image resolution dynamically, and toggle annotations before generating the standalone HTML file.</div>
-    
-    <div class="form-group">
-      <label for="exportFilename">Output Filename</label>
-      <input type="text" id="exportFilename" value="Field_Record_360.html">
+  <div class="modal-content export-modal">
+    <div class="export-modal-head">
+      <h3>Export</h3>
+      <button id="closeExportModalBtn" class="note-mini-btn" title="Close" style="font-size:18px;padding:4px 7px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
     </div>
 
-    <div class="form-group">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <label for="exportScaleSlider">Image Scale Percentage</label>
-        <span id="scaleValLabel" style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--moss); font-weight:600;">100%</span>
-      </div>
-      <input type="range" id="exportScaleSlider" min="15" max="100" step="5" value="100" oninput="updateExportEstimateUI()">
+    <div class="export-modal-body">
+      <section class="export-section">
+        <div class="export-section-head">
+          <div>
+            <div class="export-section-title">Corrected image metadata</div>
+            <div class="export-count" id="correctedExportCount">0 images loaded</div>
+          </div>
+          <button type="button" id="refreshCorrectedExportBtn" class="anno-action-btn">Refresh</button>
+        </div>
+
+        <div class="export-image-list" id="correctedExportList"></div>
+
+        <div class="export-image-actions">
+          <div class="export-action-card">
+            <strong>Selected image</strong>
+            <button id="exportCorrectedCurrentBtn" class="upload-btn" style="width:100%;">Export corrected copy</button>
+          </div>
+          <div class="export-action-card">
+            <strong>All images</strong>
+            <button id="exportCorrectedAllBtn" class="upload-btn secondary" style="width:100%;">Export all as ZIP</button>
+          </div>
+        </div>
+
+        <div class="export-status" id="correctedExportProgress">Ready.</div>
+      </section>
+
+      <section class="export-section">
+        <div class="export-section-title">Field record HTML</div>
+
+        <div class="form-group" style="margin-top:12px;">
+          <label for="exportFilename">Output Filename</label>
+          <input type="text" id="exportFilename" value="Field_Record_360.html">
+        </div>
+
+        <div class="form-group">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <label for="exportScaleSlider">Image Scale Percentage</label>
+            <span id="scaleValLabel" style="font-family:Arial,Helvetica,sans-serif; font-size:11px; color:var(--moss); font-weight:600;">100%</span>
+          </div>
+          <input type="range" id="exportScaleSlider" min="15" max="100" step="5" value="100" oninput="updateExportEstimateUI()">
+        </div>
+
+        <div class="checkbox-group">
+          <input type="checkbox" id="exportKeepAnnotations" checked>
+          <label for="exportKeepAnnotations">Retain annotations</label>
+        </div>
+
+        <div style="margin-top:12px; padding:9px 10px; background:#20252a; border:1px solid var(--rule); border-radius:5px; font-size:11px; color:var(--parchment-dim);">
+          Estimated size: <b id="estSizeText" style="color:var(--moss);">Calculating...</b>
+        </div>
+
+        <div class="export-html-actions">
+          <button id="cancelExportConfigBtn" class="upload-btn secondary">Cancel</button>
+          <button id="confirmExportConfigBtn" class="upload-btn">Generate HTML</button>
+        </div>
+      </section>
     </div>
 
-    <div class="checkbox-group">
-      <input type="checkbox" id="exportKeepAnnotations" checked>
-      <label for="exportKeepAnnotations">Retain annotations on exported file</label>
-    </div>
-
-    <div style="margin-top: 15px; padding: 10px; background: rgba(0,0,0,0.25); border: 1px solid var(--rule); border-radius: 6px; font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--parchment-dim);">
-      Estimated Export File Size: <b id="estSizeText" style="color:var(--moss);">Calculating...</b>
-    </div>
-
-    <div class="modal-actions">
-      <button id="cancelExportConfigBtn" class="upload-btn secondary">Cancel</button>
-      <button id="confirmExportConfigBtn" class="upload-btn">Generate & Save HTML</button>
+    <div class="export-modal-foot">
+      <span class="export-section-sub" id="exportModalHint">Original image files are unchanged.</span>
+      <button id="closeExportModalBtn2" class="upload-btn secondary">Close</button>
     </div>
   </div>
 </div>
@@ -1418,51 +1573,96 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
   </div>
 </div>
 
-<!-- Edit Metadata & Location Modal -->
+<!-- Metadata Editor -->
 <div id="editModal" class="modal-overlay" style="display:none;">
-  <div class="modal-content">
-    <h3>Edit Node Metadata</h3>
-    <div class="form-group">
-      <label for="editTitle">Node Title / Name</label>
-      <input type="text" id="editTitle">
+  <div class="modal-content metadata-editor-modal">
+    <div class="metadata-editor-head">
+      <h3>Edit Metadata &amp; Location</h3>
+      <button id="editorCloseBtn" class="note-mini-btn" title="Close" style="font-size:18px;padding:4px 7px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
     </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label for="editDate">Captured Date</label>
-        <input type="text" id="editDate">
+
+    <div class="metadata-editor-body">
+      <div class="metadata-editor-current">
+        <span class="metadata-editor-current-label">Current image</span>
+        <strong id="editorFileName">No image selected</strong>
+        <span id="editorFileStatus" class="metadata-editor-status">No changes</span>
       </div>
-      <div class="form-group">
-        <label for="editDevice">Camera Device</label>
-        <input type="text" id="editDevice">
+
+      <div class="metadata-editor-grid">
+        <div>
+          <div class="form-group">
+            <label for="editTitle">Name</label>
+            <input type="text" id="editTitle">
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="editDateTime">Capture date &amp; time</label>
+              <input type="datetime-local" step="1" id="editDateTime">
+              <div class="editor-inline-actions">
+                <button type="button" id="dateFromFilenameBtn" class="anno-action-btn" title="Read the date/time out of the image file name (e.g. IMG_20261002_135148.jpg)">Deduce from file name</button>
+              </div>
+              <div class="modal-hint" id="dateFromFilenameHint" style="font-size:10px;margin-top:4px;"></div>
+            </div>
+            <div class="form-group">
+              <label for="editDevice">Camera / drone</label>
+              <input type="text" id="editDevice">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="editHeading">Heading (° True North)</label>
+              <input type="number" step="0.1" min="0" max="359.9" id="editHeading" placeholder="0–359.9">
+              <div class="editor-inline-actions">
+                <button type="button" id="setHeadingFromViewportBtn" class="anno-action-btn">Use current 360° view</button>
+                <button type="button" id="clearHeadingBtn" class="anno-action-btn">Clear</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="editPitch">Pitch (°)</label>
+              <input type="number" step="0.1" min="-90" max="90" id="editPitch" placeholder="-90 to +90">
+            </div>
+          </div>
+
+          <div class="metadata-editor-location-head">
+            <label>Image location</label>
+            <button type="button" id="useCurrentMapLocationBtn" class="anno-action-btn">Use map centre</button>
+          </div>
+
+          <div id="editMap" class="metadata-editor-map"></div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="editLat">Latitude</label>
+              <input type="number" step="any" id="editLat">
+            </div>
+            <div class="form-group">
+              <label for="editLon">Longitude</label>
+              <input type="number" step="any" id="editLon">
+            </div>
+          </div>
+
+          <div class="metadata-editor-location-status" id="editorLocationStatus">Location source: Existing image GPS</div>
+
+          <div class="form-group" style="margin-top:4px;">
+            <label for="editSurveyDate">Survey date grouping</label>
+            <input type="date" id="editSurveyDate">
+          </div>
+        </div>
+
+        <div class="metadata-editor-side">
+          <div class="metadata-editor-head-label">Current values</div>
+          <div id="editorSummary" class="metadata-editor-summary"></div>
+        </div>
       </div>
     </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label for="editLat">Latitude</label>
-        <input type="number" step="any" id="editLat">
-      </div>
-      <div class="form-group">
-        <label for="editLon">Longitude</label>
-        <input type="number" step="any" id="editLon">
-      </div>
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label for="editHeading">Heading (° True North)</label>
-        <input type="number" step="any" min="0" max="359" id="editHeading" placeholder="e.g. 180">
-      </div>
-      <div class="form-group">
-        <label for="editPitch">Pitch (° -90 to +90)</label>
-        <input type="number" step="any" min="-90" max="90" id="editPitch" placeholder="e.g. -90">
-      </div>
-    </div>
-    <div class="form-group">
-      <label for="editSurveyDate">Survey Date</label>
-      <input type="date" id="editSurveyDate" style="background:var(--stone-2); border:1px solid var(--rule); color:var(--parchment); padding:9px 12px; border-radius:6px; font-family:'Inter',sans-serif; font-size:13.5px; outline:none;">
-    </div>
-    <div class="modal-actions">
-      <button id="cancelEditBtn" class="upload-btn secondary">Cancel</button>
-      <button id="saveEditBtn" class="upload-btn">Save Changes</button>
+
+    <div class="metadata-editor-actions">
+      <button id="cancelEditBtn" class="upload-btn secondary">Close</button>
+      <button id="saveEditBtn" class="upload-btn">Apply Changes</button>
     </div>
   </div>
 </div>
@@ -1527,6 +1727,17 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
   // Hotspot ids currently injected into each pannellum viewer
   const renderedHotspotIds = { 'primary': [], 'compare-left': [], 'compare-right': [] };
 
+  // Editor Mode state. Image edits are held in the node model only; source bytes
+  // remain untouched until a corrected export copy is created.
+  let editorMap = null;
+  let editorMarker = null;
+  let editorMapBaseLayer = null;
+  let editorOpenTab = 'metadata';
+  let editorCurrentNodeId = null;
+  let editorApplying = false;
+  let heicDecoderPromise = null;
+
+
   // Pannellum 2.5.6 does not document a continuous viewer `render` event.
   // Keep the map arrow synced with the actual viewport using a lightweight
   // timer so saved/exported HTML behaves identically to the live file.
@@ -1574,6 +1785,155 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
     setTimeout(() => el.remove(), ms);
   }
 
+
+  function isHeicFile(fileOrNode) {
+    if (!fileOrNode) return false;
+    const name = String(fileOrNode.name || fileOrNode.originalName || fileOrNode.sourceFileName || '').toLowerCase();
+    const type = String(fileOrNode.type || fileOrNode.mime || fileOrNode.sourceMimeType || '').toLowerCase();
+    return type.includes('image/heic') || type.includes('image/heif') || /\.hei[cf]$/.test(name);
+  }
+
+  function looksLikeJpeg(fileOrNode) {
+    if (!fileOrNode) return false;
+    const name = String(fileOrNode.name || fileOrNode.originalName || fileOrNode.sourceFileName || '').toLowerCase();
+    const type = String(fileOrNode.type || fileOrNode.mime || fileOrNode.sourceMimeType || '').toLowerCase();
+    return type === 'image/jpeg' || /\.jpe?g$/.test(name);
+  }
+
+  function safeFilename(name, fallback='image') {
+    return String(name || fallback)
+      .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_')
+      .replace(/\s+/g, ' ')
+      .replace(/^\.|\.$/g, '')
+      .trim() || fallback;
+  }
+
+  function stripExtension(name) {
+    return String(name || '').replace(/\.[^/.]+$/, '');
+  }
+
+  function inferMimeFromName(name) {
+    const n = String(name || '').toLowerCase();
+    if (n.endsWith('.heic')) return 'image/heic';
+    if (n.endsWith('.heif')) return 'image/heif';
+    if (n.endsWith('.png')) return 'image/png';
+    return 'image/jpeg';
+  }
+
+  function exifDateToLocalInput(raw) {
+    const s = String(raw || '').trim();
+    const m = s.match(/^(\d{4})[:\-](\d{2})[:\-](\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+    if (!m) return '';
+    return `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6] || '00'}`;
+  }
+
+  function localInputToExifDate(value) {
+    const s = String(value || '').trim();
+    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/);
+    if (!m) return '';
+    return `${m[1]}:${m[2]}:${m[3]} ${m[4]}:${m[5]}:${m[6] || '00'}`;
+  }
+
+  function dataUrlToBytes(dataUrl) {
+    const str = String(dataUrl || '');
+    const comma = str.indexOf(',');
+    if (!str.startsWith('data:') || comma < 0) throw new Error('Invalid image data.');
+    const body = str.slice(comma + 1);
+    if (!/;base64$/i.test(str.slice(0, comma))) return new TextEncoder().encode(decodeURIComponent(body));
+    const CH = 1 << 20; // multiple of 4 so each slice is valid base64
+    const parts = []; let total = 0;
+    for (let i = 0; i < body.length; i += CH) {
+      const bin = atob(body.slice(i, i + CH));
+      const u = new Uint8Array(bin.length);
+      for (let j = 0; j < bin.length; j++) u[j] = bin.charCodeAt(j);
+      parts.push(u); total += u.length;
+    }
+    const out = new Uint8Array(total); let o = 0;
+    parts.forEach(p => { out.set(p, o); o += p.length; });
+    return out;
+  }
+
+  function dataUrlToBlob(dataUrl) {
+    const str = String(dataUrl || '');
+    const m = /^data:([^;,]*)/.exec(str);
+    return new Blob([dataUrlToBytes(str)], { type: (m && m[1]) || 'application/octet-stream' });
+  }
+
+  async function nodeToSourceFile(node) {
+    if (!node) throw new Error('No image selected.');
+    if (node.sourceFile instanceof File) return node.sourceFile;
+
+    const src = node.sourceDataUrl || node.url;
+    if (!src) throw new Error('The original image bytes are not available in this project.');
+    const blob = dataUrlToBlob(src);
+    const name = node.sourceFileName || node.originalName || (safeFilename(node.title || 'image') + (node.is360 ? '.jpg' : '.jpg'));
+    return new File([blob], name, {
+      type: node.sourceMimeType || blob.type || inferMimeFromName(name),
+      lastModified: Date.now()
+    });
+  }
+
+  function loadScriptOnce(src, globalName) {
+    return new Promise((resolve, reject) => {
+      if (globalName && window[globalName]) return resolve(window[globalName]);
+      const existing = document.querySelector(`script[data-dynamic-lib="${CSS.escape(src)}"]`);
+      if (existing) {
+        existing.addEventListener('load', () => resolve(globalName ? window[globalName] : true), { once:true });
+        existing.addEventListener('error', reject, { once:true });
+        return;
+      }
+      const s = document.createElement('script');
+      s.src = src;
+      s.async = true;
+      s.dataset.dynamicLib = src;
+      s.onload = () => globalName ? (window[globalName] ? resolve(window[globalName]) : reject(new Error(`Loaded ${src} but ${globalName} is unavailable.`))) : resolve(true);
+      s.onerror = () => reject(new Error(`Could not load ${src}`));
+      document.head.appendChild(s);
+    });
+  }
+
+  async function ensureHeicDecoder() {
+    if (window.HeicTo) return window.HeicTo;
+    if (!heicDecoderPromise) {
+      heicDecoderPromise = loadScriptOnce(
+        'https://cdn.jsdelivr.net/npm/heic-to@1.6.5/dist/iife/heic-to.js',
+        'HeicTo'
+      );
+    }
+    return heicDecoderPromise;
+  }
+
+  async function convertHeicForPreview(file) {
+    const decoder = await ensureHeicDecoder();
+    const out = await decoder({ blob: file, type: 'image/jpeg', quality: 1 });
+    const blob = out instanceof Blob ? out : new Blob([out], { type:'image/jpeg' });
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  function normaliseExportDate(node) {
+    const date = String(node?.date || '');
+    return date && date !== 'Unknown Date' ? date : '';
+  }
+
+  function metadataSummaryText(node) {
+    if (!node) return {};
+    return {
+      file: node.sourceFileName || node.originalName || stripExtension(node.title) + (node.is360 ? '.jpg' : ''),
+      type: node.is360 ? '360° JPEG' : (isHeicFile(node) ? 'HEIC' : 'Flat image'),
+      heading: node.hasHeading && Number.isFinite(Number(node.heading)) ? `${Number(node.heading).toFixed(1)}° True` : 'No heading',
+      location: Number.isFinite(Number(node.lat)) && Number.isFinite(Number(node.lon))
+        ? `${Number(node.lat).toFixed(6)}, ${Number(node.lon).toFixed(6)}`
+        : 'No location',
+      capture: normaliseExportDate(node) || 'No capture date/time',
+      state: node.metadataDirty ? 'Corrections pending' : 'No corrections pending'
+    };
+  }
+
   function parseXmpMetadata(arrayBuffer) {
     const text = new TextDecoder('utf-8', { fatal: false }).decode(new Uint8Array(arrayBuffer));
     const pitchMatch = text.match(/drone-dji:GimbalPitchDegree="([^"]+)"/) || text.match(/<drone-dji:GimbalPitchDegree>([^<]+)<\/drone-dji:GimbalPitchDegree>/) || text.match(/GCamera:Pitch="([^"]+)"/);
@@ -1582,6 +1942,52 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
       pitch: pitchMatch ? parseFloat(pitchMatch[1]) : null,
       yaw: yawMatch ? parseFloat(yawMatch[1]) : null
     };
+  }
+
+  /* Deduce a capture date/time from a filename such as IMG_20261002_135148_454.jpeg,
+     PXL_20261002_135148123.jpg, DJI_20261002135148_0001_D.jpg, 2026-10-02 13.51.48.jpg,
+     Screenshot_2026-10-02-13-51-48.png, or a 10/13-digit Unix timestamp.
+     Returns { exif:'YYYY:MM:DD HH:MM:SS', dateOnly:bool } or null. Filename times are
+     treated as local camera time. */
+  function parseDateFromFilename(name) {
+    const base = stripExtension(String(name || '').split(/[\\/]/).pop());
+    if (!base) return null;
+    const nowYear = new Date().getFullYear();
+    const valid = (y, mo, d, h, mi, se) => {
+      if (y < 1990 || y > nowYear + 1 || mo < 1 || mo > 12 || d < 1 || d > 31 || h > 23 || mi > 59 || se > 59) return false;
+      const t = new Date(y, mo - 1, d);
+      return t.getFullYear() === y && t.getMonth() === mo - 1 && t.getDate() === d;
+    };
+    const p2 = n => String(n).padStart(2, '0');
+    const build = (y, mo, d, h, mi, se, dateOnly) => ({ exif: `${y}:${p2(mo)}:${p2(d)} ${p2(h)}:${p2(mi)}:${p2(se)}`, dateOnly: !!dateOnly });
+
+    // 1) date + time, any common separators (or none)
+    let m = /(?<!\d)((?:19|20)\d{2})[-_.:]?(\d{2})[-_.:]?(\d{2})(?:[-_.:\sT]|at|_at_)*(\d{2})[-_.:]?(\d{2})[-_.:]?(\d{2})/i.exec(base);
+    if (m) {
+      const [y, mo, d, h, mi, se] = m.slice(1, 7).map(Number);
+      if (valid(y, mo, d, h, mi, se)) return build(y, mo, d, h, mi, se, false);
+    }
+    // 2) Unix timestamp (seconds or milliseconds)
+    m = /(?<!\d)(\d{13}|\d{10})(?!\d)/.exec(base);
+    if (m) {
+      const ms = m[1].length === 13 ? Number(m[1]) : Number(m[1]) * 1000;
+      const dt = new Date(ms);
+      if (dt.getFullYear() >= 2000 && dt.getFullYear() <= nowYear + 1) {
+        return build(dt.getFullYear(), dt.getMonth() + 1, dt.getDate(), dt.getHours(), dt.getMinutes(), dt.getSeconds(), false);
+      }
+    }
+    // 3) date only
+    m = /(?<!\d)((?:19|20)\d{2})[-_.]?(\d{2})[-_.]?(\d{2})(?!\d)/.exec(base);
+    if (m) {
+      const [y, mo, d] = m.slice(1, 4).map(Number);
+      if (valid(y, mo, d, 0, 0, 0)) return build(y, mo, d, 0, 0, 0, true);
+    }
+    return null;
+  }
+
+  function hasUsableCaptureDate(raw) {
+    const m = /^(\d{4})[:\-](\d{2})[:\-](\d{2})/.exec(String(raw || '').trim());
+    return !!m && Number(m[1]) >= 1990 && Number(m[2]) >= 1 && Number(m[2]) <= 12 && Number(m[3]) >= 1;
   }
 
   function deriveDateKey(rawExifDateStr) {
@@ -2737,7 +3143,7 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
       panoEl.style.display = 'none';
       panoEl.innerHTML = '';
       flatEl.onload = () => { applyFlatTransform(targetPrefix); renderAllPins(targetPrefix); };
-      flatEl.src = node.url;
+      flatEl.src = node.previewUrl || node.url;
       flatEl.style.display = 'block';
       applyFlatTransform(targetPrefix);
     }
@@ -2879,6 +3285,10 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
     if (!nodeData.dateKey) nodeData.dateKey = 'undated';
     if (!nodeData.dateKeyLabel) nodeData.dateKeyLabel = prettifyDateKey(nodeData.dateKey);
     nodeData.annotations = nodeData.annotations || [];
+    nodeData.metadataDirty = !!nodeData.metadataDirty;
+    nodeData.sourceFileName = nodeData.sourceFileName || nodeData.originalName || ((nodeData.title || 'image') + (nodeData.is360 ? '.jpg' : '.jpg'));
+    nodeData.sourceMimeType = nodeData.sourceMimeType || inferMimeFromName(nodeData.sourceFileName);
+    nodeData.sourceDataUrl = nodeData.sourceDataUrl || (nodeData.is360 || looksLikeJpeg(nodeData) ? nodeData.url : null);
 
     // Treat missing/placeholder 0,0 coordinates as unlocated and keep the
     // marker clearly offshore rather than dropping it at a misleading site.
@@ -2988,91 +3398,196 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
     updateMapBounds();
   }
 
-  document.getElementById('imageUpload').addEventListener('change', function(e) {
-    const files = Array.from(e.target.files);
+  async function readImageMetadata(file, arrayBuffer, xmpData) {
+    let result = null;
+    if (window.exifr && typeof window.exifr.parse === 'function') {
+      try {
+        result = await window.exifr.parse(file, {
+          tiff: true, exif: true, gps: true, xmp: true,
+          reviveValues: false
+        });
+      } catch (e) {
+        result = null;
+      }
+    }
+
+    if (result) {
+      const make = result.Make || '';
+      const model = result.Model || '';
+      const device = (make || model) ? `${make} ${model}`.trim() : 'Camera / Drone';
+      let rawDate = result.DateTimeOriginal || result.CreateDate || result.ModifyDate || 'Unknown Date';
+      if (rawDate instanceof Date) {
+        const pad = n => String(n).padStart(2, '0');
+        rawDate = `${rawDate.getFullYear()}:${pad(rawDate.getMonth()+1)}:${pad(rawDate.getDate())} ${pad(rawDate.getHours())}:${pad(rawDate.getMinutes())}:${pad(rawDate.getSeconds())}`;
+      }
+      let alt = result.GPSAltitude;
+      alt = Number.isFinite(Number(alt)) ? `${Number(alt).toFixed(1)} m` : 'Unknown';
+
+      let latDec = Number(result.latitude);
+      let lonDec = Number(result.longitude);
+      let hasGps = Number.isFinite(latDec) && Number.isFinite(lonDec);
+      if (!hasGps && Number.isFinite(Number(result.GPSLatitude)) && Number.isFinite(Number(result.GPSLongitude))) {
+        latDec = Number(result.GPSLatitude);
+        lonDec = Number(result.GPSLongitude);
+        hasGps = true;
+      }
+
+      let heading = result.GPSImgDirection;
+      if (!Number.isFinite(Number(heading))) heading = xmpData.yaw;
+      heading = Number.isFinite(Number(heading)) ? Number(heading) : null;
+
+      return { device, rawDate, alt, latDec, lonDec, hasGps, heading };
+    }
+
+    // Legacy JPEG fallback.
+    return await new Promise(resolve => {
+      EXIF.getData(file, function() {
+        const make = EXIF.getTag(this, "Make") || "";
+        const model = EXIF.getTag(this, "Model") || "";
+        const device = (make || model) ? `${make} ${model}`.trim() : "Camera / Drone";
+        const rawDate = EXIF.getTag(this, "DateTimeOriginal") || EXIF.getTag(this, "DateTime") || "Unknown Date";
+        let alt = EXIF.getTag(this, "GPSAltitude");
+        if (alt && typeof alt === 'object' && alt.numerator) alt = (alt.numerator / alt.denominator).toFixed(1);
+        alt = alt ? `${alt} m` : "Unknown";
+
+        const lat = EXIF.getTag(this, "GPSLatitude");
+        const lon = EXIF.getTag(this, "GPSLongitude");
+        const latRef = EXIF.getTag(this, "GPSLatitudeRef") || "N";
+        const lonRef = EXIF.getTag(this, "GPSLongitudeRef") || "W";
+
+        let latDec = DEFAULT_LAT + (Math.random() - 0.5) * 0.02;
+        let lonDec = DEFAULT_LON - 0.10 + (Math.random() - 0.5) * 0.02;
+        let hasGps = false;
+        if (lat && lon) {
+          latDec = (lat[0].numerator/lat[0].denominator) + (lat[1].numerator/lat[1].denominator)/60 + (lat[2].numerator/lat[2].denominator)/3600;
+          if (latRef === "S") latDec = -latDec;
+          lonDec = (lon[0].numerator/lon[0].denominator) + (lon[1].numerator/lon[1].denominator)/60 + (lon[2].numerator/lon[2].denominator)/3600;
+          if (lonRef === "W") lonDec = -lonDec;
+          hasGps = true;
+        }
+
+        let heading = EXIF.getTag(this, "GPSImgDirection");
+        if (heading && typeof heading === 'object') heading = heading.numerator / heading.denominator;
+        if (!Number.isFinite(Number(heading))) heading = xmpData.yaw;
+        heading = Number.isFinite(Number(heading)) ? Number(heading) : null;
+        resolve({ device, rawDate, alt, latDec, lonDec, hasGps, heading });
+      });
+    });
+  }
+
+  async function ingestImageFile(file) {
+    const arrayBuffer = await file.arrayBuffer();
+    const xmpData = parseXmpMetadata(arrayBuffer);
+    const heic = isHeicFile(file);
+    let previewUrl = null;
+
+    if (heic) {
+      showToast(`Preparing HEIC preview: ${file.name}`, 2200);
+      previewUrl = await convertHeicForPreview(file);
+    } else {
+      previewUrl = URL.createObjectURL(file);
+    }
+
+    const previewImg = new Image();
+    const imageInfo = await new Promise((resolve, reject) => {
+      previewImg.onload = () => {
+        const aspect = previewImg.width / previewImg.height;
+        resolve({
+          width: previewImg.width,
+          height: previewImg.height,
+          is360: Math.abs(aspect - 2.0) < 0.25
+        });
+      };
+      previewImg.onerror = () => reject(new Error(`Could not decode ${file.name}.`));
+      previewImg.src = previewUrl;
+    });
+
+    const meta = await readImageMetadata(file, arrayBuffer, xmpData);
+
+    let latDec = meta.latDec;
+    let lonDec = meta.lonDec;
+    let hasGps = meta.hasGps;
+    if (!hasGps) {
+      latDec = DEFAULT_LAT + (Math.random() - 0.5) * 0.02;
+      lonDec = DEFAULT_LON - 0.10 + (Math.random() - 0.5) * 0.02;
+    }
+
+    const hasHeading = Number.isFinite(Number(meta.heading));
+    const heading = hasHeading ? ((Number(meta.heading) % 360) + 360) % 360 : null;
+    let rawDate = meta.rawDate || 'Unknown Date';
+    let dateFromFilename = false;
+    if (!hasUsableCaptureDate(rawDate)) {
+      const guess = parseDateFromFilename(file.name);
+      if (guess) {
+        rawDate = guess.exif;
+        dateFromFilename = true;
+        showToast(`No capture date in metadata – used filename for ${file.name}: ${guess.exif.replace(/^(\d{4}):(\d{2}):(\d{2})/, '$1-$2-$3')}${guess.dateOnly ? ' (date only)' : ''}`, 4200);
+      } else {
+        rawDate = 'Unknown Date';
+      }
+    }
+    const dateKey = deriveDateKey(rawDate) || 'undated';
+
+    // Keep the source bytes/data URL separate from the HEIC preview. JPEGs can
+    // continue using node.url as before; HEICs use the converted preview for the viewer.
+    const sourceDataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    if (!heic) URL.revokeObjectURL(previewUrl);
+
+    const nodeData = {
+      id: 'node_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+      title: file.name.replace(/\.[^/.]+$/, ""),
+      url: heic ? previewImg.src : sourceDataUrl,
+      previewUrl: heic ? previewImg.src : null,
+      sourceDataUrl: sourceDataUrl,
+      sourceFileName: file.name,
+      sourceMimeType: file.type || inferMimeFromName(file.name),
+      sourceFile: file,
+      device: meta.device || 'Camera / Drone',
+      date: rawDate,
+      alt: meta.alt || 'Unknown',
+      lat: latDec,
+      lon: lonDec,
+      hasGps: hasGps,
+      is360: imageInfo.is360,
+      heading: heading,
+      pitch: xmpData.pitch,
+      hasHeading: hasHeading,
+      dateKey: dateKey,
+      dateKeyLabel: prettifyDateKey(dateKey),
+      annotations: [],
+      dateFromFilename: dateFromFilename,
+      metadataDirty: dateFromFilename
+    };
+    addNode(nodeData);
+  }
+
+  document.getElementById('imageUpload').addEventListener('change', async function(e) {
+    const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
-    files.forEach((file) => {
-      const reader = new FileReader();
-
-      reader.onload = function(event) {
-        const arrayBuffer = event.target.result;
-        const xmpData = parseXmpMetadata(arrayBuffer);
-
-        const blobReader = new FileReader();
-        blobReader.onload = function(imgEvt) {
-          const imageUrl = imgEvt.target.result;
-          const img = new Image();
-
-          img.onload = function() {
-            const aspect = img.width / img.height;
-            const is360 = Math.abs(aspect - 2.0) < 0.25;
-
-            EXIF.getData(file, function() {
-              const make = EXIF.getTag(this, "Make") || "";
-              const model = EXIF.getTag(this, "Model") || "";
-              const device = (make || model) ? `${make} ${model}`.trim() : "Camera / Drone";
-              const rawDate = EXIF.getTag(this, "DateTimeOriginal") || EXIF.getTag(this, "DateTime") || "Unknown Date";
-              
-              let alt = EXIF.getTag(this, "GPSAltitude");
-              if (alt && typeof alt === 'object' && alt.numerator) alt = (alt.numerator / alt.denominator).toFixed(1);
-              alt = alt ? `${alt} m` : "Unknown";
-
-              const lat = EXIF.getTag(this, "GPSLatitude");
-              const lon = EXIF.getTag(this, "GPSLongitude");
-              const latRef = EXIF.getTag(this, "GPSLatitudeRef") || "N";
-              const lonRef = EXIF.getTag(this, "GPSLongitudeRef") || "W";
-
-              // Deliberately place unlocated images west/offshore so they are
-              // visibly separate from the real survey positions.
-              let latDec = DEFAULT_LAT + (Math.random() - 0.5) * 0.02;
-              let lonDec = DEFAULT_LON - 0.10 + (Math.random() - 0.5) * 0.02;
-              let hasGps = false;
-
-              if (lat && lon) {
-                latDec = (lat[0].numerator/lat[0].denominator) + (lat[1].numerator/lat[1].denominator)/60 + (lat[2].numerator/lat[2].denominator)/3600;
-                if (latRef === "S") latDec = -latDec;
-                lonDec = (lon[0].numerator/lon[0].denominator) + (lon[1].numerator/lon[1].denominator)/60 + (lon[2].numerator/lon[2].denominator)/3600;
-                if (lonRef === "W") lonDec = -lonDec;
-                hasGps = true;
-              }
-
-              let heading = EXIF.getTag(this, "GPSImgDirection");
-              if (heading && typeof heading === 'object') heading = heading.numerator / heading.denominator;
-              if (heading === undefined || heading === null) heading = xmpData.yaw;
-
-              const hasHeading = typeof heading === 'number' && !isNaN(heading);
-              const dateKey = deriveDateKey(rawDate) || 'undated';
-
-              const nodeData = {
-                id: 'node_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
-                title: file.name.replace(/\.[^/.]+$/, ""),
-                url: imageUrl,
-                device: device,
-                date: rawDate,
-                alt: alt,
-                lat: latDec,
-                lon: lonDec,
-                hasGps: hasGps,
-                is360: is360,
-                heading: hasHeading ? ((heading % 360) + 360) % 360 : null,
-                pitch: xmpData.pitch,
-                hasHeading: hasHeading,
-                dateKey: dateKey,
-                dateKeyLabel: prettifyDateKey(dateKey),
-                annotations: []
-              };
-
-              addNode(nodeData);
-            });
-          };
-          img.src = imageUrl;
-        };
-        blobReader.readAsDataURL(file);
-      };
-      reader.readAsArrayBuffer(file);
-    });
+    this.disabled = true;
+    try {
+      for (let i = 0; i < files.length; i++) {
+        showToast(`Loading image ${i + 1} of ${files.length}…`, 1600);
+        try {
+          await ingestImageFile(files[i]);
+        } catch (err) {
+          console.error(err);
+          alert(`Could not load ${files[i].name}. ${err.message || ''}`);
+        }
+      }
+    } finally {
+      this.disabled = false;
+      this.value = '';
+    }
   });
+
 
   // Filter UI
   document.querySelectorAll('.filter-btn').forEach(btn => {
@@ -3289,60 +3804,711 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
     map.fitBounds(bounds, { padding: [35, 35] });
   }
 
-  // Edit Metadata Modal Logic
-  document.getElementById('editMetadataBtn').addEventListener('click', () => {
-    const node = nodes.find(n => n.id === selectedNodeId);
+  // ---------- Editor Mode ----------
+  function getEditorCurrentNode() {
+    return nodes.find(n => n.id === editorCurrentNodeId) || nodes.find(n => n.id === selectedNodeId) || null;
+  }
+
+  function updateEditorStatus(node) {
     if (!node) return;
+    document.getElementById('editorFileName').textContent =
+      node.sourceFileName || node.originalName || node.title || 'Unnamed image';
+    const pill = document.getElementById('editorFileStatus');
+    pill.textContent = node.metadataDirty ? 'Corrections pending' : 'No changes';
+    pill.classList.toggle('changed', !!node.metadataDirty);
+    const s = metadataSummaryText(node);
+    document.getElementById('editorSummary').innerHTML = `
+      <div class="editor-summary-row"><span>File</span><strong>${escapeHtml(s.file)}</strong></div>
+      <div class="editor-summary-row"><span>Type</span><strong>${escapeHtml(s.type)}</strong></div>
+      <div class="editor-summary-row"><span>Heading</span><strong>${escapeHtml(s.heading)}</strong></div>
+      <div class="editor-summary-row"><span>Location</span><strong>${escapeHtml(s.location)}</strong></div>
+      <div class="editor-summary-row"><span>Capture</span><strong>${escapeHtml(s.capture)}</strong></div>
+      <div class="editor-summary-row"><span>Status</span><strong>${escapeHtml(s.state)}</strong></div>`;
+    document.getElementById('editorLocationStatus').textContent =
+      node.hasGps ? 'Location source: Current project location / image GPS' : 'Location source: Manually positioned';
+  }
 
-    document.getElementById('editTitle').value = node.title;
-    document.getElementById('editDate').value = node.date;
-    document.getElementById('editDevice').value = node.device;
-    document.getElementById('editLat').value = node.lat.toFixed(6);
-    document.getElementById('editLon').value = node.lon.toFixed(6);
-    document.getElementById('editHeading').value = node.hasHeading ? Math.round(node.heading) : '';
-    document.getElementById('editPitch').value = typeof node.pitch === 'number' ? Math.round(node.pitch) : '';
-    document.getElementById('editSurveyDate').value = (node.dateKey && node.dateKey !== 'undated') ? node.dateKey : '';
-
+  function openEditorMode(tab='metadata', nodeId=null) {
+    const id = nodeId || selectedNodeId;
+    const node = nodes.find(n => n.id === id);
+    if (!node) {
+      showToast('Select an image first.');
+      return;
+    }
+    editorCurrentNodeId = node.id;
+    populateEditorFields(node);
     document.getElementById('editModal').style.display = 'flex';
+    setTimeout(() => ensureEditorMap(node), 60);
+  }
+
+  function populateEditorFields(node) {
+    document.getElementById('editTitle').value = node.title || stripExtension(node.sourceFileName || '');
+    document.getElementById('editDateTime').value = exifDateToLocalInput(node.date);
+    document.getElementById('dateFromFilenameHint').textContent = node.dateFromFilename ? 'This date was deduced from the file name at import.' : '';
+    document.getElementById('editDevice').value = node.device || '';
+    document.getElementById('editLat').value = Number.isFinite(Number(node.lat)) ? Number(node.lat).toFixed(6) : '';
+    document.getElementById('editLon').value = Number.isFinite(Number(node.lon)) ? Number(node.lon).toFixed(6) : '';
+    document.getElementById('editHeading').value = node.hasHeading && Number.isFinite(Number(node.heading)) ? Number(node.heading).toFixed(1) : '';
+    document.getElementById('editPitch').value = typeof node.pitch === 'number' ? node.pitch : '';
+    document.getElementById('editSurveyDate').value = (node.dateKey && node.dateKey !== 'undated') ? node.dateKey : '';
+    updateEditorStatus(node);
+    if (editorMap) {
+      setTimeout(() => ensureEditorMap(node), 20);
+    }
+  }
+
+  function editorCoordsFromFields() {
+    const lat = Number.parseFloat(document.getElementById('editLat').value);
+    const lon = Number.parseFloat(document.getElementById('editLon').value);
+    return Number.isFinite(lat) && Number.isFinite(lon) ? {lat, lon} : null;
+  }
+
+  function syncMainOverviewMap(node, panToNode = true) {
+    if (!node || !node.marker) return;
+    const lat = Number(node.lat), lon = Number(node.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+
+    // The small map in the main layout uses the same node object, so move its
+    // marker immediately while the metadata editor is being used.
+    node.marker.setLatLng([lat, lon]);
+    node.marker.setTooltipContent(buildPopupHtml(node));
+
+    if (selectedNodeId === node.id) {
+      updateMetaPanels();
+      if (panToNode) map.panTo([lat, lon], { animate: false });
+    }
+  }
+
+  function setEditorCoords(lat, lon, panEditorMap = true) {
+    const la = Number(lat), lo = Number(lon);
+    if (!Number.isFinite(la) || !Number.isFinite(lo)) return;
+    document.getElementById('editLat').value = la.toFixed(6);
+    document.getElementById('editLon').value = lo.toFixed(6);
+    if (editorMarker) editorMarker.setLatLng([la, lo]);
+    if (editorMap && panEditorMap) editorMap.setView([la, lo], Math.max(editorMap.getZoom(), 15), { animate: false });
+    const node = getEditorCurrentNode();
+    if (node) {
+      node.lat = la;
+      node.lon = lo;
+      node.hasGps = true;
+      node.metadataDirty = true;
+      updateEditorStatus(node);
+      syncMainOverviewMap(node, true);
+    }
+  }
+
+  function ensureEditorMap(node) {
+    if (!node) return;
+    const lat = Number.isFinite(Number(node.lat)) ? Number(node.lat) : DEFAULT_LAT;
+    const lon = Number.isFinite(Number(node.lon)) ? Number(node.lon) : DEFAULT_LON;
+
+    if (!editorMap) {
+      editorMap = L.map('editMap', { zoomControl: true, doubleClickZoom: false }).setView([lat, lon], 16);
+      editorMapBaseLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 19,
+        attribution: 'Tiles &copy; Esri'
+      }).addTo(editorMap);
+
+      editorMap.on('click', function(e) {
+        if (editorApplying) return;
+        setEditorCoords(e.latlng.lat, e.latlng.lng);
+      });
+    } else {
+      editorMap.setView([lat, lon], Math.max(editorMap.getZoom(), 16));
+    }
+
+    if (!editorMarker) {
+      editorMarker = L.marker([lat, lon], {
+        draggable: true,
+        autoPan: true,
+        title: 'Drag to correct image location'
+      }).addTo(editorMap);
+
+      editorMarker.on('drag', function(e) {
+        const p = e.target.getLatLng();
+        document.getElementById('editLat').value = p.lat.toFixed(6);
+        document.getElementById('editLon').value = p.lng.toFixed(6);
+        const current = getEditorCurrentNode();
+        if (current) {
+          current.lat = p.lat;
+          current.lon = p.lng;
+          current.hasGps = true;
+          current.metadataDirty = true;
+          updateEditorStatus(current);
+          syncMainOverviewMap(current, true);
+        }
+      });
+
+      editorMarker.on('dragend', function(e) {
+        const p = e.target.getLatLng();
+        setEditorCoords(p.lat, p.lng);
+      });
+    } else {
+      editorMarker.setLatLng([lat, lon]);
+    }
+
+    setTimeout(() => editorMap.invalidateSize(), 80);
+  }
+
+  document.getElementById('editMetadataBtn').addEventListener('click', () => {
+    openEditorMode('metadata');
+  });
+
+  document.getElementById('dateFromFilenameBtn').addEventListener('click', () => {
+    const node = getEditorCurrentNode();
+    const hint = document.getElementById('dateFromFilenameHint');
+    if (!node) return;
+    const guess = parseDateFromFilename(node.sourceFileName || node.originalName || '') || parseDateFromFilename(node.title || '');
+    if (!guess) {
+      hint.textContent = 'No date could be recognised in the file name.';
+      showToast('No date found in the file name.');
+      return;
+    }
+    const prevKey = deriveDateKey(localInputToExifDate(document.getElementById('editDateTime').value));
+    document.getElementById('editDateTime').value = exifDateToLocalInput(guess.exif);
+    const surveyEl = document.getElementById('editSurveyDate');
+    const newKey = deriveDateKey(guess.exif);
+    if (!surveyEl.value || surveyEl.value === prevKey) surveyEl.value = newKey || '';
+    hint.textContent = guess.dateOnly
+      ? 'Date found in file name; no time was present so 00:00:00 was used. Adjust if known, then Save.'
+      : 'Date and time taken from the file name. Click Save to apply.';
+    showToast('Capture date/time filled from file name.');
   });
 
   document.getElementById('saveEditBtn').addEventListener('click', () => {
-    const node = nodes.find(n => n.id === selectedNodeId);
+    const node = getEditorCurrentNode();
     if (!node) return;
 
-    node.title = document.getElementById('editTitle').value.trim() || node.title;
-    node.date = document.getElementById('editDate').value.trim() || node.date;
-    node.device = document.getElementById('editDevice').value.trim() || node.device;
-    node.lat = parseFloat(document.getElementById('editLat').value) || node.lat;
-    node.lon = parseFloat(document.getElementById('editLon').value) || node.lon;
+    const title = document.getElementById('editTitle').value.trim();
+    const device = document.getElementById('editDevice').value.trim();
+    const dateTime = localInputToExifDate(document.getElementById('editDateTime').value);
+    const coords = editorCoordsFromFields();
+    const hRaw = document.getElementById('editHeading').value.trim();
+    const pRaw = document.getElementById('editPitch').value.trim();
+    const surveyDate = document.getElementById('editSurveyDate').value;
 
-    const h = parseFloat(document.getElementById('editHeading').value);
-    node.hasHeading = !isNaN(h);
+    if (title) node.title = title;
+    if (device) node.device = device;
+    if (dateTime) node.date = dateTime;
+    if (coords) {
+      node.lat = coords.lat;
+      node.lon = coords.lon;
+      node.hasGps = true;
+      syncMainOverviewMap(node, true);
+    }
+
+    const h = Number.parseFloat(hRaw);
+    node.hasHeading = Number.isFinite(h);
     node.heading = node.hasHeading ? ((h % 360) + 360) % 360 : null;
 
-    const p = parseFloat(document.getElementById('editPitch').value);
-    node.pitch = !isNaN(p) ? p : null;
+    const pitch = Number.parseFloat(pRaw);
+    node.pitch = Number.isFinite(pitch) ? pitch : null;
 
-    const sDate = document.getElementById('editSurveyDate').value;
-    node.dateKey = sDate || 'undated';
+    node.dateKey = surveyDate || deriveDateKey(node.date) || 'undated';
     node.dateKeyLabel = prettifyDateKey(node.dateKey);
+    node.metadataDirty = true;
 
     document.getElementById('editModal').style.display = 'none';
     selectNode(node.id);
+    refreshCorrectedExportPanel();
+    showToast('Project metadata updated. Export a corrected copy to write the image metadata.');
   });
 
   document.getElementById('cancelEditBtn').addEventListener('click', () => {
     document.getElementById('editModal').style.display = 'none';
   });
+  document.getElementById('editorCloseBtn').addEventListener('click', () => {
+    document.getElementById('editModal').style.display = 'none';
+  });
+  document.getElementById('setHeadingFromViewportBtn').addEventListener('click', () => {
+    const node = getEditorCurrentNode();
+    if (!node) return;
+    if (!node.is360 || !pViewerPrimary || typeof pViewerPrimary.getYaw !== 'function') {
+      showToast('This control is available for the selected 360° image.');
+      return;
+    }
+    const currentYaw = Number(pViewerPrimary.getYaw()) || 0;
+    const h = ((360 - currentYaw) % 360 + 360) % 360;
+    document.getElementById('editHeading').value = h.toFixed(1);
+    node.heading = h;
+    node.hasHeading = true;
+    node.metadataDirty = true;
+    updateEditorStatus(node);
+    showToast(`Heading set to ${h.toFixed(1)}° True from the current 360° view.`);
+  });
 
-  /* ---------- SAVE TO FILE & COMPRESSION SCALING ---------- */
-  document.getElementById('saveBtn').addEventListener('click', () => {
+  document.getElementById('clearHeadingBtn').addEventListener('click', () => {
+    const node = getEditorCurrentNode();
+    document.getElementById('editHeading').value = '';
+    if (node) {
+      node.heading = null;
+      node.hasHeading = false;
+      node.metadataDirty = true;
+      updateEditorStatus(node);
+    }
+  });
+
+  document.getElementById('useCurrentMapLocationBtn').addEventListener('click', () => {
+    const centre = editorMap ? editorMap.getCenter() : null;
+    if (centre) setEditorCoords(centre.lat, centre.lng);
+  });
+
+  // Keep the small overview map synchronised when coordinates are typed manually.
+  ['editLat', 'editLon'].forEach(id => {
+    document.getElementById(id).addEventListener('input', () => {
+      const coords = editorCoordsFromFields();
+      const node = getEditorCurrentNode();
+      if (!coords || !node) return;
+      node.lat = coords.lat;
+      node.lon = coords.lon;
+      node.hasGps = true;
+      node.metadataDirty = true;
+      if (editorMarker) editorMarker.setLatLng([coords.lat, coords.lon]);
+      updateEditorStatus(node);
+      syncMainOverviewMap(node, true);
+    });
+  });
+
+  /* ======================================================================
+     Self-contained corrected-export engine.
+     No CDN / WASM / network is needed: EXIF GPS + date tags are written
+     directly into the JPEG's APP1 segment (pixels are never re-encoded,
+     existing XMP/GPano 360 metadata and MakerNotes are preserved).
+     ====================================================================== */
+  const EXIF_SIG = 'Exif\u0000\u0000';
+  const XMP_SIG = 'http://ns.adobe.com/xap/1.0/\u0000';
+
+  function parseTiffIfd(dv, off, le) {
+    if (off < 8 || off + 2 > dv.byteLength) throw new Error('Bad IFD offset');
+    const n = dv.getUint16(off, le);
+    if (off + 2 + n * 12 + 4 > dv.byteLength) throw new Error('Bad IFD length');
+    const entries = [];
+    for (let i = 0; i < n; i++) {
+      const p = off + 2 + i * 12;
+      entries.push({ tag: dv.getUint16(p, le), raw: new Uint8Array(dv.buffer, dv.byteOffset + p, 12).slice() });
+    }
+    return { entries, next: dv.getUint32(off + 2 + n * 12, le) };
+  }
+
+  // Copy-on-write: original TIFF bytes stay where they are (so MakerNote and
+  // thumbnail offsets remain valid); changed IFDs + values are appended.
+  function buildExifTiff(oldTiff, edits) {
+    let le = true, base;
+    if (oldTiff) { le = oldTiff[0] === 0x49; base = oldTiff.slice(); }
+    else base = new Uint8Array([0x49, 0x49, 42, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    const dv = new DataView(base.buffer, base.byteOffset, base.byteLength);
+    const chunks = [base]; let size = base.length;
+    const alloc = (u) => {
+      if (size & 1) { chunks.push(new Uint8Array(1)); size++; }
+      const at = size; chunks.push(u); size += u.length; return at;
+    };
+    const enc = (v) => {
+      if (v.ascii !== undefined) { const b = new Uint8Array(v.ascii.length + 1); for (let i = 0; i < v.ascii.length; i++) b[i] = v.ascii.charCodeAt(i) & 0x7f; return { type: 2, count: b.length, bytes: b }; }
+      if (v.rat) { const b = new Uint8Array(v.rat.length * 8), d = new DataView(b.buffer); v.rat.forEach((p, i) => { d.setUint32(i * 8, p[0], le); d.setUint32(i * 8 + 4, p[1], le); }); return { type: 5, count: v.rat.length, bytes: b }; }
+      return { type: 1, count: v.bytes.length, bytes: Uint8Array.from(v.bytes) };
+    };
+    const mk = (tag, type, count, data) => {
+      const raw = new Uint8Array(12), d = new DataView(raw.buffer);
+      d.setUint16(0, tag, le); d.setUint16(2, type, le); d.setUint32(4, count, le);
+      if (data.length <= 4) raw.set(data, 8); else d.setUint32(8, alloc(data), le);
+      return { tag, raw };
+    };
+    const apply = (entries, ed) => {
+      Object.keys(ed || {}).forEach(k => {
+        const tag = +k, i = entries.findIndex(e => e.tag === tag);
+        if (i >= 0) entries.splice(i, 1);
+        if (ed[k]) { const e = enc(ed[k]); entries.push(mk(tag, e.type, e.count, e.bytes)); }
+      });
+    };
+    const writeIfd = (entries, next) => {
+      entries.sort((a, b) => a.tag - b.tag);
+      const u = new Uint8Array(2 + entries.length * 12 + 4), d = new DataView(u.buffer);
+      d.setUint16(0, entries.length, le);
+      entries.forEach((e, i) => u.set(e.raw, 2 + i * 12));
+      d.setUint32(2 + entries.length * 12, next, le);
+      return alloc(u);
+    };
+    const load = (off) => { if (!off) return { entries: [], next: 0 }; try { return parseTiffIfd(dv, off, le); } catch (e) { return { entries: [], next: 0 }; } };
+    const ptrOf = (entries, tag) => { const e = entries.find(x => x.tag === tag); return e ? new DataView(e.raw.buffer).getUint32(8, le) : 0; };
+    const setPtr = (entries, tag, off) => {
+      const i = entries.findIndex(e => e.tag === tag); if (i >= 0) entries.splice(i, 1);
+      const b = new Uint8Array(4); new DataView(b.buffer).setUint32(0, off, le);
+      entries.push(mk(tag, 4, 1, b));
+    };
+    const has = (o) => Object.keys(o || {}).length > 0;
+
+    const ifd0 = load(dv.getUint32(4, le));
+    const exif = load(ptrOf(ifd0.entries, 0x8769));
+    const gps = load(ptrOf(ifd0.entries, 0x8825));
+    if (has(edits.exif)) { apply(exif.entries, edits.exif); setPtr(ifd0.entries, 0x8769, writeIfd(exif.entries, exif.next)); }
+    if (has(edits.gps)) { apply(gps.entries, edits.gps); setPtr(ifd0.entries, 0x8825, writeIfd(gps.entries, gps.next)); }
+    apply(ifd0.entries, edits.ifd0);
+    const off0 = writeIfd(ifd0.entries, ifd0.next);
+
+    const out = new Uint8Array(size); let o = 0;
+    chunks.forEach(c => { out.set(c, o); o += c.length; });
+    new DataView(out.buffer).setUint32(4, off0, le);
+    return out;
+  }
+
+  function exifDateString(raw) {
+    const local = exifDateToLocalInput(raw);
+    return local ? localInputToExifDate(local) : '';
+  }
+
+  function buildExifEdits(node) {
+    const E = { ifd0: {}, exif: {}, gps: {} };
+    const lat = Number(node.lat), lon = Number(node.lon);
+    if (node.hasGps !== false && Number.isFinite(lat) && Number.isFinite(lon)) {
+      const dms = (v) => {
+        const t = Math.round(Math.abs(v) * 36000000);
+        const d = Math.floor(t / 36000000), r = t - d * 36000000, m = Math.floor(r / 600000);
+        return { rat: [[d, 1], [m, 1], [r - m * 600000, 10000]] };
+      };
+      E.gps[0] = { bytes: [2, 3, 0, 0] };
+      E.gps[1] = { ascii: lat < 0 ? 'S' : 'N' }; E.gps[2] = dms(lat);
+      E.gps[3] = { ascii: lon < 0 ? 'W' : 'E' }; E.gps[4] = dms(lon);
+    }
+    if (node.hasHeading && Number.isFinite(Number(node.heading))) {
+      const h = ((Number(node.heading) % 360) + 360) % 360;
+      E.gps[0x10] = { ascii: 'T' };
+      E.gps[0x11] = { rat: [[Math.round(h * 100), 100]] };
+    } else { E.gps[0x10] = null; E.gps[0x11] = null; }
+    const cap = exifDateString(normaliseExportDate(node));
+    if (cap) { E.exif[0x9003] = { ascii: cap }; E.exif[0x9004] = { ascii: cap }; E.ifd0[0x0132] = { ascii: cap }; }
+    E.cap = cap;
+    return E;
+  }
+
+  function jpegSegments(b) {
+    if (!b || b.length < 4 || b[0] !== 0xFF || b[1] !== 0xD8) throw new Error('Source is not a JPEG.');
+    const segs = []; let p = 2;
+    while (p + 4 <= b.length && b[p] === 0xFF) {
+      const m = b[p + 1];
+      if (m === 0xFF) { p++; continue; }
+      if (m === 0xDA || m === 0xD9) break;
+      if (m === 0x01 || (m >= 0xD0 && m <= 0xD8)) { p += 2; continue; }
+      const len = (b[p + 2] << 8) | b[p + 3];
+      if (len < 2 || p + 2 + len > b.length) break;
+      segs.push({ m, start: p, end: p + 2 + len }); p += 2 + len;
+    }
+    return { segs, scan: p };
+  }
+
+  function segHas(b, seg, sig) {
+    if (seg.m !== 0xE1) return false;
+    for (let i = 0; i < sig.length; i++) if (b[seg.start + 4 + i] !== sig.charCodeAt(i)) return false;
+    return true;
+  }
+
+  function app1Segment(sig, payload) {
+    const len = payload.length + sig.length + 2;
+    const seg = new Uint8Array(len + 2);
+    seg[0] = 0xFF; seg[1] = 0xE1; seg[2] = len >> 8; seg[3] = len & 255;
+    for (let i = 0; i < sig.length; i++) seg[4 + i] = sig.charCodeAt(i);
+    seg.set(payload, 4 + sig.length);
+    return seg;
+  }
+
+  // Keep any existing XMP (incl. GPano 360 tags) and only touch GPS/date values already present.
+  function patchXmpText(x, node, edits) {
+    const set = (name, val) => {
+      const a = new RegExp('(' + name + '\\s*=\\s*")[^"]*(")'), e = new RegExp('(<' + name + '>)[^<]*(</' + name + '>)');
+      if (a.test(x)) x = x.replace(a, (m, p, q) => p + val + q);
+      else if (e.test(x)) x = x.replace(e, (m, p, q) => p + val + q);
+    };
+    const dm = (v, pos, neg) => { const a = Math.abs(v), d = Math.floor(a); return d + ',' + ((a - d) * 60).toFixed(6) + (v < 0 ? neg : pos); };
+    if (edits.gps[2]) { set('exif:GPSLatitude', dm(Number(node.lat), 'N', 'S')); set('exif:GPSLongitude', dm(Number(node.lon), 'E', 'W')); }
+    if (edits.gps[0x11]) set('exif:GPSImgDirection', edits.gps[0x11].rat[0][0] + '/100');
+    else x = x.replace(/\s+exif:GPSImgDirection(Ref)?\s*=\s*"[^"]*"/g, '').replace(/<exif:GPSImgDirection(Ref)?>[^<]*<\/exif:GPSImgDirection(Ref)?>/g, '');
+    if (edits.cap) {
+      const iso = edits.cap.replace(/^(\d{4}):(\d{2}):(\d{2}) /, '$1-$2-$3T');
+      set('exif:DateTimeOriginal', iso); set('xmp:CreateDate', iso); set('xmp:ModifyDate', iso);
+    }
+    return x;
+  }
+
+  function writeJpegMetadata(src, node, edits) {
+    const b = src instanceof Uint8Array ? src : new Uint8Array(src);
+    const { segs, scan } = jpegSegments(b);
+    const exSeg = segs.find(sg => segHas(b, sg, EXIF_SIG));
+    const xmpSeg = segs.find(sg => segHas(b, sg, XMP_SIG));
+    let oldTiff = null;
+    if (exSeg) {
+      const t = b.subarray(exSeg.start + 10, exSeg.end);
+      if (t.length >= 8 && ((t[0] === 0x49 && t[1] === 0x49) || (t[0] === 0x4D && t[1] === 0x4D))) oldTiff = t;
+    }
+    let tiff;
+    try { tiff = buildExifTiff(oldTiff, edits); } catch (e) { tiff = buildExifTiff(null, edits); }
+    if (tiff.length + 8 > 65535) tiff = buildExifTiff(null, edits); // too big: rebuild without legacy data
+    const newExif = app1Segment(EXIF_SIG, tiff);
+
+    let newXmp = null;
+    if (xmpSeg) {
+      try {
+        const txt = new TextDecoder('utf-8').decode(b.subarray(xmpSeg.start + 4 + XMP_SIG.length, xmpSeg.end));
+        const patched = new TextEncoder().encode(patchXmpText(txt, node, edits));
+        if (patched.length + XMP_SIG.length + 2 <= 65535) newXmp = app1Segment(XMP_SIG, patched);
+      } catch (e) { newXmp = null; }
+    }
+
+    const parts = [b.subarray(0, 2)];
+    let inserted = !!exSeg;
+    segs.forEach((sg, i) => {
+      if (sg === exSeg) parts.push(newExif);
+      else if (sg === xmpSeg && newXmp) parts.push(newXmp);
+      else parts.push(b.subarray(sg.start, sg.end));
+      if (!inserted && i === 0 && sg.m === 0xE0) { parts.push(newExif); inserted = true; }
+    });
+    if (!inserted) parts.splice(1, 0, newExif);
+    parts.push(b.subarray(scan));
+    let total = 0; parts.forEach(p => total += p.length);
+    const out = new Uint8Array(total); let o = 0;
+    parts.forEach(p => { out.set(p, o); o += p.length; });
+    return out;
+  }
+
+  function readExifBasics(jpeg) {
+    const { segs } = jpegSegments(jpeg);
+    const seg = segs.find(sg => segHas(jpeg, sg, EXIF_SIG));
+    if (!seg) return {};
+    const tiff = jpeg.subarray(seg.start + 10, seg.end);
+    const dv = new DataView(tiff.buffer, tiff.byteOffset, tiff.byteLength), le = tiff[0] === 0x49;
+    const ifd = (off) => { try { return parseTiffIfd(dv, off, le).entries; } catch (e) { return []; } };
+    const find = (es, t) => es.find(e => e.tag === t);
+    const ptr = (es, t) => { const e = find(es, t); return e ? new DataView(e.raw.buffer).getUint32(8, le) : 0; };
+    const read = (en) => {
+      if (!en) return null;
+      const d = new DataView(en.raw.buffer), t = d.getUint16(2, le), n = d.getUint32(4, le);
+      const sz = ({ 1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 7: 1 }[t] || 1) * n;
+      let src = d, p = 8;
+      if (sz > 4) { src = dv; p = d.getUint32(8, le); if (p + sz > dv.byteLength) return null; }
+      if (t === 2) { let r = ''; for (let i = 0; i < n - 1; i++) r += String.fromCharCode(src.getUint8(p + i)); return r; }
+      if (t === 5) { const a = []; for (let i = 0; i < n; i++) a.push(src.getUint32(p + i * 8, le) / (src.getUint32(p + i * 8 + 4, le) || 1)); return a; }
+      return null;
+    };
+    const i0 = ifd(dv.getUint32(4, le));
+    const ex = ifd(ptr(i0, 0x8769)), gp = ifd(ptr(i0, 0x8825));
+    const g = (es, t) => read(find(es, t));
+    const dms = (a, r) => (a && a.length === 3) ? (a[0] + a[1] / 60 + a[2] / 3600) * ((r === 'S' || r === 'W') ? -1 : 1) : null;
+    const hd = g(gp, 0x11);
+    return { lat: dms(g(gp, 2), g(gp, 1)), lon: dms(g(gp, 4), g(gp, 3)), heading: hd ? hd[0] : null, date: g(ex, 0x9003) };
+  }
+
+  function verifyExif(bytes, node, edits) {
+    const o = readExifBasics(bytes);
+    if (edits.gps[2]) {
+      if (!Number.isFinite(o.lat) || Math.abs(o.lat - Number(node.lat)) > 1e-5) throw new Error('Written latitude could not be verified.');
+      if (!Number.isFinite(o.lon) || Math.abs(o.lon - Number(node.lon)) > 1e-5) throw new Error('Written longitude could not be verified.');
+    }
+    if (edits.gps[0x11] && (!Number.isFinite(o.heading) || Math.abs(o.heading - edits.gps[0x11].rat[0][0] / 100) > 0.05)) throw new Error('Written heading could not be verified.');
+    if (edits.cap && String(o.date || '').slice(0, 19) !== edits.cap.slice(0, 19)) throw new Error('Written capture date/time could not be verified.');
+  }
+
+  /* ---- Minimal ZIP (store) writer: no external library needed ---- */
+  const CRC_TABLE = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1); t[n] = c >>> 0; } return t; })();
+  function crc32(u) { let c = 0xFFFFFFFF; for (let i = 0; i < u.length; i++) c = CRC_TABLE[(c ^ u[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+
+  function buildZipBlob(files) {
+    const enc = new TextEncoder(), parts = [], central = []; let off = 0;
+    const d = new Date();
+    const dt = (((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate()) & 0xFFFF;
+    const tm = ((d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1)) & 0xFFFF;
+    files.forEach(f => {
+      const name = enc.encode(f.name), crc = crc32(f.data), sz = f.data.length;
+      const h = new DataView(new ArrayBuffer(30));
+      h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true);
+      h.setUint16(10, tm, true); h.setUint16(12, dt, true); h.setUint32(14, crc, true); h.setUint32(18, sz, true); h.setUint32(22, sz, true);
+      h.setUint16(26, name.length, true); h.setUint16(28, 0, true);
+      parts.push(h.buffer, name, f.data);
+      const c = new DataView(new ArrayBuffer(46));
+      c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(10, 0, true);
+      c.setUint16(12, tm, true); c.setUint16(14, dt, true); c.setUint32(16, crc, true); c.setUint32(20, sz, true); c.setUint32(24, sz, true);
+      c.setUint16(28, name.length, true); c.setUint32(42, off, true);
+      central.push(c.buffer, name);
+      off += 30 + name.length + sz;
+    });
+    let cd = 0; central.forEach(p => cd += p.byteLength);
+    const e = new DataView(new ArrayBuffer(22));
+    e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true); e.setUint32(12, cd, true); e.setUint32(16, off, true);
+    return new Blob([...parts, ...central, e.buffer], { type: 'application/zip' });
+  }
+
+  function makeCorrectedFilename(sourceName, fallbackTitle, forceJpeg=false) {
+    const original = safeFilename(sourceName || fallbackTitle || 'image.jpg');
+    const base = stripExtension(original) || 'image';
+    const ext = forceJpeg ? '.jpg' : (/\.[^.]+$/.test(original) ? original.slice(original.lastIndexOf('.')).toLowerCase() : '.jpg');
+    return `${base}_corrected${ext}`;
+  }
+
+  async function canvasToJpegBytes(src) {
+    const img = await new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => rej(new Error('Could not decode the image for conversion.')); im.src = src; });
+    const c = document.createElement('canvas');
+    c.width = img.naturalWidth; c.height = img.naturalHeight;
+    c.getContext('2d').drawImage(img, 0, 0);
+    const blob = await new Promise(res => c.toBlob(res, 'image/jpeg', 0.95));
+    if (!blob) throw new Error('Could not encode a JPEG copy.');
+    return new Uint8Array(await blob.arrayBuffer());
+  }
+
+  async function getJpegBytesForNode(node) {
+    const isJpeg = (u) => !!u && u.length > 3 && u[0] === 0xFF && u[1] === 0xD8;
+    let bytes = null;
+    try { bytes = new Uint8Array(await (await nodeToSourceFile(node)).arrayBuffer()); } catch (e) { bytes = null; }
+    if (isJpeg(bytes)) return { bytes, converted: false };
+
+    // HEIC / other: reuse the full-resolution JPEG preview made at import (no network).
+    const pv = node.previewUrl || node.url;
+    if (pv && /^data:image\/jpe?g/i.test(pv)) {
+      const u = dataUrlToBytes(pv);
+      if (isJpeg(u)) return { bytes: u, converted: true };
+    }
+    if (bytes && isHeicFile(node)) {
+      try {
+        const dec = await ensureHeicDecoder();
+        const out = await dec({ blob: new Blob([bytes]), type: 'image/jpeg', quality: 1 });
+        const u = new Uint8Array(await (out instanceof Blob ? out : new Blob([out])).arrayBuffer());
+        if (isJpeg(u)) return { bytes: u, converted: true };
+      } catch (e) { /* fall through to canvas */ }
+    }
+    const src = node.url || node.sourceDataUrl;
+    if (!src) throw new Error('No image data available for ' + (node.sourceFileName || node.title) + '.');
+    return { bytes: await canvasToJpegBytes(src), converted: true };
+  }
+
+  async function prepareCorrectedExport(node) {
+    const { bytes, converted } = await getJpegBytesForNode(node);
+    const edits = buildExifEdits(node);
+    const out = writeJpegMetadata(bytes, node, edits);
+    verifyExif(out, node, edits);
+    const filename = makeCorrectedFilename(node.sourceFileName || node.originalName, node.title, converted);
+    return { file: new File([out], filename, { type: 'image/jpeg' }), filename, convertedFromHeic: converted };
+  }
+
+  function downloadBlob(blob, filename) {
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+  }
+
+  function refreshCorrectedExportPanel() {
+    const list = document.getElementById('correctedExportList');
+    const count = document.getElementById('correctedExportCount');
+    if (!list || !count) return;
+    count.textContent = `${nodes.length} image${nodes.length === 1 ? '' : 's'} loaded`;
+    if (!nodes.length) {
+      list.innerHTML = '<div style="padding:14px;color:#9ca3af;font-size:11px;">No images loaded.</div>';
+      return;
+    }
+    list.innerHTML = nodes.map(n => {
+      const s = metadataSummaryText(n);
+      const state = n.metadataDirty ? 'Corrections pending' : 'Unchanged';
+      return `<div class="export-image-row">
+        <div class="name" title="${escapeHtml(s.file)}">${escapeHtml(s.file)}</div>
+        <div class="type">${escapeHtml(s.type)}</div>
+        <div class="state ${n.metadataDirty ? 'changed':''}">${escapeHtml(state)}</div>
+      </div>`;
+    }).join('');
+  }
+
+  async function exportCorrectedImage(node) {
+    if (!node) throw new Error('No image selected.');
+    const result = await prepareCorrectedExport(node);
+    downloadBlob(result.file, result.filename);
+    return result;
+  }
+
+  document.getElementById('exportCorrectedCurrentBtn').addEventListener('click', async () => {
+    const node = nodes.find(n => n.id === selectedNodeId);
+    if (!node) return;
+    const btn = document.getElementById('exportCorrectedCurrentBtn');
+    btn.disabled = true;
+    const old = btn.textContent;
+    btn.textContent = 'Writing…';
+    document.getElementById('correctedExportProgress').textContent = `Preparing ${node.sourceFileName || node.title}…`;
+    try {
+      const result = await exportCorrectedImage(node);
+      document.getElementById('correctedExportProgress').textContent =
+        result.convertedFromHeic ? 'Exported as a full-resolution corrected JPEG copy.' : 'Corrected copy exported without re-encoding the image.';
+      showToast(`Exported ${result.filename}`, 3000);
+    } catch (err) {
+      console.error(err);
+      document.getElementById('correctedExportProgress').textContent = `Export failed: ${err.message || err}`;
+      alert(`Could not export corrected image. ${err.message || err}`);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = old;
+    }
+  });
+
+  document.getElementById('exportCorrectedAllBtn').addEventListener('click', async () => {
+    if (!nodes.length) return;
+    const btn = document.getElementById('exportCorrectedAllBtn');
+    const prog = document.getElementById('correctedExportProgress');
+    btn.disabled = true;
+    const old = btn.textContent;
+    btn.textContent = 'Building ZIP…';
+    const files = [], failed = [], used = new Set();
+    let converted = 0;
+    try {
+      for (let i = 0; i < nodes.length; i++) {
+        const n = nodes[i];
+        prog.textContent = `Exporting ${i + 1} of ${nodes.length}: ${n.sourceFileName || n.title}`;
+        await new Promise(r => setTimeout(r, 0)); // let the UI repaint
+        try {
+          const r = await prepareCorrectedExport(n);
+          const dot = r.filename.lastIndexOf('.');
+          const stem = dot > 0 ? r.filename.slice(0, dot) : r.filename, ext = dot > 0 ? r.filename.slice(dot) : '';
+          let name = r.filename, k = 2;
+          while (used.has(name.toLowerCase())) name = `${stem}_${k++}${ext}`;
+          used.add(name.toLowerCase());
+          files.push({ name, data: new Uint8Array(await r.file.arrayBuffer()) });
+          if (r.convertedFromHeic) converted++;
+        } catch (err) {
+          console.error(err);
+          failed.push(`${n.sourceFileName || n.title}: ${err.message || err}`);
+        }
+      }
+      if (!files.length) throw new Error(failed[0] || 'No images could be exported.');
+      if (failed.length) files.push({ name: 'EXPORT_ERRORS.txt', data: new TextEncoder().encode('These images could not be exported:\n\n' + failed.join('\n') + '\n') });
+      const blob = buildZipBlob(files);
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+      downloadBlob(blob, `Corrected_Images_${stamp}.zip`);
+      const ok = files.length - (failed.length ? 1 : 0);
+      prog.textContent = `Exported ${ok} image${ok === 1 ? '' : 's'}${converted ? ` · ${converted} converted to JPEG` : ''}${failed.length ? ` · ${failed.length} failed (see EXPORT_ERRORS.txt)` : ''}.`;
+      showToast(`Bulk export complete · ${ok} images`, 3200);
+    } catch (err) {
+      console.error(err);
+      prog.textContent = `Bulk export failed: ${err.message || err}`;
+      alert(`Bulk export stopped. ${err.message || err}`);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = old;
+    }
+  });
+
+  document.getElementById('refreshCorrectedExportBtn').addEventListener('click', refreshCorrectedExportPanel);
+
+  /* ---------- SAVE PROJECT HTML & COMPRESSION SCALING ---------- */
+  document.getElementById('exportBtn').addEventListener('click', () => {
     if (!nodes.length) { alert("Upload images first!"); return; }
     document.getElementById('exportConfigModal').style.display = 'flex';
+    refreshCorrectedExportPanel();
     updateExportEstimateUI();
   });
 
   document.getElementById('cancelExportConfigBtn').addEventListener('click', () => {
+    document.getElementById('exportConfigModal').style.display = 'none';
+  });
+  document.getElementById('closeExportModalBtn').addEventListener('click', () => {
+    document.getElementById('exportConfigModal').style.display = 'none';
+  });
+  document.getElementById('closeExportModalBtn2').addEventListener('click', () => {
     document.getElementById('exportConfigModal').style.display = 'none';
   });
 
@@ -3359,12 +4525,12 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
     document.getElementById('scaleValLabel').innerText = pct + '%';
 
     let totalOriginalBytes = 0;
-    nodes.forEach(n => { totalOriginalBytes += Math.round(n.url.length * 0.75); });
+    nodes.forEach(n => { const src = n.sourceDataUrl || n.url || ''; totalOriginalBytes += Math.round(src.length * 0.75); });
 
     const scaleFactor = pct / 100;
     let estimatedTotal = 0;
     nodes.forEach(n => {
-      const orig = Math.round(n.url.length * 0.75);
+      const orig = Math.round((n.sourceDataUrl || n.url || '').length * 0.75);
       if (pct === 100) {
         estimatedTotal += orig;
       } else {
@@ -3390,7 +4556,7 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
     const processedNodes = await Promise.all(nodes.map(async (n) => {
       // Strip the Leaflet marker BEFORE cloning: it holds circular references
       // back to the map, which JSON.stringify cannot serialise.
-      const { marker, ...plain } = n;
+      const { marker, sourceFile, ...plain } = n;
       const copy = JSON.parse(JSON.stringify(plain));
 
       // Preserve the heading in a canonical numeric form so saved HTML files

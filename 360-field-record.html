@@ -1396,7 +1396,7 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
     </div>
 
     <div class="export-modal-foot">
-      <span class="export-section-sub" id="exportModalHint">Original image files are unchanged.</span>
+      <span class="export-section-sub" id="exportModalHint">The live project is unchanged. 100% exports retain distinct original HEIC files; scaled exports use resized JPEGs and apply a 24 MP per-image safety cap only when needed.</span>
       <button id="closeExportModalBtn2" class="upload-btn secondary">Close</button>
     </div>
   </div>
@@ -4520,60 +4520,56 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
 
-  function updateExportEstimateUI() {
-    const pct = parseInt(document.getElementById('exportScaleSlider').value, 10);
-    document.getElementById('scaleValLabel').innerText = pct + '%';
+  const EXPORT_NODES_MARKER = '__EXPORT_BASE_NODES_JSON__';
+  const EXPORT_JPEG_DATA_URL_PREFIX = 'data:image/jpeg;base64,';
+  const EXPORT_MAX_CANVAS_PIXELS = 24_000_000;
+  const EXPORT_STREAM_THRESHOLD_CHARS = 48 * 1024 * 1024;
+  let exportEstimateTimer = null;
+  let exportEstimateVersion = 0;
+  let exportEstimateRunning = false;
+  let exportInProgress = false;
+  let lastExportEstimateBytes = null;
 
-    let totalOriginalBytes = 0;
-    nodes.forEach(n => { const src = n.sourceDataUrl || n.url || ''; totalOriginalBytes += Math.round(src.length * 0.75); });
-
-    const scaleFactor = pct / 100;
-    let estimatedTotal = 0;
-    nodes.forEach(n => {
-      const orig = Math.round((n.sourceDataUrl || n.url || '').length * 0.75);
-      if (pct === 100) {
-        estimatedTotal += orig;
-      } else {
-        const areaRatio = Math.pow(scaleFactor, 1.6);
-        const qualityRatio = n.is360 ? 0.92 : 0.82; 
-        estimatedTotal += Math.max(12000, Math.round(orig * areaRatio * qualityRatio));
-      }
-    });
-
-    document.getElementById('estSizeText').innerText = `${formatBytes(estimatedTotal)} (Original: ${formatBytes(totalOriginalBytes)})`;
+  function utf8ByteLength(value) {
+    // Blob computes the UTF-8 byte size without us having to retain an extra
+    // encoded Uint8Array for the whole HTML document.
+    return new Blob([String(value)]).size;
   }
 
-  document.getElementById('confirmExportConfigBtn').addEventListener('click', async () => {
-    let filename = document.getElementById('exportFilename').value.trim() || 'Field_Record_360.html';
-    if (!filename.endsWith('.html')) filename += '.html';
-    
-    const pct = parseInt(document.getElementById('exportScaleSlider').value, 10);
-    const keepAnnotations = document.getElementById('exportKeepAnnotations').checked;
+  function getExportImageSource(node) {
+    const candidates = [node && node.url, node && node.previewUrl, node && node.sourceDataUrl];
+    return candidates.find(value => typeof value === 'string' && /^data:image\//i.test(value)) || null;
+  }
 
-    document.getElementById('exportConfigModal').style.display = 'none';
-    showToast('Building export…');
+  function shouldPreserveOriginalSource(node, percentage) {
+    const source = node && node.sourceDataUrl;
+    const viewer = getExportImageSource(node);
+    return percentage === 100 && isHeicFile(node) && typeof source === 'string' &&
+      /^data:image\//i.test(source) && source !== viewer;
+  }
 
-    const processedNodes = await Promise.all(nodes.map(async (n) => {
-      // Strip the Leaflet marker BEFORE cloning: it holds circular references
-      // back to the map, which JSON.stringify cannot serialise.
-      const { marker, sourceFile, ...plain } = n;
-      const copy = JSON.parse(JSON.stringify(plain));
+  function makeExportNodeCopy(node, imageUrl, keepAnnotations, originalSourceUrl = null) {
+    // Shallow-copy the node: JSON cloning here duplicates very large base64
+    // strings before export even begins. Runtime-only values are removed.
+    const copy = { ...node };
+    delete copy.marker;
+    delete copy.sourceFile;
+    copy.url = imageUrl;
 
-      // Preserve the heading in a canonical numeric form so saved HTML files
-      // cannot lose the flag needed to draw the blue map arrow.
-      normaliseNodeHeading(copy);
+    // JPEGs commonly stored the same base64 string in url and sourceDataUrl,
+    // and HEIC inputs stored the viewer JPEG a second time in previewUrl. Drop
+    // those duplicates. At 100%, preserve a distinct original HEIC payload; if
+    // the user chooses a smaller scale, the scaled JPEG is the exported source.
+    copy.sourceDataUrl = originalSourceUrl || null;
+    copy.previewUrl = null;
+    copy.annotations = keepAnnotations ? (node.annotations || []).map(a => ({ ...a })) : [];
+    normaliseNodeHeading(copy);
+    return copy;
+  }
 
-      if (!keepAnnotations) copy.annotations = [];
-
-      if (copy.url.startsWith('data:image')) {
-        copy.url = await resizeImageByPercentage(copy.url, pct, copy.is360);
-      }
-      return copy;
-    }));
-
-    // Serialise from a clone with runtime-only DOM stripped out, so the saved
-    // file doesn't carry a second full-size copy of the displayed image or a
-    // half-built pannellum / leaflet DOM.
+  function createExportHtmlTemplate() {
+    // Clone and clean the UI, but keep the potentially huge image data out of
+    // the DOM and out of one monolithic HTML string.
     const clone = document.documentElement.cloneNode(true);
     clone.querySelectorAll('.panorama-frame').forEach(el => { el.innerHTML = ''; el.removeAttribute('style'); });
     clone.querySelectorAll('.flat-frame').forEach(el => { el.removeAttribute('src'); el.style.display = 'none'; el.style.transform = ''; });
@@ -4584,6 +4580,7 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
     clone.querySelectorAll('.icon-btn.active').forEach(el => el.classList.remove('active'));
     clone.querySelectorAll('.zoom-group').forEach(el => el.classList.remove('visible'));
     clone.querySelectorAll('.count-badge').forEach(el => { el.innerText = '0'; el.classList.add('empty'); });
+
     const cloneStepBar = clone.querySelector('#compareStepBar');
     if (cloneStepBar) cloneStepBar.style.display = 'none';
 
@@ -4602,41 +4599,327 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
     if (cloneMap) { cloneMap.innerHTML = ''; cloneMap.className = ''; cloneMap.removeAttribute('style'); }
 
     let htmlString = clone.outerHTML;
-    htmlString = htmlString.replace(/const SAVED_PROJECT_TITLE = [^;]*;/, `const SAVED_PROJECT_TITLE = ${JSON.stringify(projectTitle)};`);
-    htmlString = htmlString.replace(/const SAVED_BASE_NODES = [\s\S]*?;\s*\n/, `const SAVED_BASE_NODES = ${JSON.stringify(processedNodes)};\n`);
+    htmlString = htmlString.replace(
+      /const SAVED_PROJECT_TITLE = [^;]*;/,
+      `const SAVED_PROJECT_TITLE = ${JSON.stringify(projectTitle)};`
+    );
+    const savedNodesPattern = /const SAVED_BASE_NODES = [\s\S]*?;\s*\n/;
+    if (!savedNodesPattern.test(htmlString)) {
+      throw new Error('Could not locate the saved-project data in the HTML template.');
+    }
+    htmlString = htmlString.replace(
+      savedNodesPattern,
+      `const SAVED_BASE_NODES = ${EXPORT_NODES_MARKER};\n`
+    );
+    return '<!DOCTYPE html>\n' + htmlString;
+  }
 
-    const blob = new Blob(['<!DOCTYPE html>\n' + htmlString], { type: 'text/html' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = filename;
-    link.click();
-    showToast(`Saved ${filename} · ${formatBytes(blob.size)}`, 3800);
-  });
+  function getExportTemplateParts(template) {
+    const markerAt = template.indexOf(EXPORT_NODES_MARKER);
+    if (markerAt < 0) throw new Error('Could not prepare the HTML export template.');
+    return {
+      prefix: template.slice(0, markerAt),
+      suffix: template.slice(markerAt + EXPORT_NODES_MARKER.length)
+    };
+  }
 
-  function resizeImageByPercentage(dataUrl, percentage, is360) {
-    return new Promise((resolve) => {
-      if (percentage === 100) { resolve(dataUrl); return; }
+  function getTargetExportDimensions(img, percentage) {
+    const scale = Math.max(0.01, Math.min(1, Number(percentage) / 100));
+    let width = Math.max(100, Math.round((img.naturalWidth || img.width) * scale));
+    let height = Math.max(100, Math.round((img.naturalHeight || img.height) * scale));
+    const pixels = width * height;
 
-      const img = new Image();
-      img.onload = () => {
-        const scale = percentage / 100;
-        const targetW = Math.max(100, Math.round(img.width * scale));
-        const targetH = Math.max(100, Math.round(img.height * scale));
+    // A canvas bitmap needs roughly four bytes per pixel before JPEG encoding.
+    // Cap resized outputs to avoid hundreds of MB of temporary bitmap memory.
+    if (pixels > EXPORT_MAX_CANVAS_PIXELS) {
+      const safeScale = Math.sqrt(EXPORT_MAX_CANVAS_PIXELS / pixels);
+      width = Math.max(100, Math.floor(width * safeScale));
+      height = Math.max(100, Math.floor(height * safeScale));
+    }
+    return { width, height };
+  }
 
-        const canvas = document.createElement('canvas');
-        canvas.width = targetW;
-        canvas.height = targetH;
-        const ctx = canvas.getContext('2d');
-        ctx.imageSmoothingQuality = 'high';
-        ctx.drawImage(img, 0, 0, targetW, targetH);
-        
-        const jpegQuality = is360 ? 0.92 : 0.82;
-        resolve(canvas.toDataURL('image/jpeg', jpegQuality));
-      };
-      img.onerror = () => resolve(dataUrl);
-      img.src = dataUrl;
+  async function resizeImageToBlob(dataUrl, percentage, is360) {
+    const img = await new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error('The image could not be decoded for resizing.'));
+      image.src = dataUrl;
+    });
+
+    const { width, height } = getTargetExportDimensions(img, percentage);
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    try {
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('The browser could not allocate an image canvas. Try a lower image scale.');
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, width, height);
+      const quality = is360 ? 0.92 : 0.82;
+      const blob = await new Promise((resolve, reject) => {
+        canvas.toBlob(result => result ? resolve(result) : reject(new Error('The browser could not encode the resized image. Try a lower image scale.')), 'image/jpeg', quality);
+      });
+      return blob;
+    } finally {
+      // Release the large RGBA canvas and decoded image backing store as soon
+      // as encoding ends.
+      canvas.width = 0;
+      canvas.height = 0;
+      img.removeAttribute('src');
+    }
+  }
+
+  function blobToDataUrl(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => reject(new Error('Could not convert the resized image for embedding.'));
+      reader.readAsDataURL(blob);
     });
   }
+
+  async function estimateExportHtmlSize(percentage, keepAnnotations, version) {
+    const template = createExportHtmlTemplate();
+    const { prefix, suffix } = getExportTemplateParts(template);
+    let totalBytes = utf8ByteLength(prefix) + 1 + 1 + utf8ByteLength(suffix); // [ and ]
+    let imagePayloadBytes = 0;
+
+    for (let i = 0; i < nodes.length; i++) {
+      if (version !== exportEstimateVersion || exportInProgress) return null;
+      const node = nodes[i];
+      const source = getExportImageSource(node);
+      if (!source) throw new Error(`No embeddable image data for ${node.sourceFileName || node.title || `image ${i + 1}`}.`);
+
+      let outputUrlLength = source.length;
+      if (percentage < 100) {
+        const resizedBlob = await resizeImageToBlob(source, percentage, node.is360);
+        // Base64 data URLs are ASCII. This predicts the exact URL length from
+        // the actual JPEG blob size, including the data URL prefix.
+        outputUrlLength = EXPORT_JPEG_DATA_URL_PREFIX.length + 4 * Math.ceil(resizedBlob.size / 3);
+      }
+      if (version !== exportEstimateVersion || exportInProgress) return null;
+
+      const placeholder = `__EXPORT_IMAGE_${i}__`;
+      const preserveOriginal = shouldPreserveOriginalSource(node, percentage);
+      const originalPlaceholder = preserveOriginal ? `__EXPORT_SOURCE_${i}__` : null;
+      const skeleton = makeExportNodeCopy(node, placeholder, keepAnnotations, originalPlaceholder);
+      const json = JSON.stringify(skeleton);
+      const originalLength = preserveOriginal ? node.sourceDataUrl.length : 0;
+      totalBytes += utf8ByteLength(json) + outputUrlLength - placeholder.length +
+        (preserveOriginal ? originalLength - originalPlaceholder.length : 0) + (i ? 1 : 0);
+      imagePayloadBytes += outputUrlLength + originalLength;
+    }
+    return { bytes: totalBytes, imagePayloadBytes };
+  }
+
+  function updateExportEstimateUI() {
+    const pct = parseInt(document.getElementById('exportScaleSlider').value, 10);
+    document.getElementById('scaleValLabel').innerText = pct + '%';
+    exportEstimateVersion++;
+    const version = exportEstimateVersion;
+    if (exportEstimateTimer) clearTimeout(exportEstimateTimer);
+    if (exportInProgress) return;
+    document.getElementById('estSizeText').innerText = 'Calculating image sizes…';
+    exportEstimateTimer = setTimeout(() => runExportEstimate(version), 300);
+  }
+
+  document.getElementById('exportKeepAnnotations').addEventListener('change', updateExportEstimateUI);
+
+  async function runExportEstimate(version) {
+    if (exportEstimateRunning || exportInProgress) return;
+    exportEstimateTimer = null;
+    exportEstimateRunning = true;
+    try {
+      const pct = parseInt(document.getElementById('exportScaleSlider').value, 10);
+      const keepAnnotations = document.getElementById('exportKeepAnnotations').checked;
+      const result = await estimateExportHtmlSize(pct, keepAnnotations, version);
+      if (result && version === exportEstimateVersion && !exportInProgress) {
+        lastExportEstimateBytes = result.bytes;
+        document.getElementById('estSizeText').innerText = `${formatBytes(result.bytes)} HTML · ${formatBytes(result.imagePayloadBytes)} embedded images`;
+        document.getElementById('exportModalHint').textContent = 'Estimate uses actual image encoding and includes the HTML viewer and metadata.';
+      }
+    } catch (err) {
+      if (version === exportEstimateVersion && !exportInProgress) {
+        document.getElementById('estSizeText').innerText = 'Could not estimate — export will show any image error';
+        document.getElementById('exportModalHint').textContent = err.message || 'Could not estimate export size.';
+      }
+    } finally {
+      exportEstimateRunning = false;
+      if (!exportInProgress && version !== exportEstimateVersion) {
+        if (exportEstimateTimer) clearTimeout(exportEstimateTimer);
+        const nextVersion = exportEstimateVersion;
+        exportEstimateTimer = setTimeout(() => runExportEstimate(nextVersion), 100);
+      }
+    }
+  }
+
+  function roughEmbeddedImageCharacters(percentage) {
+    return nodes.reduce((total, node) => {
+      const source = getExportImageSource(node);
+      const extraOriginal = shouldPreserveOriginalSource(node, percentage) ? node.sourceDataUrl.length : 0;
+      return total + (source ? source.length : 0) + extraOriginal;
+    }, 0);
+  }
+
+  function cancelExportEstimate() {
+    exportEstimateVersion++;
+    if (exportEstimateTimer) clearTimeout(exportEstimateTimer);
+    exportEstimateTimer = null;
+  }
+
+  async function waitForExportEstimateToStop() {
+    while (exportEstimateRunning) await new Promise(resolve => setTimeout(resolve, 25));
+  }
+
+  document.getElementById('confirmExportConfigBtn').addEventListener('click', async () => {
+    if (exportInProgress) return;
+    let filename = document.getElementById('exportFilename').value.trim() || 'Field_Record_360.html';
+    filename = safeFilename(filename, 'Field_Record_360.html');
+    if (!/\.html$/i.test(filename)) filename += '.html';
+
+    const percentage = parseInt(document.getElementById('exportScaleSlider').value, 10);
+    const keepAnnotations = document.getElementById('exportKeepAnnotations').checked;
+    const generateButton = document.getElementById('confirmExportConfigBtn');
+    const hint = document.getElementById('exportModalHint');
+    let fileHandle = null;
+    let writable = null;
+    let completed = false;
+    let pickerPromise = null;
+
+    // For large projects use the browser's streaming file writer (when
+    // available) rather than accumulating a huge HTML Blob in RAM. The picker
+    // is invoked directly from the click handler so Chromium permits it.
+    if (roughEmbeddedImageCharacters(percentage) > EXPORT_STREAM_THRESHOLD_CHARS && typeof window.showSaveFilePicker === 'function') {
+      hint.textContent = 'Large export: choose a save location. Images will be written one at a time to avoid browser memory limits.';
+      try {
+        pickerPromise = window.showSaveFilePicker({
+          suggestedName: filename,
+          types: [{ description: 'HTML field record', accept: { 'text/html': ['.html'] } }]
+        });
+      } catch (err) {
+        pickerPromise = null;
+        console.warn('Streaming save is unavailable; using the browser download fallback.', err);
+      }
+    }
+
+    exportInProgress = true;
+    cancelExportEstimate();
+    generateButton.disabled = true;
+    ['cancelExportConfigBtn', 'closeExportModalBtn', 'closeExportModalBtn2'].forEach(id => {
+      const button = document.getElementById(id);
+      if (button) button.disabled = true;
+    });
+    generateButton.textContent = 'Preparing…';
+    document.getElementById('exportModalHint').textContent = pickerPromise
+      ? 'Large export selected. Choose the destination in the save dialog; images are written one at a time.'
+      : 'Preparing standalone HTML export…';
+
+    try {
+      if (pickerPromise) {
+        try {
+          fileHandle = await pickerPromise;
+        } catch (err) {
+          if (err && err.name === 'AbortError') return;
+          throw err;
+        }
+      }
+
+      // Let an in-flight estimate release its canvas before export starts.
+      await waitForExportEstimateToStop();
+      const template = createExportHtmlTemplate();
+      const { prefix, suffix } = getExportTemplateParts(template);
+      if (fileHandle) writable = await fileHandle.createWritable();
+
+      const blobParts = fileHandle ? null : [prefix, '['];
+      let outputByteCount = utf8ByteLength(prefix) + 1 + 1 + utf8ByteLength(suffix);
+      let outputImagePayloadBytes = 0;
+      if (writable) await writable.write(prefix + '[');
+
+      for (let i = 0; i < nodes.length; i++) {
+        const node = nodes[i];
+        const label = node.sourceFileName || node.title || `image ${i + 1}`;
+        generateButton.textContent = `Exporting ${i + 1}/${nodes.length}…`;
+        hint.textContent = `Embedding image ${i + 1} of ${nodes.length}: ${label}`;
+        // Yield between images so the browser can repaint progress and collect
+        // temporary canvases/data URLs before the next image is handled.
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        const source = getExportImageSource(node);
+        if (!source) throw new Error(`No embeddable image data for ${label}.`);
+        let outputUrl = source;
+        if (percentage < 100) {
+          const resizedBlob = await resizeImageToBlob(source, percentage, node.is360);
+          outputUrl = await blobToDataUrl(resizedBlob);
+        }
+
+        // Count the final bytes without encoding a second giant string. Data
+        // URLs are ASCII, so replacing this same-length metadata placeholder
+        // with the final URL gives the exact UTF-8 size of the JSON node.
+        const placeholder = `__EXPORT_IMAGE_${i}__`;
+        const preserveOriginal = shouldPreserveOriginalSource(node, percentage);
+        const originalPlaceholder = preserveOriginal ? `__EXPORT_SOURCE_${i}__` : null;
+        const originalSourceUrl = preserveOriginal ? node.sourceDataUrl : null;
+        const skeletonJson = JSON.stringify(makeExportNodeCopy(node, placeholder, keepAnnotations, originalPlaceholder));
+        const originalLength = originalSourceUrl ? originalSourceUrl.length : 0;
+        outputByteCount += utf8ByteLength(skeletonJson) + outputUrl.length - placeholder.length +
+          (preserveOriginal ? originalLength - originalPlaceholder.length : 0) + (i ? 1 : 0);
+        outputImagePayloadBytes += outputUrl.length + originalLength;
+
+        const copy = makeExportNodeCopy(node, outputUrl, keepAnnotations, originalSourceUrl);
+        const json = JSON.stringify(copy);
+        copy.url = null; // do not retain a second reference after serialising
+
+        if (writable) {
+          if (i) await writable.write(',');
+          await writable.write(json);
+        } else {
+          blobParts.push(i ? ',' : '', json);
+        }
+        // `copy` and `json` fall out of scope on the next loop iteration. In
+        // the streaming path the written image can now be released from RAM.
+      }
+
+      if (writable) {
+        await writable.write(']' + suffix);
+        await writable.close();
+        writable = null;
+        completed = true;
+      } else {
+        blobParts.push(']', suffix);
+        const blob = new Blob(blobParts, { type: 'text/html;charset=utf-8' });
+        blobParts.length = 0;
+        downloadBlob(blob, filename);
+        lastExportEstimateBytes = blob.size;
+        showToast(`Saved ${filename} · ${formatBytes(blob.size)}`, 4200);
+        completed = true;
+      }
+
+      document.getElementById('exportConfigModal').style.display = 'none';
+      if (fileHandle) {
+        lastExportEstimateBytes = outputByteCount;
+        showToast(`Saved ${filename} · ${formatBytes(outputByteCount)} (${formatBytes(outputImagePayloadBytes)} embedded images)`, 4200);
+      }
+    } catch (err) {
+      console.error('HTML export failed:', err);
+      if (writable) {
+        try { await writable.abort(); } catch (_) { /* best effort cleanup */ }
+        writable = null;
+      }
+      hint.textContent = `Export failed: ${err && err.message ? err.message : err}. Try a lower image scale if the browser ran out of image memory.`;
+      showToast('HTML export failed. See the export panel for details.', 4200);
+    } finally {
+      exportInProgress = false;
+      generateButton.disabled = false;
+      ['cancelExportConfigBtn', 'closeExportModalBtn', 'closeExportModalBtn2'].forEach(id => {
+        const button = document.getElementById(id);
+        if (button) button.disabled = false;
+      });
+      generateButton.textContent = 'Generate HTML';
+      if (!completed) updateExportEstimateUI();
+    }
+  });
 
   function downloadDataUrl(dataUrl, filename) {
     if (!dataUrl) return;

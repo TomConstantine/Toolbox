@@ -1,0 +1,1507 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>RTK GNSS Field Surveyor Pro</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        rtkfix: '#10b981',
+                        rtkfloat: '#eab308',
+                        rtksingle: '#f97316',
+                        rtknofix: '#ef4444'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Mobile ergonomics & touch optimizations */
+        body {
+            background-color: #0b0f17;
+            color: #f1f5f9;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* Leaflet map Dark/Light styling overrides */
+        .leaflet-container {
+            background-color: #0f172a !important;
+            width: 100%;
+            height: 100%;
+            font-family: inherit;
+        }
+
+        /* Pulsing GNSS Accuracy Ring */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.9); opacity: 0.8; }
+            50% { transform: scale(1.25); opacity: 0.25; }
+            100% { transform: scale(0.9); opacity: 0.8; }
+        }
+        .gnss-pulse {
+            animation: pulse-ring 2s infinite ease-in-out;
+        }
+
+        /* Safe area handling for iOS notch & home bar */
+        .pb-safe {
+            padding-bottom: env(safe-area-inset-bottom, 1rem);
+        }
+        .pt-safe {
+            padding-top: env(safe-area-inset-top, 0.5rem);
+        }
+
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col overflow-hidden bg-slate-950 text-slate-100">
+
+    <!-- TOP FIELD STATUS HEADER -->
+    <header class="bg-slate-900 border-b border-slate-800 p-2 text-xs flex flex-col gap-1.5 shadow-md z-30 pt-safe">
+        <!-- Row 1: Connection Controls & RTK Solution Badge -->
+        <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                <button id="btn-bt-connect" onclick="toggleBluetoothConnection()" class="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white rounded-full font-semibold transition shadow">
+                    <i id="bt-icon" class="fa-solid fa-bluetooth"></i>
+                    <span id="bt-status-text">Connect Receiver</span>
+                </button>
+                
+                <div class="flex items-center gap-1 bg-slate-800 px-2.5 py-1.5 rounded-full border border-slate-700">
+                    <span id="demo-badge" class="hidden px-1.5 py-0.5 text-[9px] bg-purple-900/90 text-purple-200 rounded font-bold tracking-wider">DEMO</span>
+                    <span id="device-name" class="text-slate-300 font-mono text-[11px] truncate max-w-[100px]">Disconnected</span>
+                </div>
+            </div>
+
+            <!-- RTK Solution State Badge -->
+            <div id="solution-badge" class="px-3 py-1 bg-slate-800 text-slate-400 font-bold rounded-full flex items-center gap-1.5 border border-slate-700 tracking-wider shrink-0">
+                <span class="w-2.5 h-2.5 rounded-full bg-slate-500 inline-block" id="sol-dot"></span>
+                <span id="sol-type" class="text-xs">NO FIX</span>
+            </div>
+        </div>
+
+        <!-- Row 2: Realtime Accuracy & GNSS Metrics -->
+        <div class="grid grid-cols-5 gap-1 text-center bg-slate-950/80 p-1.5 rounded-xl border border-slate-800/80 font-mono text-[11px]">
+            <div>
+                <span class="text-[9px] text-slate-500 block uppercase font-sans">HRMS</span>
+                <span id="val-hrms" class="font-semibold text-slate-200">---</span>
+            </div>
+            <div>
+                <span class="text-[9px] text-slate-500 block uppercase font-sans">VRMS</span>
+                <span id="val-vrms" class="font-semibold text-slate-200">---</span>
+            </div>
+            <div>
+                <span class="text-[9px] text-slate-500 block uppercase font-sans">SATS</span>
+                <span id="val-sats" class="font-semibold text-slate-200">0 / 0</span>
+            </div>
+            <div>
+                <span class="text-[9px] text-slate-500 block uppercase font-sans">PDOP</span>
+                <span id="val-pdop" class="font-semibold text-slate-200">---</span>
+            </div>
+            <div>
+                <span class="text-[9px] text-slate-500 block uppercase font-sans">RATE</span>
+                <span id="val-rate" class="font-semibold text-slate-200">0 Hz</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- iOS / SAFARI WEB BLUETOOTH ALERT BANNER -->
+    <div id="ios-warning-banner" class="hidden bg-amber-950/90 border-b border-amber-800/80 p-2.5 px-3 text-xs text-amber-200 flex items-center justify-between z-20">
+        <div class="flex items-center gap-2 pr-2">
+            <i class="fa-solid fa-triangle-exclamation text-amber-400 text-base shrink-0"></i>
+            <div>
+                <span class="font-bold">iOS / Safari Detected:</span> Mobile Safari blocks Web Bluetooth natively.
+            </div>
+        </div>
+        <button onclick="openIosGuideModal()" class="px-2.5 py-1 bg-amber-800 hover:bg-amber-700 text-amber-100 rounded-lg font-medium text-[11px] shrink-0 border border-amber-600">
+            Fix / Options
+        </button>
+    </div>
+
+    <!-- MAIN VIEWPORT CONTAINER -->
+    <main class="flex-1 relative overflow-hidden">
+        
+        <!-- VIEW 1: MAP VIEW -->
+        <div id="view-map" class="absolute inset-0 z-10 flex flex-col">
+            <!-- Map Container -->
+            <div id="map" class="w-full h-full"></div>
+
+            <!-- Coordinates Overlay HUD -->
+            <div class="absolute top-3 left-3 right-3 bg-slate-900/90 backdrop-blur-md p-2.5 rounded-2xl border border-slate-700/80 shadow-2xl text-xs font-mono z-[500] flex justify-between items-center">
+                <div class="space-y-0.5">
+                    <div class="text-slate-400 text-[9px] font-sans font-semibold uppercase tracking-wider">Current WGS84 Position</div>
+                    <div id="map-coords" class="text-emerald-400 font-bold">Lat: ---, Lon: ---</div>
+                    <div id="map-elevation" class="text-slate-300 text-[11px]">Elev: --- m (Ellipsoid)</div>
+                </div>
+                <button onclick="recenterMap()" class="bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-200 p-3 rounded-xl border border-slate-600 shadow-lg">
+                    <i class="fa-solid fa-crosshairs text-base"></i>
+                </button>
+            </div>
+
+            <!-- Auto-Logging Banner (When Active) -->
+            <div id="autolog-indicator" class="hidden absolute top-20 left-3 right-3 bg-emerald-950/90 border border-emerald-500/80 p-2 rounded-xl text-xs text-emerald-200 font-mono z-[500] flex items-center justify-between animate-pulse">
+                <span class="flex items-center gap-2">
+                    <i class="fa-solid fa-record-vinyl text-red-500"></i> Auto-Logging Active (<span id="autolog-count">0</span> pts)
+                </span>
+                <button onclick="stopAutoLogging()" class="px-2 py-0.5 bg-red-900 hover:bg-red-800 text-red-100 rounded text-[10px] font-sans font-bold">
+                    STOP
+                </button>
+            </div>
+
+            <!-- Floating Action Capture Button -->
+            <div class="absolute bottom-6 right-4 z-[500] flex flex-col items-end gap-3">
+                <button onclick="triggerPointCaptureModal()" class="flex items-center gap-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-95 text-white font-bold py-3.5 px-5 rounded-full shadow-2xl border border-emerald-400/30">
+                    <i class="fa-solid fa-location-crosshairs text-xl"></i>
+                    <span class="text-sm font-sans tracking-wide">STORE POINT</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- VIEW 2: POINTS MANAGER TABLE -->
+        <div id="view-points" class="absolute inset-0 z-0 bg-slate-950 flex flex-col p-3 overflow-hidden">
+            <div class="flex items-center justify-between gap-2 mb-3">
+                <h2 class="text-base font-bold text-slate-100 flex items-center gap-2">
+                    <i class="fa-solid fa-list-check text-blue-500"></i> Surveyed Points (<span id="point-count">0</span>)
+                </h2>
+                <div class="flex gap-2">
+                    <button onclick="exportDataModal()" class="px-3 py-1.5 bg-blue-900/80 hover:bg-blue-800 text-blue-200 rounded-lg border border-blue-700/80 text-xs flex items-center gap-1.5 font-semibold">
+                        <i class="fa-solid fa-file-export text-blue-400"></i> Export
+                    </button>
+                    <button onclick="confirmClearPoints()" class="px-2.5 py-1.5 bg-red-950/60 hover:bg-red-900 text-red-300 rounded-lg border border-red-800/60 text-xs">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Search Filter -->
+            <div class="mb-2.5 relative">
+                <input type="text" id="point-search" oninput="renderPointsTable()" placeholder="Search by ID, feature code or fix..." class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500 pl-8">
+                <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2.5 text-slate-500 text-xs"></i>
+            </div>
+
+            <!-- Table -->
+            <div class="flex-1 overflow-auto rounded-xl border border-slate-800 bg-slate-900/50">
+                <table class="w-full text-left text-xs text-slate-300">
+                    <thead class="bg-slate-900 text-slate-400 font-semibold sticky top-0 border-b border-slate-800">
+                        <tr>
+                            <th class="p-2.5">ID / Code</th>
+                            <th class="p-2.5">Lat / Lon</th>
+                            <th class="p-2.5">Ground Elev</th>
+                            <th class="p-2.5">RMS (H/V)</th>
+                            <th class="p-2.5 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="points-table-body" class="divide-y divide-slate-800/60 font-mono">
+                        <!-- Dynamic Point Rows -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- VIEW 3: SETTINGS & RECEIVER CONFIG -->
+        <div id="view-settings" class="absolute inset-0 z-0 bg-slate-950 p-4 overflow-y-auto space-y-4">
+            <h2 class="text-base font-bold text-slate-100 flex items-center gap-2">
+                <i class="fa-solid fa-sliders text-blue-500"></i> Hardware & Survey Configuration
+            </h2>
+
+            <!-- Bluetooth & Stream Inputs -->
+            <div class="bg-slate-900 p-3.5 rounded-2xl border border-slate-800 space-y-3">
+                <div class="font-semibold text-sm text-slate-200 flex items-center justify-between">
+                    <span><i class="fa-brands fa-bluetooth-b text-blue-400 mr-1.5"></i> Bluetooth Receiver (SPP)</span>
+                    <span id="settings-bt-indicator" class="text-slate-500 text-xs">Disconnected</span>
+                </div>
+                <p class="text-slate-400 text-xs leading-relaxed">
+                    Connect directly to RTK receivers over Web Bluetooth SPP (Emlid Reach RX/RS2+, Leica, Trimble, Garmin).
+                </p>
+                <div class="flex gap-2">
+                    <button onclick="connectBluetooth()" class="flex-1 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-medium py-2 rounded-xl text-xs shadow">
+                        Pair / Connect Receiver
+                    </button>
+                    <button onclick="disconnectBluetooth()" class="px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs">
+                        Disconnect
+                    </button>
+                </div>
+            </div>
+
+            <!-- Manual NMEA File Stream Loader -->
+            <div class="bg-slate-900 p-3.5 rounded-2xl border border-slate-800 space-y-2.5">
+                <div class="font-semibold text-sm text-slate-200 flex items-center gap-2">
+                    <i class="fa-solid fa-file-lines text-teal-400"></i> Offline NMEA Log File
+                </div>
+                <p class="text-slate-400 text-xs">Load raw NMEA 0183 text file (.txt, .nmea, .log) to playback or process survey lines offline.</p>
+                <input type="file" id="nmea-file-input" accept=".txt,.nmea,.log" onchange="loadNmeaFile(event)" class="block w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-slate-200 hover:file:bg-slate-700">
+            </div>
+
+            <!-- Demo / Simulator Toggle -->
+            <div class="bg-slate-900 p-3.5 rounded-2xl border border-slate-800 space-y-2">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="font-semibold text-sm text-slate-200">GNSS Simulation / Test Feed</div>
+                        <div class="text-slate-400 text-xs">Generates valid NMEA GGA/GST sentences with high-accuracy RTK Fix drift.</div>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="toggle-demo" onchange="toggleDemoMode(this.checked)" class="sr-only peer">
+                        <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Antenna & Survey Config -->
+            <div class="bg-slate-900 p-3.5 rounded-2xl border border-slate-800 space-y-3">
+                <div class="font-semibold text-sm text-slate-200">Default Antenna & Averaging</div>
+                
+                <div>
+                    <label class="text-slate-400 block mb-1 text-xs">Default Antenna Pole Height (meters):</label>
+                    <input type="number" step="0.001" id="cfg-antenna-height" value="2.000" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-200 focus:outline-none focus:border-blue-500 font-mono text-xs">
+                </div>
+
+                <div>
+                    <label class="text-slate-400 block mb-1 text-xs">Epoch Stacking / Averaging Duration:</label>
+                    <select id="cfg-averaging-sec" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-200 focus:outline-none focus:border-blue-500 text-xs">
+                        <option value="1">1 second (Instant Shot)</option>
+                        <option value="5" selected>5 seconds (Standard Shot)</option>
+                        <option value="10">10 seconds (Precision Shot)</option>
+                        <option value="30">30 seconds (Control Point)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="text-slate-400 block mb-1 text-xs">Auto-Logging Mode Settings:</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <span class="text-[10px] text-slate-500 block">By Interval (sec)</span>
+                            <input type="number" id="cfg-autolog-sec" value="2" min="1" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-slate-200 text-xs">
+                        </div>
+                        <div>
+                            <span class="text-[10px] text-slate-500 block">By Distance (m)</span>
+                            <input type="number" id="cfg-autolog-dist" value="1.0" step="0.1" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-slate-200 text-xs">
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-slate-400 block mb-1 text-xs">Tolerance Warnings:</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <span class="text-[10px] text-slate-500">Max HRMS (m)</span>
+                            <input type="number" id="cfg-max-hrms" step="0.01" value="0.05" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-slate-200 text-xs">
+                        </div>
+                        <div>
+                            <span class="text-[10px] text-slate-500">Max VRMS (m)</span>
+                            <input type="number" id="cfg-max-vrms" step="0.01" value="0.10" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-slate-200 text-xs">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Audio Alerts Toggle -->
+            <div class="bg-slate-900 p-3.5 rounded-2xl border border-slate-800 flex items-center justify-between">
+                <div>
+                    <div class="font-semibold text-sm text-slate-200">Audio Feedback Tones</div>
+                    <div class="text-slate-400 text-xs">Synthesizer beeps on point capture & RTK state shifts.</div>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="cfg-audio" checked class="sr-only peer">
+                    <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+            </div>
+        </div>
+    </main>
+
+    <!-- BOTTOM TAB NAVIGATION BAR -->
+    <nav class="bg-slate-900 border-t border-slate-800 flex justify-around items-center h-16 z-30 pb-safe">
+        <button onclick="switchTab('map')" id="nav-map" class="flex-1 flex flex-col items-center justify-center h-full text-blue-500">
+            <i class="fa-solid fa-map text-lg"></i>
+            <span class="text-[10px] mt-1 font-semibold">Map View</span>
+        </button>
+        <button onclick="triggerPointCaptureModal()" class="flex-1 flex flex-col items-center justify-center h-full text-emerald-400">
+            <i class="fa-solid fa-circle-plus text-2xl"></i>
+            <span class="text-[10px] mt-0.5 font-bold">Survey</span>
+        </button>
+        <button onclick="switchTab('points')" id="nav-points" class="flex-1 flex flex-col items-center justify-center h-full text-slate-400 hover:text-slate-200">
+            <i class="fa-solid fa-list-check text-lg"></i>
+            <span class="text-[10px] mt-1 font-semibold">Points</span>
+        </button>
+        <button onclick="switchTab('settings')" id="nav-settings" class="flex-1 flex flex-col items-center justify-center h-full text-slate-400 hover:text-slate-200">
+            <i class="fa-solid fa-sliders text-lg"></i>
+            <span class="text-[10px] mt-1 font-semibold">Config</span>
+        </button>
+    </nav>
+
+    <!-- CAPTURE POINT DIALOG MODAL -->
+    <div id="modal-capture" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[1000] flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-4 shadow-2xl space-y-3 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
+                    <i class="fa-solid fa-thumbtack text-emerald-500"></i> Store Survey Point
+                </h3>
+                <button onclick="closeModal('modal-capture')" class="text-slate-400 hover:text-white p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Epoch Stacking / Averaging Progress Box -->
+            <div id="averaging-box" class="bg-slate-950 p-3 rounded-2xl border border-slate-800 space-y-1.5">
+                <div class="flex justify-between text-xs">
+                    <span class="text-slate-400">Epoch Stacking Status:</span>
+                    <span id="avg-status-text" class="text-emerald-400 font-bold">Ready</span>
+                </div>
+                <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                    <div id="avg-progress-bar" class="bg-emerald-500 h-full w-0 transition-all duration-200"></div>
+                </div>
+                <div class="flex justify-between text-[10px] font-mono text-slate-500">
+                    <span id="avg-count">Epochs: 0 / 5</span>
+                    <span id="avg-live-rms">Mean HRMS: ---</span>
+                </div>
+            </div>
+
+            <!-- Auto Realtime GNSS Summary -->
+            <div class="grid grid-cols-2 gap-2 text-xs font-mono bg-slate-950/70 p-3 rounded-xl border border-slate-800/80">
+                <div>
+                    <span class="text-slate-500 text-[10px] block font-sans">LATITUDE</span>
+                    <span id="cap-lat" class="text-slate-200 font-semibold">0.00000000</span>
+                </div>
+                <div>
+                    <span class="text-slate-500 text-[10px] block font-sans">LONGITUDE</span>
+                    <span id="cap-lon" class="text-slate-200 font-semibold">0.00000000</span>
+                </div>
+                <div>
+                    <span class="text-slate-500 text-[10px] block font-sans">ELLIPSOID HEIGHT</span>
+                    <span id="cap-alt" class="text-slate-200 font-semibold">0.000 m</span>
+                </div>
+                <div>
+                    <span class="text-slate-500 text-[10px] block font-sans">SOLUTION TYPE</span>
+                    <span id="cap-fix" class="text-slate-200 font-semibold">---</span>
+                </div>
+            </div>
+
+            <!-- User Form Fields -->
+            <div class="space-y-3 text-xs">
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="text-slate-400 block mb-1 font-medium">Point ID / Name:</label>
+                        <input type="text" id="cap-name" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-100 focus:outline-none focus:border-emerald-500 font-mono">
+                    </div>
+                    <div>
+                        <label class="text-slate-400 block mb-1 font-medium">Feature Code:</label>
+                        <select id="cap-code" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-100 focus:outline-none focus:border-emerald-500">
+                            <option value="BOUNDARY">BOUNDARY (Property Pin)</option>
+                            <option value="MANHOLE">MANHOLE (Utility Service)</option>
+                            <option value="BENCHMARK">BENCHMARK (Control Pt)</option>
+                            <option value="CURB">CURB (Road Alignment)</option>
+                            <option value="TREES">TREE (Natural Feature)</option>
+                            <option value="BUILDING">BUILDING (Structure)</option>
+                            <option value="OTHER">OTHER (General)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-slate-400 block mb-1 font-medium">Antenna Pole Height Offset (m):</label>
+                    <input type="number" step="0.001" id="cap-antenna-height" oninput="calculateNetElevation()" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-100 focus:outline-none focus:border-emerald-500 font-mono">
+                </div>
+
+                <div class="bg-emerald-950/40 border border-emerald-800/60 p-2.5 rounded-xl flex justify-between items-center font-mono">
+                    <span class="text-slate-400 text-xs font-sans">Computed Ground Elev:</span>
+                    <span id="cap-ground-elev" class="text-emerald-400 font-bold text-sm">0.000 m</span>
+                </div>
+
+                <div>
+                    <label class="text-slate-400 block mb-1 font-medium">Notes / Remarks:</label>
+                    <input type="text" id="cap-notes" placeholder="Optional survey note..." class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-100 focus:outline-none focus:border-emerald-500">
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex gap-2 pt-2 border-t border-slate-800">
+                <button onclick="closeModal('modal-capture')" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium py-3 rounded-xl text-xs">
+                    Cancel
+                </button>
+                <button id="btn-start-store" onclick="handleStorePointClick()" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-lg">
+                    <i class="fa-solid fa-floppy-disk"></i> <span id="btn-store-text">Start Averaging & Save</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- EXPORT MODAL -->
+    <div id="modal-export" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[1000] flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-sm rounded-3xl p-4 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
+                    <i class="fa-solid fa-file-export text-blue-500"></i> Export Survey Data
+                </h3>
+                <button onclick="closeModal('modal-export')" class="text-slate-400 hover:text-white p-1">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <p class="text-xs text-slate-400 leading-relaxed">Choose format for CAD, GIS, or Spreadsheet software:</p>
+
+            <div class="grid grid-cols-1 gap-2 text-xs font-medium">
+                <button onclick="exportPoints('csv')" class="bg-slate-950 hover:bg-slate-800 border border-slate-800 p-3 rounded-2xl flex items-center justify-between text-slate-200">
+                    <div class="flex items-center gap-2.5">
+                        <i class="fa-solid fa-file-csv text-emerald-400 text-xl"></i>
+                        <span class="font-bold">CSV / Text File</span>
+                    </div>
+                    <span class="text-[10px] text-slate-500 font-mono">P,N,E,Z,Code</span>
+                </button>
+
+                <button onclick="exportPoints('geojson')" class="bg-slate-950 hover:bg-slate-800 border border-slate-800 p-3 rounded-2xl flex items-center justify-between text-slate-200">
+                    <div class="flex items-center gap-2.5">
+                        <i class="fa-solid fa-code text-blue-400 text-xl"></i>
+                        <span class="font-bold">GeoJSON Format</span>
+                    </div>
+                    <span class="text-[10px] text-slate-500 font-mono">QGIS / ArcGIS</span>
+                </button>
+
+                <button onclick="exportPoints('dxf')" class="bg-slate-950 hover:bg-slate-800 border border-slate-800 p-3 rounded-2xl flex items-center justify-between text-slate-200">
+                    <div class="flex items-center gap-2.5">
+                        <i class="fa-solid fa-drafting-compass text-purple-400 text-xl"></i>
+                        <span class="font-bold">AutoCAD DXF</span>
+                    </div>
+                    <span class="text-[10px] text-slate-500 font-mono">CAD Drawing</span>
+                </button>
+
+                <button onclick="exportPoints('kml')" class="bg-slate-950 hover:bg-slate-800 border border-slate-800 p-3 rounded-2xl flex items-center justify-between text-slate-200">
+                    <div class="flex items-center gap-2.5">
+                        <i class="fa-solid fa-earth-americas text-amber-400 text-xl"></i>
+                        <span class="font-bold">KML Keyhole</span>
+                    </div>
+                    <span class="text-[10px] text-slate-500 font-mono">Google Earth</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- iOS HELPER MODAL -->
+    <div id="modal-ios" class="hidden fixed inset-0 bg-slate-950/85 backdrop-blur-md z-[1000] flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-3xl p-5 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                <h3 class="font-bold text-base text-amber-400 flex items-center gap-2">
+                    <i class="fa-brands fa-apple text-lg"></i> iOS / iPhone Web Bluetooth
+                </h3>
+                <button onclick="closeModal('modal-ios')" class="text-slate-400 hover:text-white p-1">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="text-xs text-slate-300 space-y-3 leading-relaxed">
+                <p>Apple Safari on iOS currently disables native Web Bluetooth (`navigator.bluetooth`). To connect your physical RTK receiver on iPhone/iPad, choose one of these solutions:</p>
+
+                <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2">
+                    <div class="font-bold text-blue-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-mobile-screen-button"></i> Option A: Web Bluetooth Browsers (Free)
+                    </div>
+                    <p class="text-[11px] text-slate-400">Download one of these free iOS browsers from the App Store that enable Web Bluetooth API support:</p>
+                    <ul class="list-disc pl-4 text-[11px] text-slate-300 space-y-0.5 font-mono">
+                        <li>Blueify - Web Bluetooth Browser</li>
+                        <li>WebBLE Browser</li>
+                    </ul>
+                </div>
+
+                <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2">
+                    <div class="font-bold text-purple-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-file-lines"></i> Option B: NMEA Log File or Demo Mode
+                    </div>
+                    <p class="text-[11px] text-slate-400">You can use our built-in RTK Simulator or load an offline `.nmea` text log directly in standard iOS Safari.</p>
+                </div>
+            </div>
+
+            <div class="flex gap-2 pt-2">
+                <button onclick="toggleDemoMode(true); closeModal('modal-ios');" class="flex-1 bg-purple-600 hover:bg-purple-500 text-white font-bold py-2.5 rounded-xl text-xs">
+                    Enable Test Demo Feed
+                </button>
+                <button onclick="closeModal('modal-ios')" class="px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium py-2.5 rounded-xl text-xs">
+                    Got It
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN APP CONTROLLER SCRIPT -->
+    <script>
+        // ==========================================
+        // APP STATE & GNSS ENGINE
+        // ==========================================
+        const state = {
+            gnss: {
+                lat: null,
+                lon: null,
+                alt: null,
+                fixType: 'NO FIX',
+                fixQualityCode: 0,
+                satellitesUsed: 0,
+                satellitesTracked: 0,
+                hdop: null,
+                pdop: null,
+                vdop: null,
+                hrms: null,
+                vrms: null,
+                lastUpdated: null
+            },
+            bluetooth: {
+                device: null,
+                characteristic: null,
+                isConnected: false,
+                buffer: ''
+            },
+            demoMode: false,
+            demoInterval: null,
+            points: [],
+            autoPointCounter: 1,
+            isAveraging: false,
+            averagingTimer: null,
+            averagingSamples: [],
+            // Rate counter
+            sentenceCount: 0,
+            hzRate: 0,
+            hzInterval: null,
+            // Auto Logging
+            isAutoLogging: false,
+            autoLogInterval: null,
+            lastLoggedLatLng: null
+        };
+
+        let map = null;
+        let positionMarker = null;
+        let accuracyCircle = null;
+        let pointsLayerGroup = null;
+        let pathLineGroup = null;
+        let audioCtx = null;
+
+        // ==========================================
+        // INITIALIZATION
+        // ==========================================
+        window.onload = function () {
+            checkIosEnvironment();
+            initLocalStorage();
+            initLeafletMap();
+            renderPointsTable();
+            updateUIHeader();
+
+            // Frequency monitor
+            state.hzInterval = setInterval(() => {
+                state.hzRate = state.sentenceCount;
+                state.sentenceCount = 0;
+                document.getElementById('val-rate').innerText = `${state.hzRate} Hz`;
+            }, 1000);
+        };
+
+        function checkIosEnvironment() {
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+            const hasBt = 'bluetooth' in navigator;
+
+            if (isIOS && !hasBt) {
+                document.getElementById('ios-warning-banner').classList.remove('hidden');
+            }
+        }
+
+        function openIosGuideModal() {
+            document.getElementById('modal-ios').classList.remove('hidden');
+        }
+
+        // ==========================================
+        // BASEMAPS (100% FREE / NO API KEY)
+        // ==========================================
+        function initLeafletMap() {
+            // Default center fallback (London)
+            map = L.map('map', {
+                zoomControl: false,
+                attributionControl: false
+            }).setView([51.505, -0.09], 16);
+
+            // 1. OpenStreetMap Standard (Primary Default Basemap)
+            const osmStandard = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(map);
+
+            // 2. OpenTopoMap Topographic
+            const openTopo = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+                maxZoom: 17,
+                attribution: '&copy; OpenTopoMap'
+            });
+
+            // 3. ESRI World Imagery Satellite (Free Public Tile Server)
+            const esriSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                maxZoom: 19,
+                attribution: '&copy; ESRI'
+            });
+
+            // Layer Control Widget
+            L.control.layers({
+                "OpenStreetMap": osmStandard,
+                "Satellite (ESRI)": esriSatellite,
+                "Topographic": openTopo
+            }, null, { position: 'bottomleft' }).addTo(map);
+
+            pointsLayerGroup = L.layerGroup().addTo(map);
+            pathLineGroup = L.layerGroup().addTo(map);
+
+            // Position Error Circle
+            accuracyCircle = L.circle([0, 0], {
+                radius: 1,
+                color: '#3b82f6',
+                fillColor: '#3b82f6',
+                fillOpacity: 0.18,
+                weight: 1
+            }).addTo(map);
+
+            // Live GNSS Dynamic Marker
+            const gnssIcon = L.divIcon({
+                className: 'custom-gnss-icon',
+                html: `<div class="relative flex items-center justify-center w-6 h-6">
+                        <div class="absolute w-full h-full rounded-full bg-blue-500/40 gnss-pulse"></div>
+                        <div id="map-inner-dot" class="w-3.5 h-3.5 bg-blue-500 border-2 border-white rounded-full shadow-lg"></div>
+                       </div>`,
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            });
+
+            positionMarker = L.marker([0, 0], { icon: gnssIcon }).addTo(map);
+            renderPointsOnMap();
+        }
+
+        function updateMapPosition() {
+            if (!state.gnss.lat || !state.gnss.lon) return;
+
+            const latlng = [state.gnss.lat, state.gnss.lon];
+            positionMarker.setLatLng(latlng);
+
+            // HRMS or HDOP estimate
+            const radius = state.gnss.hrms ? Math.max(state.gnss.hrms, 0.05) : (state.gnss.hdop ? state.gnss.hdop * 2 : 2);
+            accuracyCircle.setLatLng(latlng);
+            accuracyCircle.setRadius(radius);
+
+            // Dot color based on Fix Quality
+            const innerDot = document.getElementById('map-inner-dot');
+            if (innerDot) {
+                if (state.gnss.fixType === 'RTK FIX') innerDot.className = 'w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full shadow-lg';
+                else if (state.gnss.fixType === 'RTK FLOAT') innerDot.className = 'w-3.5 h-3.5 bg-yellow-500 border-2 border-white rounded-full shadow-lg';
+                else innerDot.className = 'w-3.5 h-3.5 bg-orange-500 border-2 border-white rounded-full shadow-lg';
+            }
+        }
+
+        function recenterMap() {
+            if (state.gnss.lat && state.gnss.lon) {
+                map.setView([state.gnss.lat, state.gnss.lon], 18);
+            } else {
+                alert("No valid GNSS coordinate fix yet.");
+            }
+        }
+
+        function renderPointsOnMap() {
+            if (!map || !pointsLayerGroup) return;
+            pointsLayerGroup.clearLayers();
+            pathLineGroup.clearLayers();
+
+            const latLngs = [];
+
+            state.points.forEach(pt => {
+                const coord = [pt.lat, pt.lon];
+                latLngs.push(coord);
+
+                const ptMarker = L.circleMarker(coord, {
+                    radius: 6,
+                    color: '#ffffff',
+                    weight: 1.5,
+                    fillColor: pt.fixType === 'RTK FIX' ? '#10b981' : '#eab308',
+                    fillOpacity: 0.95
+                });
+
+                ptMarker.bindPopup(`
+                    <div class="text-xs font-sans p-1">
+                        <strong class="text-sm font-bold text-slate-900">${pt.name}</strong> (${pt.code})<br/>
+                        <span class="text-slate-700">Elev: ${pt.groundElev.toFixed(3)} m</span><br/>
+                        <span class="text-slate-500">Fix: ${pt.fixType} | HRMS: ${pt.hrms ? pt.hrms.toFixed(3) + 'm' : 'N/A'}</span>
+                    </div>
+                `);
+
+                pointsLayerGroup.addLayer(ptMarker);
+            });
+
+            if (latLngs.length > 1) {
+                const polyline = L.polyline(latLngs, {
+                    color: '#3b82f6',
+                    weight: 2,
+                    dashArray: '4, 6',
+                    opacity: 0.7
+                });
+                pathLineGroup.addLayer(polyline);
+            }
+        }
+
+        // ==========================================
+        // WEB BLUETOOTH INTEGRATION
+        // ==========================================
+        async function toggleBluetoothConnection() {
+            if (state.bluetooth.isConnected) {
+                disconnectBluetooth();
+            } else {
+                await connectBluetooth();
+            }
+        }
+
+        async function connectBluetooth() {
+            if (!('bluetooth' in navigator)) {
+                openIosGuideModal();
+                return;
+            }
+
+            try {
+                if (state.demoMode) toggleDemoMode(false);
+
+                const SPP_UUID = '00001101-0000-1000-8000-00805f9b34fb';
+                
+                state.bluetooth.device = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: true,
+                    optionalServices: [SPP_UUID, 'generic_access']
+                });
+
+                document.getElementById('bt-status-text').innerText = "Connecting...";
+
+                const server = await state.bluetooth.device.gatt.connect();
+                state.bluetooth.device.addEventListener('gattserverdisconnected', onDisconnected);
+
+                const service = await server.getPrimaryService(SPP_UUID);
+                const characteristics = await service.getCharacteristics();
+
+                for (let c of characteristics) {
+                    if (c.properties.notify || c.properties.read) {
+                        state.bluetooth.characteristic = c;
+                        break;
+                    }
+                }
+
+                if (state.bluetooth.characteristic) {
+                    await state.bluetooth.characteristic.startNotifications();
+                    state.bluetooth.characteristic.addEventListener('characteristicvaluechanged', handleBluetoothData);
+                    
+                    state.bluetooth.isConnected = true;
+                    updateBluetoothStatusUI(true, state.bluetooth.device.name || "GNSS Receiver");
+                } else {
+                    throw new Error("No SPP stream characteristic available on device.");
+                }
+
+            } catch (err) {
+                console.error("Bluetooth pairing error:", err);
+                alert("Bluetooth Error: " + err.message);
+                updateBluetoothStatusUI(false);
+            }
+        }
+
+        function disconnectBluetooth() {
+            if (state.bluetooth.device && state.bluetooth.device.gatt.connected) {
+                state.bluetooth.device.gatt.disconnect();
+            }
+            onDisconnected();
+        }
+
+        function onDisconnected() {
+            state.bluetooth.isConnected = false;
+            state.bluetooth.characteristic = null;
+            updateBluetoothStatusUI(false);
+        }
+
+        function handleBluetoothData(event) {
+            const decoder = new TextDecoder('utf-8');
+            const chunk = decoder.decode(event.target.value);
+            state.bluetooth.buffer += chunk;
+
+            const lines = state.bluetooth.buffer.split('\n');
+            state.bluetooth.buffer = lines.pop();
+
+            lines.forEach(line => parseNMEA(line.trim()));
+        }
+
+        function updateBluetoothStatusUI(connected, name = "Disconnected") {
+            const btnText = document.getElementById('bt-status-text');
+            const devName = document.getElementById('device-name');
+            const btIcon = document.getElementById('bt-icon');
+            const setIndicator = document.getElementById('settings-bt-indicator');
+
+            if (connected) {
+                btnText.innerText = "Disconnect";
+                devName.innerText = name;
+                btIcon.className = "fa-solid fa-bluetooth text-emerald-400";
+                setIndicator.innerText = `Connected: ${name}`;
+                setIndicator.className = "text-emerald-400 font-semibold text-xs";
+            } else {
+                btnText.innerText = "Connect Receiver";
+                devName.innerText = "Disconnected";
+                btIcon.className = "fa-solid fa-bluetooth";
+                setIndicator.innerText = "Disconnected";
+                setIndicator.className = "text-slate-500 text-xs";
+            }
+        }
+
+        // ==========================================
+        // RAW NMEA FILE LOG STREAMER
+        // ==========================================
+        function loadNmeaFile(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const text = evt.target.result;
+                const lines = text.split('\n');
+                let idx = 0;
+
+                if (state.demoMode) toggleDemoMode(false);
+
+                const fileInterval = setInterval(() => {
+                    if (idx >= lines.length) {
+                        clearInterval(fileInterval);
+                        alert("Finished parsing NMEA log file.");
+                        return;
+                    }
+                    parseNMEA(lines[idx].trim());
+                    idx++;
+                }, 100);
+            };
+            reader.readAsText(file);
+        }
+
+        // ==========================================
+        // NMEA 0183 PARSER (GGA, GST, GSA, RMC)
+        // ==========================================
+        function parseNMEA(sentence) {
+            if (!sentence.startsWith('$')) return;
+
+            state.sentenceCount++;
+
+            const tokens = sentence.split('*')[0].split(',');
+            const type = tokens[0].substring(3);
+
+            switch (type) {
+                case 'GGA': parseGGA(tokens); break;
+                case 'GST': parseGST(tokens); break;
+                case 'GSA': parseGSA(tokens); break;
+            }
+
+            state.gnss.lastUpdated = new Date();
+            updateUIHeader();
+            updateMapPosition();
+
+            // Check Auto-logging trigger
+            checkAutoLoggingTrigger();
+        }
+
+        function parseGGA(tokens) {
+            if (tokens.length < 10) return;
+
+            // Latitude
+            const rawLat = tokens[2];
+            const latDir = tokens[3];
+            if (rawLat && latDir) {
+                const deg = parseFloat(rawLat.substring(0, 2));
+                const min = parseFloat(rawLat.substring(2));
+                let lat = deg + (min / 60);
+                if (latDir === 'S') lat = -lat;
+                state.gnss.lat = lat;
+            }
+
+            // Longitude
+            const rawLon = tokens[4];
+            const lonDir = tokens[5];
+            if (rawLon && lonDir) {
+                const deg = parseFloat(rawLon.substring(0, 3));
+                const min = parseFloat(rawLon.substring(3));
+                let lon = deg + (min / 60);
+                if (lonDir === 'W') lon = -lon;
+                state.gnss.lon = lon;
+            }
+
+            // Fix Quality (0=No Fix, 1=Single, 2=DGPS, 4=RTK Fix, 5=RTK Float)
+            const qual = parseInt(tokens[6], 10);
+            const prevFix = state.gnss.fixType;
+            state.gnss.fixQualityCode = qual;
+
+            switch (qual) {
+                case 4: state.gnss.fixType = 'RTK FIX'; break;
+                case 5: state.gnss.fixType = 'RTK FLOAT'; break;
+                case 1:
+                case 2: state.gnss.fixType = 'SINGLE'; break;
+                default: state.gnss.fixType = 'NO FIX'; break;
+            }
+
+            if (prevFix !== 'RTK FIX' && state.gnss.fixType === 'RTK FIX') {
+                playSound('fix_acquired');
+            }
+
+            state.gnss.satellitesUsed = parseInt(tokens[7], 10) || 0;
+            state.gnss.hdop = parseFloat(tokens[8]) || null;
+
+            if (tokens[9]) {
+                state.gnss.alt = parseFloat(tokens[9]);
+            }
+        }
+
+        function parseGST(tokens) {
+            if (tokens.length < 9) return;
+            const stdLat = parseFloat(tokens[6]);
+            const stdLon = parseFloat(tokens[7]);
+            const stdAlt = parseFloat(tokens[8]);
+
+            if (!isNaN(stdLat) && !isNaN(stdLon)) {
+                state.gnss.hrms = Math.sqrt((stdLat * stdLat) + (stdLon * stdLon));
+            }
+            if (!isNaN(stdAlt)) {
+                state.gnss.vrms = stdAlt;
+            }
+        }
+
+        function parseGSA(tokens) {
+            if (tokens.length < 17) return;
+            const pdop = parseFloat(tokens[15]);
+            const vdop = parseFloat(tokens[17]);
+            if (!isNaN(pdop)) state.gnss.pdop = pdop;
+            if (!isNaN(vdop)) state.gnss.vdop = vdop;
+        }
+
+        // ==========================================
+        // SIMULATION / DEMO FEED
+        // ==========================================
+        function toggleDemoMode(enable) {
+            state.demoMode = enable;
+            const demoBadge = document.getElementById('demo-badge');
+            document.getElementById('toggle-demo').checked = enable;
+
+            if (enable) {
+                demoBadge.classList.remove('hidden');
+                let baseLat = 51.505;
+                let baseLon = -0.09;
+                let baseAlt = 42.150;
+
+                state.demoInterval = setInterval(() => {
+                    baseLat += (Math.random() - 0.5) * 0.000004;
+                    baseLon += (Math.random() - 0.5) * 0.000004;
+                    baseAlt += (Math.random() - 0.5) * 0.001;
+
+                    const latDeg = Math.floor(baseLat);
+                    const latMin = ((baseLat - latDeg) * 60).toFixed(5).padStart(8, '0');
+                    const lonDeg = Math.floor(Math.abs(baseLon));
+                    const lonMin = ((Math.abs(baseLon) - lonDeg) * 60).toFixed(5).padStart(8, '0');
+
+                    const timeStr = new Date().toISOString().substring(11, 19).replace(/:/g, '');
+                    const gga = `$GNGGA,${timeStr},${latDeg.toString().padStart(2, '0')}${latMin},N,${lonDeg.toString().padStart(3, '0')}${lonMin},W,4,19,0.6,${baseAlt.toFixed(3)},M,0.0,M,,*47`;
+                    const gst = `$GNGST,${timeStr},0.008,0.006,0.005,12.0,0.009,0.007,0.012*52`;
+                    const gsa = `$GNGSA,A,3,01,02,03,04,05,06,07,08,,,,,1.1,0.6,0.8*1D`;
+
+                    parseNMEA(gga);
+                    parseNMEA(gst);
+                    parseNMEA(gsa);
+                }, 1000);
+
+            } else {
+                demoBadge.classList.add('hidden');
+                if (state.demoInterval) clearInterval(state.demoInterval);
+            }
+        }
+
+        // ==========================================
+        // UI HEADER UPDATER
+        // ==========================================
+        function updateUIHeader() {
+            const solBadge = document.getElementById('solution-badge');
+            const solDot = document.getElementById('sol-dot');
+            const solType = document.getElementById('sol-type');
+
+            solType.innerText = state.gnss.fixType;
+
+            if (state.gnss.fixType === 'RTK FIX') {
+                solBadge.className = "px-3 py-1 bg-emerald-950/80 text-emerald-400 font-bold rounded-full flex items-center gap-1.5 border border-emerald-700/60 shadow shrink-0";
+                solDot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block animate-pulse";
+            } else if (state.gnss.fixType === 'RTK FLOAT') {
+                solBadge.className = "px-3 py-1 bg-yellow-950/80 text-yellow-400 font-bold rounded-full flex items-center gap-1.5 border border-yellow-700/60 shadow shrink-0";
+                solDot.className = "w-2.5 h-2.5 rounded-full bg-yellow-500 inline-block";
+            } else if (state.gnss.fixType === 'SINGLE') {
+                solBadge.className = "px-3 py-1 bg-orange-950/80 text-orange-400 font-bold rounded-full flex items-center gap-1.5 border border-orange-700/60 shadow shrink-0";
+                solDot.className = "w-2.5 h-2.5 rounded-full bg-orange-500 inline-block";
+            } else {
+                solBadge.className = "px-3 py-1 bg-slate-800 text-slate-400 font-bold rounded-full flex items-center gap-1.5 border border-slate-700 shrink-0";
+                solDot.className = "w-2.5 h-2.5 rounded-full bg-slate-500 inline-block";
+            }
+
+            document.getElementById('val-hrms').innerText = state.gnss.hrms ? `${state.gnss.hrms.toFixed(3)} m` : '---';
+            document.getElementById('val-vrms').innerText = state.gnss.vrms ? `${state.gnss.vrms.toFixed(3)} m` : '---';
+            document.getElementById('val-sats').innerText = `${state.gnss.satellitesUsed} / ${state.gnss.satellitesTracked || state.gnss.satellitesUsed}`;
+            document.getElementById('val-pdop').innerText = state.gnss.pdop ? state.gnss.pdop.toFixed(1) : (state.gnss.hdop ? state.gnss.hdop.toFixed(1) : '---');
+
+            if (state.gnss.lat && state.gnss.lon) {
+                document.getElementById('map-coords').innerText = `Lat: ${state.gnss.lat.toFixed(8)}°, Lon: ${state.gnss.lon.toFixed(8)}°`;
+                document.getElementById('map-elevation').innerText = `Elev: ${state.gnss.alt ? state.gnss.alt.toFixed(3) : '---'} m (Ellipsoid)`;
+            }
+        }
+
+        // ==========================================
+        // POINT CAPTURE & EPOCH AVERAGING ENGINE
+        // ==========================================
+        function triggerPointCaptureModal() {
+            if (!state.gnss.lat || !state.gnss.lon) {
+                alert("No valid GNSS location fix.");
+                return;
+            }
+
+            document.getElementById('cap-name').value = `PT${state.autoPointCounter.toString().padStart(3, '0')}`;
+            document.getElementById('cap-antenna-height').value = document.getElementById('cfg-antenna-height').value;
+
+            updateCaptureModalFields();
+            calculateNetElevation();
+
+            document.getElementById('avg-progress-bar').style.width = '0%';
+            document.getElementById('avg-status-text').innerText = 'Ready';
+            document.getElementById('btn-store-text').innerText = 'Start Averaging & Save';
+
+            document.getElementById('modal-capture').classList.remove('hidden');
+        }
+
+        function updateCaptureModalFields() {
+            document.getElementById('cap-lat').innerText = state.gnss.lat ? state.gnss.lat.toFixed(8) : '0.00000000';
+            document.getElementById('cap-lon').innerText = state.gnss.lon ? state.gnss.lon.toFixed(8) : '0.00000000';
+            document.getElementById('cap-alt').innerText = state.gnss.alt ? `${state.gnss.alt.toFixed(3)} m` : '0.000 m';
+            document.getElementById('cap-fix').innerText = state.gnss.fixType;
+        }
+
+        function calculateNetElevation() {
+            const rawAlt = state.gnss.alt || 0;
+            const antHeight = parseFloat(document.getElementById('cap-antenna-height').value) || 0;
+            const groundElev = rawAlt - antHeight;
+            document.getElementById('cap-ground-elev').innerText = `${groundElev.toFixed(3)} m`;
+        }
+
+        function handleStorePointClick() {
+            const averagingSec = parseInt(document.getElementById('cfg-averaging-sec').value, 10);
+
+            if (state.isAveraging) return;
+
+            if (averagingSec <= 1) {
+                saveCapturedPoint([state.gnss]);
+            } else {
+                startEpochAveraging(averagingSec);
+            }
+        }
+
+        function startEpochAveraging(targetSeconds) {
+            state.isAveraging = true;
+            state.averagingSamples = [];
+
+            const progressBar = document.getElementById('avg-progress-bar');
+            const statusText = document.getElementById('avg-status-text');
+            const countText = document.getElementById('avg-count');
+            const storeBtnText = document.getElementById('btn-store-text');
+
+            storeBtnText.innerText = 'Sampling Epochs...';
+            statusText.innerText = 'Averaging...';
+
+            let count = 0;
+            state.averagingTimer = setInterval(() => {
+                count++;
+                state.averagingSamples.push({ ...state.gnss });
+
+                const pct = (count / targetSeconds) * 100;
+                progressBar.style.width = `${pct}%`;
+                countText.innerText = `Epochs: ${count} / ${targetSeconds}`;
+
+                if (count >= targetSeconds) {
+                    clearInterval(state.averagingTimer);
+                    state.isAveraging = false;
+                    saveCapturedPoint(state.averagingSamples);
+                }
+            }, 1000);
+        }
+
+        function saveCapturedPoint(samples) {
+            let sumLat = 0, sumLon = 0, sumAlt = 0, sumHrms = 0, sumVrms = 0;
+            samples.forEach(s => {
+                sumLat += s.lat;
+                sumLon += s.lon;
+                sumAlt += s.alt || 0;
+                sumHrms += s.hrms || 0;
+                sumVrms += s.vrms || 0;
+            });
+
+            const count = samples.length;
+            const avgLat = sumLat / count;
+            const avgLon = sumLon / count;
+            const avgAlt = sumAlt / count;
+            const avgHrms = sumHrms / count;
+            const avgVrms = sumVrms / count;
+
+            const antHeight = parseFloat(document.getElementById('cap-antenna-height').value) || 0;
+
+            const newPoint = {
+                id: Date.now(),
+                name: document.getElementById('cap-name').value || `PT${state.autoPointCounter}`,
+                code: document.getElementById('cap-code').value,
+                lat: avgLat,
+                lon: avgLon,
+                rawAlt: avgAlt,
+                antennaHeight: antHeight,
+                groundElev: avgAlt - antHeight,
+                fixType: samples[samples.length - 1].fixType,
+                hrms: avgHrms,
+                vrms: avgVrms,
+                notes: document.getElementById('cap-notes').value || '',
+                timestamp: new Date().toISOString()
+            };
+
+            state.points.push(newPoint);
+            state.autoPointCounter++;
+
+            savePointsToLocalStorage();
+            renderPointsTable();
+            playSound('capture');
+
+            closeModal('modal-capture');
+        }
+
+        // ==========================================
+        // AUTO-LOGGING CONTINUOUS FEATURE
+        // ==========================================
+        function checkAutoLoggingTrigger() {
+            if (!state.isAutoLogging || !state.gnss.lat || !state.gnss.lon) return;
+
+            const distThreshold = parseFloat(document.getElementById('cfg-autolog-dist').value) || 1.0;
+
+            if (!state.lastLoggedLatLng) {
+                autoLogShot();
+                return;
+            }
+
+            // Calculate distance from last logged coordinate
+            const d = calculateDistance(state.lastLoggedLatLng.lat, state.lastLoggedLatLng.lon, state.gnss.lat, state.gnss.lon);
+            if (d >= distThreshold) {
+                autoLogShot();
+            }
+        }
+
+        function autoLogShot() {
+            const antHeight = parseFloat(document.getElementById('cfg-antenna-height').value) || 0;
+            const pt = {
+                id: Date.now(),
+                name: `AUTO_${state.autoPointCounter}`,
+                code: 'AUTOLOG',
+                lat: state.gnss.lat,
+                lon: state.gnss.lon,
+                rawAlt: state.gnss.alt || 0,
+                antennaHeight: antHeight,
+                groundElev: (state.gnss.alt || 0) - antHeight,
+                fixType: state.gnss.fixType,
+                hrms: state.gnss.hrms || 0,
+                vrms: state.gnss.vrms || 0,
+                notes: 'Continuous Auto Logging',
+                timestamp: new Date().toISOString()
+            };
+
+            state.points.push(pt);
+            state.autoPointCounter++;
+            state.lastLoggedLatLng = { lat: state.gnss.lat, lon: state.gnss.lon };
+
+            document.getElementById('autolog-count').innerText = state.points.length;
+            savePointsToLocalStorage();
+            playSound('capture');
+        }
+
+        function stopAutoLogging() {
+            state.isAutoLogging = false;
+            document.getElementById('autolog-indicator').classList.add('hidden');
+        }
+
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371000; // Earth radius meters
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon/2) * Math.sin(dLon/2);
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        }
+
+        // ==========================================
+        // POINTS TABLE & DATABASE MANAGEMENT
+        // ==========================================
+        function renderPointsTable() {
+            const tbody = document.getElementById('points-table-body');
+            const search = document.getElementById('point-search').value.toLowerCase();
+            tbody.innerHTML = '';
+
+            const filtered = state.points.filter(p => 
+                p.name.toLowerCase().includes(search) || 
+                p.code.toLowerCase().includes(search) ||
+                p.fixType.toLowerCase().includes(search)
+            );
+
+            document.getElementById('point-count').innerText = state.points.length;
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-500 font-sans">No points logged yet.</td></tr>`;
+                return;
+            }
+
+            filtered.forEach(p => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-800/50 transition";
+                tr.innerHTML = `
+                    <td class="p-2.5">
+                        <div class="font-bold text-slate-200">${p.name}</div>
+                        <div class="text-[10px] text-slate-500">${p.code}</div>
+                    </td>
+                    <td class="p-2.5">
+                        <div>${p.lat.toFixed(7)}°</div>
+                        <div class="text-slate-500">${p.lon.toFixed(7)}°</div>
+                    </td>
+                    <td class="p-2.5 font-bold text-emerald-400">
+                        ${p.groundElev.toFixed(3)} m
+                    </td>
+                    <td class="p-2.5 text-[11px]">
+                        <div>H: ${p.hrms ? p.hrms.toFixed(3) + 'm' : 'N/A'}</div>
+                        <div class="text-slate-500">${p.fixType}</div>
+                    </td>
+                    <td class="p-2.5 text-right space-x-1">
+                        <button onclick="zoomToPoint(${p.lat}, ${p.lon})" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-blue-400 rounded">
+                            <i class="fa-solid fa-eye"></i>
+                        </button>
+                        <button onclick="deletePoint(${p.id})" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-red-400 rounded">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function zoomToPoint(lat, lon) {
+            switchTab('map');
+            map.setView([lat, lon], 19);
+        }
+
+        function deletePoint(id) {
+            state.points = state.points.filter(p => p.id !== id);
+            savePointsToLocalStorage();
+            renderPointsTable();
+        }
+
+        function confirmClearPoints() {
+            if (confirm("Delete all surveyed points from local storage?")) {
+                state.points = [];
+                state.autoPointCounter = 1;
+                savePointsToLocalStorage();
+                renderPointsTable();
+            }
+        }
+
+        function initLocalStorage() {
+            const savedPoints = localStorage.getItem('rtk_survey_points');
+            if (savedPoints) {
+                try {
+                    state.points = JSON.parse(savedPoints);
+                    let maxNum = 0;
+                    state.points.forEach(p => {
+                        const match = p.name.match(/\d+/);
+                        if (match) {
+                            const val = parseInt(match[0], 10);
+                            if (val > maxNum) maxNum = val;
+                        }
+                    });
+                    state.autoPointCounter = maxNum + 1;
+                } catch (e) {
+                    state.points = [];
+                }
+            }
+        }
+
+        function savePointsToLocalStorage() {
+            localStorage.setItem('rtk_survey_points', JSON.stringify(state.points));
+            document.getElementById('point-count').innerText = state.points.length;
+            renderPointsOnMap();
+        }
+
+        // ==========================================
+        // EXPORT ENGINE (CSV, GeoJSON, DXF, KML)
+        // ==========================================
+        function exportDataModal() {
+            if (state.points.length === 0) {
+                alert("No points to export.");
+                return;
+            }
+            document.getElementById('modal-export').classList.remove('hidden');
+        }
+
+        function exportPoints(format) {
+            let content = '';
+            let filename = `RTK_Survey_${new Date().toISOString().substring(0, 10)}`;
+            let mimeType = 'text/plain';
+
+            if (format === 'csv') {
+                filename += '.csv';
+                mimeType = 'text/csv';
+                content = "Point_ID,Code,Latitude,Longitude,Ellipsoid_Height,Antenna_Height,Ground_Elevation,HRMS,VRMS,Fix_Type,Timestamp,Notes\n";
+                state.points.forEach(p => {
+                    content += `"${p.name}","${p.code}",${p.lat.toFixed(8)},${p.lon.toFixed(8)},${p.rawAlt.toFixed(3)},${p.antennaHeight.toFixed(3)},${p.groundElev.toFixed(3)},${p.hrms || 0},${p.vrms || 0},"${p.fixType}","${p.timestamp}","${p.notes}"\n`;
+                });
+            } 
+            else if (format === 'geojson') {
+                filename += '.geojson';
+                mimeType = 'application/json';
+                const geojson = {
+                    type: "FeatureCollection",
+                    features: state.points.map(p => ({
+                        type: "Feature",
+                        geometry: {
+                            type: "Point",
+                            coordinates: [p.lon, p.lat, p.groundElev]
+                        },
+                        properties: {
+                            name: p.name,
+                            code: p.code,
+                            groundElev: p.groundElev,
+                            antennaHeight: p.antennaHeight,
+                            hrms: p.hrms,
+                            vrms: p.vrms,
+                            fixType: p.fixType,
+                            timestamp: p.timestamp,
+                            notes: p.notes
+                        }
+                    }))
+                };
+                content = JSON.stringify(geojson, null, 2);
+            }
+            else if (format === 'dxf') {
+                filename += '.dxf';
+                mimeType = 'application/dxf';
+                content = "0\nSECTION\n2\nHEADER\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n";
+                state.points.forEach(p => {
+                    content += `0\nPOINT\n8\n${p.code}\n10\n${p.lon}\n20\n${p.lat}\n30\n${p.groundElev}\n`;
+                    content += `0\nTEXT\n8\n${p.code}_LABELS\n10\n${p.lon}\n20\n${p.lat}\n30\n${p.groundElev}\n40\n0.5\n1\n${p.name}\n`;
+                });
+                content += "0\nENDSEC\n0\nEOF\n";
+            }
+            else if (format === 'kml') {
+                filename += '.kml';
+                mimeType = 'application/vnd.google-earth.kml+xml';
+                content = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>RTK Survey Export</name>`;
+                state.points.forEach(p => {
+                    content += `
+    <Placemark>
+      <name>${p.name} (${p.code})</name>
+      <description>Ground Elev: ${p.groundElev.toFixed(3)}m | Fix: ${p.fixType}</description>
+      <Point>
+        <coordinates>${p.lon},${p.lat},${p.groundElev}</coordinates>
+      </Point>
+    </Placemark>`;
+                });
+                content += `
+  </Document>
+</kml>`;
+            }
+
+            const blob = new Blob([content], { type: mimeType });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            link.click();
+            URL.revokeObjectURL(link.href);
+
+            closeModal('modal-export');
+        }
+
+        // ==========================================
+        // AUDIO SYNTHESIZER FEEDBACK
+        // ==========================================
+        function playSound(type) {
+            if (!document.getElementById('cfg-audio').checked) return;
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                if (type === 'capture') {
+                    osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+                    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.15);
+                } else if (type === 'fix_acquired') {
+                    osc.frequency.setValueAtTime(523.25, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(1046.50, audioCtx.currentTime + 0.2);
+                    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.25);
+                }
+            } catch (e) {
+                console.warn('Audio feedback blocked by browser settings', e);
+            }
+        }
+
+        // ==========================================
+        // UI TAB NAVIGATION
+        // ==========================================
+        function switchTab(tabName) {
+            const vMap = document.getElementById('view-map');
+            const vPts = document.getElementById('view-points');
+            const vSet = document.getElementById('view-settings');
+
+            const nMap = document.getElementById('nav-map');
+            const nPts = document.getElementById('nav-points');
+            const nSet = document.getElementById('nav-settings');
+
+            vMap.style.zIndex = 0;
+            vPts.style.zIndex = 0;
+            vSet.style.zIndex = 0;
+
+            nMap.className = "flex-1 flex flex-col items-center justify-center h-full text-slate-400 hover:text-slate-200";
+            nPts.className = "flex-1 flex flex-col items-center justify-center h-full text-slate-400 hover:text-slate-200";
+            nSet.className = "flex-1 flex flex-col items-center justify-center h-full text-slate-400 hover:text-slate-200";
+
+            if (tabName === 'map') {
+                vMap.style.zIndex = 10;
+                nMap.className = "flex-1 flex flex-col items-center justify-center h-full text-blue-500 font-bold";
+                setTimeout(() => map.invalidateSize(), 100);
+            } else if (tabName === 'points') {
+                vPts.style.zIndex = 10;
+                nPts.className = "flex-1 flex flex-col items-center justify-center h-full text-blue-500 font-bold";
+                renderPointsTable();
+            } else if (tabName === 'settings') {
+                vSet.style.zIndex = 10;
+                nSet.className = "flex-1 flex flex-col items-center justify-center h-full text-blue-500 font-bold";
+            }
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+    </script>
+</body>
+</html>

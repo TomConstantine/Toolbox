@@ -45,6 +45,8 @@ select{max-width:100px}
   <div id="layers"></div>
   <div class="row">Basemap
     <select id="base"><option value="osm">OpenStreetMap</option><option value="esri">Esri imagery</option><option value="none">None</option></select></div>
+  <div class="row"><label><input type="checkbox" id="wales" checked> Wales only</label>
+    Quality <select id="qual"><option value="64">Fast</option><option value="128" selected>Balanced</option><option value="256">Sharp</option></select></div>
   <div class="row"><label><input type="checkbox" id="cmpOn"> Compare</label>
     <select id="selL" title="Left"></select><select id="selR" title="Right"></select></div>
   <div class="row" id="tools">
@@ -56,15 +58,21 @@ select{max-width:100px}
 <script>
 const $ = s => document.querySelector(s);
 const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const map = L.map('map', {maxZoom: 22, zoomSnap: 0.5, preferCanvas: true}).setView([54, -2], 6);
+const WALES = L.latLngBounds([51.35, -5.45], [53.5, -2.6]);
+const map = L.map('map', {maxZoom: 26, minZoom: 7, zoomSnap: 0.5, wheelPxPerZoomLevel: 80, maxBounds: WALES, maxBoundsViscosity: 1}).setView([52.4, -3.7], 8);
+const tile = (u, o) => L.tileLayer(u, {maxZoom: 26, bounds: WALES, keepBuffer: 4, ...o});
 const bases = {
-  osm: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 22, maxNativeZoom: 19, attribution: '&copy; OpenStreetMap contributors'}),
-  esri: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {maxZoom: 22, maxNativeZoom: 19, attribution: 'Tiles &copy; Esri'}),
+  osm: tile('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxNativeZoom: 19, attribution: '&copy; OpenStreetMap contributors'}),
+  esri: tile('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {maxNativeZoom: 18, attribution: 'Tiles &copy; Esri'}),
   none: L.layerGroup()
 };
 let base = bases.osm.addTo(map);
 $('#base').onchange = e => { map.removeLayer(base); base = bases[e.target.value].addTo(map); if (base.bringToBack) base.bringToBack(); };
 L.control.scale({imperial: false}).addTo(map);
+$('#wales').onchange = e => {
+  const on = e.target.checked; map.setMaxBounds(on ? WALES : null);
+  for (const k of ['osm', 'esri']) { bases[k].options.bounds = on ? WALES : undefined; if (map.hasLayer(bases[k])) bases[k].redraw(); }
+};
 
 const say = t => $('#info').textContent = t || '';
 
@@ -96,6 +104,13 @@ function colorFn(g) {
   };
 }
 
+const mk = r => new GeoRasterLayer({georaster: r.g, opacity: r.op, resolution: +$('#qual').value, resampleMethod: 'nearest',
+  pixelValuesToColorFn: colorFn(r.g), maxZoom: 26, updateWhenIdle: true, updateWhenZooming: false, keepBuffer: 4});
+$('#qual').onchange = () => {
+  rasters.forEach(r => { map.removeLayer(r.layer); r.layer = mk(r); if (r.vis) r.layer.addTo(map); });
+  applyCmp();
+};
+
 async function addRaster(src, name) {
   say('Loading ' + name + '…');
   try {
@@ -103,10 +118,9 @@ async function addRaster(src, name) {
     try { g = await parseGeoraster(src); }
     catch (e) { if (src instanceof Blob) g = await parseGeoraster(await src.arrayBuffer()); else throw e; }
     reg(g.projection);
-    const layer = new GeoRasterLayer({georaster: g, opacity: 1, resolution: 256, pixelValuesToColorFn: colorFn(g)});
-    layer.addTo(map);
-    rasters.push({id: ++uid, name, layer, vis: true});
-    map.fitBounds(layer.getBounds());
+    const r = {id: ++uid, name, g, op: 1, vis: true};
+    r.layer = mk(r); r.layer.addTo(map); rasters.push(r);
+    map.fitBounds(r.layer.getBounds());
     say(`${name}: ${g.width}×${g.height}, ${g.numberOfRasters} band(s), EPSG:${g.projection}`);
     render();
   } catch (e) { console.error(e); say('Could not load ' + name + ': ' + (e.message || e)); }
@@ -114,7 +128,7 @@ async function addRaster(src, name) {
 
 function render() {
   $('#layers').innerHTML = rasters.map(r => `<div class="lr"><label><input type="checkbox" data-a="vis" data-i="${r.id}" ${r.vis ? 'checked' : ''}><span title="${esc(r.name)}">${esc(r.name)}</span></label>
-    <input type="range" min="0" max="1" step=".05" value="${r.layer.options.opacity}" data-a="op" data-i="${r.id}">
+    <input type="range" min="0" max="1" step=".05" value="${r.op}" data-a="op" data-i="${r.id}">
     <button data-a="zoom" data-i="${r.id}">Zoom</button><button data-a="del" data-i="${r.id}">×</button></div>`).join('')
     || '<p class="hint">Open or drop a GeoTIFF / COG to begin.</p>';
   for (const [sel, def] of [['#selL', 0], ['#selR', rasters.length - 1]]) {
@@ -127,7 +141,7 @@ function render() {
 
 $('#layers').addEventListener('input', e => {
   const d = e.target.dataset; if (d.a !== 'op') return;
-  get(d.i).layer.setOpacity(+e.target.value);
+  const r = get(d.i); r.op = +e.target.value; r.layer.setOpacity(r.op);
 });
 $('#layers').addEventListener('click', e => {
   const d = e.target.dataset, r = d.i && get(d.i); if (!r) return;

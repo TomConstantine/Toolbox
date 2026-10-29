@@ -1,251 +1,416 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="en-GB">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ortho viewer</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>PSRA Field Map</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.2/proj4.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/georaster@1.6.0/dist/georaster.browser.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/georaster-layer-for-leaflet@3.10.0/dist/v3/webpack/bundle/georaster-layer-for-leaflet.min.js"></script>
 <style>
-:root{--bg:#1b2124;--fg:#e9eef0;--mut:#8fa0a6;--acc:#f2b84b;--line:#33403f}
+:root{--ink:#14232e;--mut:#5c6b76;--bg:#f1f4f5;--card:#fff;--line:#d5dde1;--gps:#1a6dff;--bad:#b42318;--ok:#0f7a5a;color-scheme:light dark}
+@media(prefers-color-scheme:dark){:root{--ink:#e9eff2;--mut:#9fb0ba;--bg:#0f171c;--card:#1a252c;--line:#2d3b44;--bad:#ff8a7a;--ok:#4cd0a4}}
 *{box-sizing:border-box}
-html,body{height:100%;margin:0;font:13px/1.35 system-ui,sans-serif}
-#map{height:100%;background:#2a3033}
-#panel{position:absolute;top:10px;left:10px;z-index:1000;width:292px;max-height:calc(100% - 20px);overflow:auto;background:var(--bg);color:var(--fg);border-radius:8px;padding:10px;box-shadow:0 2px 14px #0007}
-#panel .row{display:flex;gap:6px;align-items:center;margin:8px 0;flex-wrap:wrap}
-#panel b{flex:1;font-size:14px}
-button,select{font:inherit;background:#2a3438;color:var(--fg);border:1px solid var(--line);border-radius:5px;padding:4px 8px;cursor:pointer}
-button:hover{border-color:var(--acc)}
-button.on{background:var(--acc);color:#1b2124;border-color:var(--acc)}
-select{max-width:100px}
-.lr{display:grid;grid-template-columns:1fr 70px auto auto;gap:6px;align-items:center;margin:4px 0}
-.lr label{display:flex;gap:5px;overflow:hidden;white-space:nowrap}
-.lr span{overflow:hidden;text-overflow:ellipsis}
-.lr input[type=range]{width:70px;accent-color:var(--acc)}
-.hint,#info{color:var(--mut);margin:6px 0 0}
-#info{min-height:2.7em;color:var(--fg)}
-#cmp{position:absolute;inset:0;z-index:900;pointer-events:none;display:none}
-#bar{position:absolute;top:0;bottom:0;left:50%;width:22px;margin-left:-11px;pointer-events:auto;cursor:ew-resize;touch-action:none;background:linear-gradient(90deg,transparent 10px,#fff 10px,#fff 12px,transparent 12px)}
-#bar::after{content:"\2194";position:absolute;top:50%;left:0;width:22px;height:34px;margin-top:-17px;display:grid;place-items:center;background:#fff;color:#222;border-radius:11px;box-shadow:0 1px 6px #0008}
-.pin{background:var(--acc);border:2px solid #fff;border-radius:50%;box-shadow:0 0 4px #000a}
-.leaflet-tooltip.tip{background:#1b2124e6;color:#fff;border:1px solid var(--acc);font-weight:600}
-#drop{position:absolute;inset:0;z-index:1500;display:none;place-items:center;background:#000a;color:#fff;font-size:20px;pointer-events:none}
+html,body{height:100%;margin:0;overscroll-behavior:none}
+body{font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:var(--bg)}
+button,input{font:inherit;color:inherit}
+#app{position:fixed;inset:0;display:flex;flex-direction:column}
+header{display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top) + 8px) 12px 8px;background:var(--card);border-bottom:1px solid var(--line)}
+h1{flex:1;margin:0;font-size:17px;line-height:1.2;font-weight:700}
+h1 small{display:block;margin-top:2px;font-size:12.5px;font-weight:400;color:var(--mut)}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 14px;border-radius:10px;border:1px solid var(--line);background:var(--card);font-weight:600;text-decoration:none;cursor:pointer}
+.btn.pri{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn.bad{color:var(--bad)}
+main{position:relative;flex:1;min-height:0}
+#map{position:absolute;inset:0;background:#dfe5e8}
+#tools{position:absolute;top:10px;right:10px;z-index:1000;display:flex;flex-direction:column;gap:8px}
+#tools button{width:48px;height:48px;border-radius:12px;border:1px solid var(--line);background:var(--card);box-shadow:0 1px 6px #0003;display:grid;place-items:center}
+#tools button.on{background:var(--gps);color:#fff;border-color:var(--gps)}
+svg.i{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#acc{position:absolute;top:10px;left:10px;z-index:1000;min-height:40px;padding:0 14px;border-radius:20px;border:0;background:var(--gps);color:#fff;font-weight:600;box-shadow:0 1px 6px #0004}
+#sheet{position:absolute;left:0;right:0;bottom:0;z-index:1100;max-height:72%;overflow:auto;background:var(--card);border-radius:16px 16px 0 0;box-shadow:0 -4px 20px #0004;transform:translateY(105%);transition:transform .2s;padding-bottom:env(safe-area-inset-bottom)}
+#sheet.open{transform:none}
+.ph{display:flex;gap:6px;overflow-x:auto;scroll-snap-type:x mandatory;background:#0b1115;border-radius:16px 16px 0 0}
+.ph img{flex:0 0 100%;max-height:38vh;object-fit:contain;scroll-snap-align:center;cursor:zoom-in}
+.ph.none{display:block;padding:18px 14px;background:var(--bg);color:var(--mut);font-size:14px}
+.sb{padding:12px 14px 16px}
+.tt{display:flex;gap:10px;align-items:flex-start}
+.tt h2{flex:1;margin:0;font-size:18px;line-height:1.25}
+.x{flex:none;width:44px;height:44px;margin:-8px -8px 0 0;border:0;background:none;font-size:22px;color:var(--mut)}
+.meta{display:flex;flex-wrap:wrap;gap:6px 14px;margin:4px 0 12px;color:var(--mut);font-size:13.5px;align-items:center}
+.dot{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+.act{display:flex;gap:8px;margin-bottom:14px}.act .btn{flex:1}
+dl{display:grid;grid-template-columns:minmax(110px,38%) 1fr;gap:7px 12px;margin:0}
+dt{color:var(--mut)}dd{margin:0;font-weight:500;overflow-wrap:anywhere}
+.panel{position:fixed;inset:0;z-index:2000;background:var(--bg);display:none;flex-direction:column}
+.panel.open{display:flex}
+.pt{display:flex;align-items:center;padding:calc(env(safe-area-inset-top) + 8px) 12px 8px;background:var(--card);border-bottom:1px solid var(--line)}
+.pt h2{flex:1;margin:0;font-size:18px}
+.pb{flex:1;overflow:auto;padding:12px 12px calc(env(safe-area-inset-bottom) + 20px)}
+select{max-width:100%;background:var(--card)}
+#db h3{margin:18px 0 4px;font-size:16px}
+input[type=search]{width:100%;min-height:46px;padding:0 14px;border-radius:10px;border:1px solid var(--line);background:var(--card)}
+#chips{display:flex;gap:6px;overflow-x:auto;padding:10px 0}
+.chip{flex:none;min-height:36px;padding:0 13px;border-radius:18px;border:1px solid var(--line);background:var(--card);font-size:14px}
+.chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+ul{list-style:none;margin:0;padding:0}
+.row{display:flex;gap:10px;align-items:center;width:100%;min-height:58px;padding:8px 12px;margin-bottom:6px;text-align:left;border:1px solid var(--line);border-radius:10px;background:var(--card)}
+.row .dot{flex:none;margin:0}.row b{display:block;font-weight:600}
+.row small,.hint{color:var(--mut);font-size:13px}
+.warn{color:var(--bad);font-weight:600}
+.step{display:flex;gap:12px;align-items:center;padding:12px;margin-bottom:8px;border:1px solid var(--line);border-radius:10px;background:var(--card)}
+.step .n{flex:none;width:28px;height:28px;border-radius:50%;background:var(--ink);color:var(--bg);display:grid;place-items:center;font-weight:700;font-size:14px}
+.step>div{flex:1;min-width:0}.step b{display:block}
+.step .go{display:flex;flex-direction:column;gap:4px;align-items:stretch}
+.lnk{border:0;background:none;color:var(--mut);text-decoration:underline;min-height:28px;font-size:13px}
+.ck{margin:14px 0 6px;font-size:15px}.ck li{padding:3px 0 3px 22px;position:relative}
+.ck li:before{content:"";position:absolute;left:4px;top:11px;width:9px;height:9px;border-radius:50%;background:var(--ok)}
+.ck li.w:before{background:var(--bad)}
+.lg{display:flex;flex-wrap:wrap;gap:6px 16px;margin:14px 0;font-size:13.5px;color:var(--mut)}
+#view{position:fixed;inset:0;z-index:3000;background:#000e;display:flex;align-items:center;justify-content:center}
+#view[hidden]{display:none}#view img{max-width:100%;max-height:100%}
+#toast{position:absolute;left:12px;right:12px;top:12px;z-index:1200;padding:11px 14px;border-radius:10px;background:var(--ink);color:var(--bg);font-weight:500;opacity:0;pointer-events:none;transition:opacity .2s;text-align:center}
+#toast.on{opacity:1}
+@media(prefers-reduced-motion:reduce){#sheet,#toast{transition:none}}
 </style>
 </head>
 <body>
-<div id="map"></div>
-<div id="cmp"><div id="bar"></div></div>
-<div id="drop">Drop GeoTIFF files to load</div>
-<div id="panel">
-  <div class="row"><b>Ortho viewer</b><button id="open">Open</button><button id="url">URL</button>
-    <input type="file" id="file" accept=".tif,.tiff,image/tiff" multiple hidden></div>
-  <div id="layers"></div>
-  <div class="row">Basemap
-    <select id="base"><option value="osm">OpenStreetMap</option><option value="esri">Esri imagery</option><option value="none">None</option></select></div>
-  <div class="row"><label><input type="checkbox" id="wales" checked> Wales only</label>
-    Quality <select id="qual"><option value="64">Fast</option><option value="128" selected>Balanced</option><option value="256">Sharp</option></select></div>
-  <div class="row"><label><input type="checkbox" id="cmpOn"> Compare</label>
-    <select id="selL" title="Left"></select><select id="selR" title="Right"></select></div>
-  <div class="row" id="tools">
-    <button data-t="dist">Distance</button><button data-t="area">Area</button><button data-t="note">Note</button>
-    <button id="undo">Undo</button><button id="clear">Clear</button><button id="exp">Export</button></div>
-  <div id="info"></div>
-  <p class="hint">Double-click or Enter finishes a line or area, Esc cancels. Right-click a shape to delete it.</p>
+<div id="app">
+  <header>
+    <h1>PSRA Field Map<small id="cnt">No data loaded</small></h1>
+    <button class="btn" data-p="assets">Assets</button>
+    <button class="btn pri" data-p="data">Data</button>
+  </header>
+  <main>
+    <div id="map"></div>
+    <button id="acc" hidden></button>
+    <div id="tools">
+      <button id="loc" aria-label="My location"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></button>
+      <button id="fit" aria-label="Show all assets"><svg class="i" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+      <button id="sat" aria-label="Switch map style"><svg class="i" viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5 9-5zM3 13l9 5 9-5"/></svg></button>
+    </div>
+    <section id="sheet"></section>
+    <div id="toast"></div>
+  </main>
 </div>
+
+<section class="panel" id="p-assets">
+  <div class="pt"><h2>Assets</h2><button class="btn" data-x>Done</button></div>
+  <div class="pb">
+    <input id="q" type="search" placeholder="Search name or AMX ID" autocomplete="off">
+    <div id="chips"></div>
+    <ul id="al"></ul>
+  </div>
+</section>
+
+<section class="panel" id="p-data">
+  <div class="pt"><h2>Data</h2><button class="btn" data-x>Done</button></div>
+  <div class="pb" id="db"></div>
+</section>
+
+<div id="view" hidden><img alt=""></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
-const $ = s => document.querySelector(s);
-const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const WALES = L.latLngBounds([51.35, -5.45], [53.5, -2.6]);
-const map = L.map('map', {maxZoom: 26, minZoom: 7, zoomSnap: 0.5, wheelPxPerZoomLevel: 80, maxBounds: WALES, maxBoundsViscosity: 1}).setView([52.4, -3.7], 8);
-const tile = (u, o) => L.tileLayer(u, {maxZoom: 26, bounds: WALES, keepBuffer: 4, ...o});
-const bases = {
-  osm: tile('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxNativeZoom: 19, attribution: '&copy; OpenStreetMap contributors'}),
-  esri: tile('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {maxNativeZoom: 18, attribution: 'Tiles &copy; Esri'}),
-  none: L.layerGroup()
-};
-let base = bases.osm.addTo(map);
-$('#base').onchange = e => { map.removeLayer(base); base = bases[e.target.value].addTo(map); if (base.bringToBack) base.bringToBack(); };
-L.control.scale({imperial: false}).addTo(map);
-$('#wales').onchange = e => {
-  const on = e.target.checked; map.setMaxBounds(on ? WALES : null);
-  for (const k of ['osm', 'esri']) { bases[k].options.bounds = on ? WALES : undefined; if (map.hasLayer(bases[k])) bases[k].redraw(); }
-};
+const $=s=>document.querySelector(s),norm=s=>String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,''),
+esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])),
+COL={Defence:'#0f8a6b',Structure:'#e07b00',Site:'#5b3cc4',Instruments:'#d6336c'},colr=t=>COL[t]||'#6b7780',
+IMG=/^(jpe?g|png|webp|gif|heic)$/,MIME={jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp',gif:'image/gif',heic:'image/heic'};
+let S={working:{shapes:[],rows:[],photos:[]},basemap:{shapes:[],rows:[],photos:[]},hidden:[]},A={},urls=[],sel=null,me=null,wid=null,dot,accC,fitted=false,flt='all',selectedTypes=new Set(),activeDataset='working',showBasemap=true,tt;
 
-const say = t => $('#info').textContent = t || '';
+/* ---------- toast ---------- */
+function toast(m,ms=3500){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);if(ms)tt=setTimeout(()=>t.classList.remove('on'),ms)}
 
-/* ---------- rasters ---------- */
-const rasters = []; let uid = 0;
-const get = id => rasters.find(r => r.id == id);
-
-function reg(c) {  // projection definitions proj4 doesn't ship with
-  if (!c || proj4.defs('EPSG:' + c)) return;
-  if (c === 27700) proj4.defs('EPSG:27700', '+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +towgs84=446.448,-125.157,542.06,0.15,0.247,0.842,-20.489 +units=m +no_defs');
-  else if (c >= 32601 && c <= 32660) proj4.defs('EPSG:' + c, `+proj=utm +zone=${c - 32600} +datum=WGS84 +units=m +no_defs`);
-  else if (c >= 32701 && c <= 32760) proj4.defs('EPSG:' + c, `+proj=utm +zone=${c - 32700} +south +datum=WGS84 +units=m +no_defs`);
-  else if (c >= 25828 && c <= 25838) proj4.defs('EPSG:' + c, `+proj=utm +zone=${c - 25800} +ellps=GRS80 +units=m +no_defs`);
+/* ---------- zip reader (no library; uses browser DecompressionStream) ---------- */
+async function unzip(buf){
+  const v=new DataView(buf),u=new Uint8Array(buf);let e=u.length-22;
+  while(e>=0&&v.getUint32(e,true)!==0x06054b50)e--;
+  if(e<0)throw 0;
+  const n=v.getUint16(e+10,true);let p=v.getUint32(e+16,true);const out=[];
+  for(let i=0;i<n;i++){
+    const m=v.getUint16(p+10,true),cs=v.getUint32(p+20,true),nl=v.getUint16(p+28,true),el=v.getUint16(p+30,true),cl=v.getUint16(p+32,true),off=v.getUint32(p+42,true);
+    const name=new TextDecoder().decode(u.subarray(p+46,p+46+nl));p+=46+nl+el+cl;
+    const st=off+30+v.getUint16(off+26,true)+v.getUint16(off+28,true),raw=u.subarray(st,st+cs);
+    out.push({name,get:async()=>m===0?raw:new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer())});
+  }
+  return out;
 }
 
-function colorFn(g) {
-  const nd = g.noDataValue, n = g.numberOfRasters, mx = g.maxs || [], mn = g.mins || [];
-  const hi = Math.max(mx[0] || 0, mx[1] || 0, mx[2] || 0) || 255, sc = hi > 255 ? 255 / hi : 1;
-  return v => {
-    if (n >= 3) {
-      if (isNaN(v[0]) || (n === 4 && v[3] === 0)) return null;
-      if (nd != null && v[0] === nd && v[1] === nd && v[2] === nd) return null;
-      return `rgb(${v[0] * sc | 0},${v[1] * sc | 0},${v[2] * sc | 0})`;
+/* ---------- CSV ---------- */
+function parseCsv(t){
+  const R=[];let r=[],c='',q=0;t=t.replace(/^\uFEFF/,'');
+  for(let i=0;i<t.length;i++){const ch=t[i];
+    if(q){if(ch=='"'){if(t[i+1]=='"'){c+='"';i++}else q=0}else c+=ch}
+    else if(ch=='"')q=1;
+    else if(ch==','){r.push(c);c=''}
+    else if(ch=='\n'||ch=='\r'){if(ch=='\r'&&t[i+1]=='\n')i++;r.push(c);c='';R.push(r);r=[]}
+    else c+=ch}
+  if(c||r.length){r.push(c);R.push(r)}
+  return R;
+}
+
+/* ---------- shapefile (.shp + .dbf) ---------- */
+function shp(b){
+  const v=new DataView(b.buffer,b.byteOffset,b.byteLength),out=[];let p=100;
+  while(p+12<=v.byteLength){
+    const s=p+8,len=v.getInt32(p+4)*2,t=v.getInt32(s,true),k=t%10;let g=null;p+=8+len;
+    if(k===1)g={k:'pt',parts:[[[v.getFloat64(s+4,true),v.getFloat64(s+12,true)]]]};
+    else if(k===3||k===5){
+      const np=v.getInt32(s+36,true),n=v.getInt32(s+40,true),pi=[],po=s+44+4*np,pts=[];
+      for(let i=0;i<np;i++)pi.push(v.getInt32(s+44+4*i,true));
+      for(let i=0;i<n;i++)pts.push([v.getFloat64(po+16*i,true),v.getFloat64(po+16*i+8,true)]);
+      g={k:k===3?'ln':'pg',parts:pi.map((a,i)=>pts.slice(a,pi[i+1]??n))};
+    }else if(k===8){
+      const n=v.getInt32(s+36,true),pts=[];
+      for(let i=0;i<n;i++)pts.push([[v.getFloat64(s+40+16*i,true),v.getFloat64(s+48+16*i,true)]]);
+      g={k:'pt',parts:pts};
     }
-    const x = v[0]; if (x == null || isNaN(x) || x === nd) return null;
-    const lo = mn[0] ?? 0, h = mx[0] ?? 255;
-    const t = Math.max(0, Math.min(255, (x - lo) / ((h - lo) || 1) * 255)) | 0;
-    return `rgb(${t},${t},${t})`;
-  };
+    out.push(g); // null keeps row alignment with the .dbf
+  }
+  return out;
+}
+function dbf(b){
+  const v=new DataView(b.buffer,b.byteOffset,b.byteLength),n=v.getUint32(4,true),hl=v.getUint16(8,true),rl=v.getUint16(10,true),F=[],td=new TextDecoder();
+  for(let p=32;b[p]!==0x0D&&p<hl;p+=32)F.push([td.decode(b.subarray(p,p+11)).replace(/\0.*/,''),String.fromCharCode(b[p+11]),b[p+16]]);
+  const rows=[];
+  for(let i=0;i<n;i++){let o=hl+i*rl+1;const r={};
+    for(const[nm,ty,l]of F){let x=td.decode(b.subarray(o,o+l)).trim();o+=l;
+      if(ty==='D'&&/^\d{8}$/.test(x))x=x.slice(6)+'-'+x.slice(4,6)+'-'+x.slice(0,4);
+      r[nm]=x}
+    rows.push(r)}
+  return rows;
 }
 
-const mk = r => new GeoRasterLayer({georaster: r.g, opacity: r.op, resolution: +$('#qual').value, resampleMethod: 'nearest',
-  pixelValuesToColorFn: colorFn(r.g), maxZoom: 26, updateWhenIdle: true, updateWhenZooming: false, keepBuffer: 4});
-$('#qual').onchange = () => {
-  rasters.forEach(r => { map.removeLayer(r.layer); r.layer = mk(r); if (r.vis) r.layer.addTo(map); });
-  applyCmp();
+/* ---------- British National Grid (EPSG:27700) -> WGS84 ---------- */
+function bng(E,N){
+  const a=6377563.396,b=6356256.909,F0=.9996012717,p0=49*Math.PI/180,l0=-2*Math.PI/180,N0=-100000,E0=400000,e2=1-b*b/(a*a),n=(a-b)/(a+b);
+  let p=p0,M=0;
+  do{p=(N-N0-M)/(a*F0)+p;
+    const d=p-p0,s=p+p0;
+    M=b*F0*((1+n+1.25*n*n+1.25*n**3)*d-(3*n+3*n*n+21/8*n**3)*Math.sin(d)*Math.cos(s)+(15/8*n*n+15/8*n**3)*Math.sin(2*d)*Math.cos(2*s)-35/24*n**3*Math.sin(3*d)*Math.cos(3*s));
+  }while(Math.abs(N-N0-M)>=1e-5);
+  const sn=Math.sin(p),cs=Math.cos(p),t=Math.tan(p),t2=t*t,nu=a*F0/Math.sqrt(1-e2*sn*sn),rho=a*F0*(1-e2)/Math.pow(1-e2*sn*sn,1.5),h=nu/rho-1,dE=E-E0;
+  const la=p-t/(2*rho*nu)*dE**2+t/(24*rho*nu**3)*(5+3*t2+h-9*t2*h)*dE**4-t/(720*rho*nu**5)*(61+90*t2+45*t2*t2)*dE**6;
+  const lo=l0+dE/(cs*nu)-(nu/rho+2*t2)/(6*cs*nu**3)*dE**3+(5+28*t2+24*t2*t2)/(120*cs*nu**5)*dE**5-(61+662*t2+1320*t2*t2+720*t2**3)/(5040*cs*nu**7)*dE**7;
+  // Helmert OSGB36 -> WGS84
+  const s1=Math.sin(la),c1=Math.cos(la),v=a/Math.sqrt(1-e2*s1*s1),x=v*c1*Math.cos(lo),y=v*c1*Math.sin(lo),z=v*(1-e2)*s1,
+    as=Math.PI/648000,rx=.1502*as,ry=.2470*as,rz=.8421*as,sc=1-20.4894e-6,
+    X=446.448+x*sc-y*rz+z*ry,Y=-125.157+x*rz+y*sc-z*rx,Z=542.060-x*ry+y*rx+z*sc,
+    A2=6378137,E2=2*(1/298.257223563)-(1/298.257223563)**2,P=Math.hypot(X,Y);
+  let f=Math.atan2(Z,P*(1-E2));
+  for(let i=0;i<6;i++){const q=A2/Math.sqrt(1-E2*Math.sin(f)**2);f=Math.atan2(Z+E2*q*Math.sin(f),P)}
+  return[Math.atan2(Y,X)*180/Math.PI,f*180/Math.PI]; // [lon,lat]
+}
+function crsOf(prj,[x,y]){
+  if(/27700|British_National_Grid|OSGB/i.test(prj))return bng;
+  if(/GEOGCS/i.test(prj)&&!/PROJCS/i.test(prj))return(a,b)=>[a,b];
+  if(!prj){if(Math.abs(x)<=180&&Math.abs(y)<=90)return(a,b)=>[a,b];if(x>0&&x<7e5&&y>0&&y<1.3e6)return bng}
+  return null;
+}
+
+/* ---------- storage (IndexedDB, so data survives closing the page) ---------- */
+const db=new Promise(r=>{try{const q=indexedDB.open('psra-field',1);q.onupgradeneeded=()=>q.result.createObjectStore('kv');q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)}catch{r(null)}});
+async function idb(m,v){const d=await db;if(!d)return;return new Promise(r=>{try{const o=d.transaction('kv',m==='get'?'readonly':'readwrite').objectStore('kv'),q=m==='get'?o.get('s'):o.put(v,'s');q.onsuccess=()=>r(q.result);q.onerror=()=>r()}catch{r()}})}
+const save=()=>{S.showBasemap=showBasemap;return idb('put',S)};
+function dataset(role=activeDataset){return S[role]}
+function isHidden(a){return S.hidden.includes(a.key)}
+function persistHidden(a,hide){S.hidden=S.hidden.filter(k=>k!==a.key);if(hide)S.hidden.push(a.key);save();applyVisibility();if(sel===a.key)show(a.key,true);list();}
+
+/* ---------- import ---------- */
+async function ingest(files,role=activeDataset){
+  const D=dataset(role);toast('Reading '+(role==='working'?'working':'basemap')+' data…',0);
+  const items=[];
+  for(const f of files){
+    if(/\.zip$/i.test(f.name)){
+      try{for(const e of await unzip(await f.arrayBuffer()))if(!/(^|\/)(\.|__MACOSX)|\/$/.test(e.name))items.push({name:e.name.split('/').pop(),get:e.get})}
+      catch{toast('Could not open '+f.name)}
+    }else items.push({name:f.name,get:async()=>new Uint8Array(await f.arrayBuffer())});
+  }
+  const g={};let nS=0,nR=0,nP=0,err='';
+  for(const it of items){
+    const m=it.name.match(/^(.*)\.([^.]+)$/);if(!m)continue;const b=m[1],x=m[2].toLowerCase();
+    if(/^(shp|dbf|prj)$/.test(x))(g[b]??={})[x]=it;
+    else if(x==='csv'){
+      const R=parseCsv(new TextDecoder().decode(await it.get())),h=R.findIndex(r=>r.some(c=>norm(c)==='AMXID'));
+      if(h<0){err='No "AMX ID" column in '+it.name;continue}
+      const H=R[h].map(c=>c.trim());
+      D.rows=R.slice(h+1).filter(r=>r.some(c=>c.trim())).map(r=>Object.fromEntries(H.map((k,i)=>[k,(r[i]||'').trim()])));nR=D.rows.length;
+    }else if(IMG.test(x)){
+      D.photos=D.photos.filter(p=>p.name!==it.name);
+      D.photos.push({name:it.name,blob:new Blob([await it.get()],{type:MIME[x]})});nP++;
+    }
+  }
+  for(const[b,o]of Object.entries(g)){
+    if(!o.shp)continue;
+    const gs=shp(await o.shp.get()),at=o.dbf?dbf(await o.dbf.get()):[],first=gs.find(Boolean);
+    if(!first)continue;
+    const cv=crsOf(o.prj?new TextDecoder().decode(await o.prj.get()):'',first.parts[0][0]);
+    if(!cv){err='"'+b+'" uses a projection this app can’t read. Re-export in British National Grid (EPSG:27700) or WGS84.';continue}
+    const feats=gs.map((gm,i)=>({attrs:at[i]||{},geom:gm&&{k:gm.k,parts:gm.parts.map(pt=>pt.map(c=>cv(c[0],c[1])))}}));
+    D.shapes=D.shapes.filter(s=>s.layer!==b);D.shapes.push({layer:b,feats});nS+=feats.length;
+  }
+  await save();join(true);dataUI();
+  toast(err||(nS+nR+nP?'Added to '+(role==='working'?'working assets':'basemap assets')+': '+[nS&&nS+' shapes',nR&&nR+' list rows',nP&&nP+' photos'].filter(Boolean).join(', '):'No supported files found'),5000);
+}
+
+/* ---------- join both datasets on AMX ID; namespace IDs to avoid collisions ---------- */
+function join(refit){
+  urls.forEach(u=>URL.revokeObjectURL(u));urls=[];A={};ORPH=0;
+  for(const role of ['working','basemap']){
+    const D=dataset(role),get=id=>{const key=role+':'+id;return A[key]??={key,id,role,label:'',props:{},attrs:{},geom:null,photos:[]}};
+    D.rows.forEach(r=>{const id=norm(r['AMX ID']);if(!id)return;const a=get(id);a.props=r;a.label=r['AMX ID']});
+    D.shapes.forEach(s=>s.feats.forEach(f=>{
+      const k=Object.keys(f.attrs).find(k=>/^AMX/i.test(k)),raw=k&&f.attrs[k];if(!raw)return;
+      const a=get(norm(raw));a.attrs=f.attrs;a.label||=raw;if(f.geom)a.geom=f.geom}));
+    const ids=Object.keys(A).filter(k=>A[k].role===role);
+    D.photos.slice().sort((a,b)=>a.name.localeCompare(b.name)).forEach(p=>{
+      const st=norm(p.name.replace(/\.[^.]+$/,'')),key=A[role+':'+st]?role+':'+st:ids.filter(k=>A[k].id.length>5&&st.startsWith(A[k].id)).sort((x,y)=>A[y].id.length-A[x].id.length)[0];
+      if(!key){ORPH++;return}const u=URL.createObjectURL(p.blob);urls.push(u);A[key].photos.push({url:u,name:p.name})});
+  }
+  grp.clearLayers();baseGrp.clearLayers();hl.clearLayers();
+  Object.values(A).forEach(a=>{
+    a.name=a.props.Name||a.attrs.NAME||a.label||a.id;a.type=a.props.Type||a.attrs.TYPE||'Other';a.lay=null;
+    if(!a.geom)return;
+    const c=colr(a.type),ph=a.photos.length>0,o={bubblingMouseEvents:false},ls=[],isBase=a.role==='basemap';
+    if(a.geom.k==='pt')a.geom.parts.forEach(p=>ls.push(L.circleMarker([p[0][1],p[0][0]],{...o,radius:isBase?7:10,weight:ph?2.5:3.5,color:isBase?'#7c8991':ph?'#fff':c,fillColor:isBase?'#b7c0c5':ph?c:'#fff',fillOpacity:isBase?.55:(ph?1:.9)})));
+    else a.geom.parts.forEach(pt=>{const ll=pt.map(([x,y])=>[y,x]);if(a.geom.k==='ln'){ls.push(L.polyline(ll,{...o,weight:28,opacity:0}),L.polyline(ll,{...o,color:isBase?'#8c979e':c,weight:isBase?3:5,opacity:isBase?.65:.95,lineCap:'butt',dashArray:ph?null:'9 7'}))}else ls.push(L.polygon(ll,{...o,color:isBase?'#8c979e':c,weight:isBase?2:3,fillOpacity:isBase?.08:(ph?.3:.1),dashArray:ph?null:'9 7'}))});
+    a.lay=L.featureGroup(ls).on('click',()=>show(a.key)).addTo(isBase?baseGrp:grp);
+  });
+  applyVisibility();
+  const all=Object.values(A),n=all.length,ph=all.filter(a=>a.photos.length).length,w=all.filter(a=>a.role==='working').length,b=all.filter(a=>a.role==='basemap').length;
+  $('#cnt').textContent=n?`${w} working · ${b} basemap · ${ph} with photos`:'No data loaded';
+  if(sel&&A[sel])show(sel,true);else closeSheet();
+  if((refit||!fitted)&&all.some(a=>a.geom&&!isHidden(a))){const bounds=L.featureGroup(all.filter(a=>a.geom&&!isHidden(a)&&(a.role==='working'||showBasemap)).map(a=>a.lay)).getBounds();if(bounds.isValid()){map.fitBounds(bounds.pad(.15));fitted=true}}
+  list();
+}
+let ORPH=0;
+function applyVisibility(){
+  Object.values(A).forEach(a=>{if(!a.lay)return;const wanted=!isHidden(a)&&selectedTypes.size===0||(!isHidden(a)&&selectedTypes.has(a.type));const roleOn=a.role==='working'||showBasemap;const group=a.role==='working'?grp:baseGrp;
+    if(wanted&&roleOn){if(!group.hasLayer(a.lay))group.addLayer(a.lay)}else if(group.hasLayer(a.lay))group.removeLayer(a.lay);
+  });
+  if(sel&&A[sel]?.geom){const a=A[sel];if(!a.lay||isHidden(a)||!(a.role==='working'||showBasemap))hl.clearLayers()}
+  $('#fit').title='Show all visible assets';
+}
+
+/* ---------- map ---------- */
+const map=L.map('map',{zoomControl:false,maxZoom:19}).setView([52.1,-3.8],7);
+map.attributionControl.setPrefix(false);
+const base=[L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}),
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Imagery © Esri'})];
+let bi=0;base[0].addTo(map);
+const grp=L.featureGroup().addTo(map),baseGrp=L.featureGroup().addTo(map),hl=L.layerGroup().addTo(map);
+map.on('click',closeSheet);
+$('#sat').onclick=()=>{base[bi].remove();bi=1-bi;base[bi].addTo(map)};
+$('#fit').onclick=()=>{const layers=[...grp.getLayers(),...baseGrp.getLayers()];if(layers.length){const b=L.featureGroup(layers).getBounds();if(b.isValid())map.fitBounds(b.pad(.15))}else toast('Nothing visible to show. Check filters and layers.')};
+
+/* ---------- location ---------- */
+function stopLoc(){if(wid!=null)navigator.geolocation.clearWatch(wid);wid=null;me=null;dot&&dot.remove();accC&&accC.remove();dot=accC=null;$('#loc').classList.remove('on');$('#acc').hidden=true;updDist()}
+$('#acc').onclick=stopLoc;
+$('#loc').onclick=()=>{
+  if(wid!=null){if(me)map.setView([me.lat,me.lng],Math.max(map.getZoom(),17));return}
+  if(!navigator.geolocation)return toast('This browser can’t provide location.');
+  let first=true;$('#loc').classList.add('on');
+  wid=navigator.geolocation.watchPosition(p=>{
+    me={lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy};const ll=[me.lat,me.lng];
+    if(!dot){accC=L.circle(ll,{radius:me.acc,interactive:false,color:'#1a6dff',weight:1,fillOpacity:.12}).addTo(map);dot=L.circleMarker(ll,{radius:9,color:'#fff',weight:3,fillColor:'#1a6dff',fillOpacity:1,interactive:false}).addTo(map)}
+    else{dot.setLatLng(ll);accC.setLatLng(ll).setRadius(me.acc)}
+    $('#acc').hidden=false;$('#acc').textContent='±'+Math.round(me.acc)+' m · tap to stop';
+    if(first){first=false;map.setView(ll,Math.max(map.getZoom(),17))}
+    updDist();
+  },e=>{stopLoc();toast(e.code===1?'Location is blocked. Allow location for this page in your browser settings.':'Can’t get a location fix yet. Try again outside.',6000)},{enableHighAccuracy:true,maximumAge:2000,timeout:20000});
 };
-
-async function addRaster(src, name) {
-  say('Loading ' + name + '…');
-  try {
-    let g;
-    try { g = await parseGeoraster(src); }
-    catch (e) { if (src instanceof Blob) g = await parseGeoraster(await src.arrayBuffer()); else throw e; }
-    reg(g.projection);
-    const r = {id: ++uid, name, g, op: 1, vis: true};
-    r.layer = mk(r); r.layer.addTo(map); rasters.push(r);
-    map.fitBounds(r.layer.getBounds());
-    say(`${name}: ${g.width}×${g.height}, ${g.numberOfRasters} band(s), EPSG:${g.projection}`);
-    render();
-  } catch (e) { console.error(e); say('Could not load ' + name + ': ' + (e.message || e)); }
+function dist(a){
+  if(!me||!a.geom)return null;
+  const k=Math.cos(me.lat*Math.PI/180)*111320,m=([x,y])=>[(x-me.lng)*k,(y-me.lat)*110540];let d=1e12;
+  for(const pt of a.geom.parts){const q=pt.map(m);if(q.length===1)d=Math.min(d,Math.hypot(...q[0]));
+    for(let i=1;i<q.length;i++){const[ax,ay]=q[i-1],[bx,by]=q[i],dx=bx-ax,dy=by-ay,l=dx*dx+dy*dy,t=l?Math.max(0,Math.min(1,-(ax*dx+ay*dy)/l)):0;d=Math.min(d,Math.hypot(ax+t*dx,ay+t*dy))}}
+  return d;
 }
+const fd=d=>d==null?'':d<1000?Math.round(d)+' m away':(d/1000).toFixed(1)+' km away';
+function updDist(){const e=$('#dist');if(e&&sel)e.textContent=fd(dist(A[sel]))}
 
-function render() {
-  $('#layers').innerHTML = rasters.map(r => `<div class="lr"><label><input type="checkbox" data-a="vis" data-i="${r.id}" ${r.vis ? 'checked' : ''}><span title="${esc(r.name)}">${esc(r.name)}</span></label>
-    <input type="range" min="0" max="1" step=".05" value="${r.op}" data-a="op" data-i="${r.id}">
-    <button data-a="zoom" data-i="${r.id}">Zoom</button><button data-a="del" data-i="${r.id}">×</button></div>`).join('')
-    || '<p class="hint">Open or drop a GeoTIFF / COG to begin.</p>';
-  for (const [sel, def] of [['#selL', 0], ['#selR', rasters.length - 1]]) {
-    const el = $(sel), old = el.value;
-    el.innerHTML = rasters.map(r => `<option value="${r.id}">${esc(r.name)}</option>`).join('');
-    el.value = rasters.some(r => r.id == old) ? old : (rasters[Math.max(def, 0)] || {}).id;
+/* ---------- selected asset sheet ---------- */
+function hide2100(v){return/(^|-)2100$/.test(v)?'Not recorded':v}
+function show(id,keep){
+  const a=A[id];if(!a)return;sel=id;hl.clearLayers();
+  if(a.geom&&!keep&&!isHidden(a)&&(a.role==='working'||showBasemap)){
+    if(a.geom.k==='pt')a.geom.parts.forEach(p=>hl.addLayer(L.circleMarker([p[0][1],p[0][0]],{radius:17,color:'#111',weight:3,fill:false,interactive:false})));
+    else a.lay.eachLayer(l=>{if(l.options.opacity!==0&&l.options.color)hl.addLayer(L.polyline(l.getLatLngs(),{color:'#ffd400',weight:13,opacity:.95,interactive:false,lineCap:'butt'}))});
+    if(a.geom.k!=='pt')hl.eachLayer(l=>l.bringToBack?.());
+    map.fitBounds(a.lay.getBounds(),{maxZoom:18,paddingTopLeft:[30,70],paddingBottomRight:[30,Math.round(innerHeight*.5)]});
   }
-  applyCmp();
+  const src=Object.keys(a.props).length?a.props:a.attrs,
+    rows=Object.entries(src).filter(([k,v])=>v&&!/^(AMX ?ID|Name)$/i.test(k)).map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(hide2100(v))}</dd>`).join('');
+  let dir='';if(a.lay){const c=a.lay.getBounds().getCenter();dir=`<a class="btn" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}&travelmode=walking">Directions</a>`}
+  $('#sheet').innerHTML=(a.photos.length?`<div class="ph">${a.photos.map(p=>`<img src="${p.url}" alt="${esc(a.name)}">`).join('')}</div>`:`<div class="ph none">No photo imported for this asset.</div>`)
+   +`<div class="sb"><div class="tt"><h2>${esc(a.name)}</h2><button class="x" aria-label="Close">✕</button></div>
+   <div class="meta"><span><span class="dot" style="background:${colr(a.type)}"></span>${esc(a.type)}</span><span>${esc(a.label)}</span><span class="chip">${a.role==='working'?'Working asset':'Basemap asset'}</span><span id="dist">${fd(dist(a))}</span>${a.geom?'':'<span class="warn">No shape</span>'}${isHidden(a)?'<span class="warn">Hidden on map</span>':''}</div>
+   <div class="act">${dir}${a.lay?'<button class="btn" data-zoom>Zoom to</button>':''}<button class="btn" data-hide>${isHidden(a)?'Show on map':'Hide asset'}</button></div>
+   <dl>${rows||'<dt>No details</dt><dd>Import the asset CSV</dd>'}</dl></div>`;
+  $('#sheet').classList.add('open');$('#sheet').scrollTop=0;
 }
+function closeSheet(){sel=null;hl.clearLayers();$('#sheet').classList.remove('open')}
+$('#sheet').onclick=e=>{
+  if(e.target.closest('.x'))closeSheet();
+  else if(e.target.closest('[data-hide]')){const a=A[sel];if(a)persistHidden(a,!isHidden(a));}
+  else if(e.target.closest('[data-zoom]')){const a=A[sel];if(a?.lay&&!isHidden(a))map.fitBounds(a.lay.getBounds(),{maxZoom:19,paddingBottomRight:[30,Math.round(innerHeight*.5)]});}
+  else if(e.target.matches('.ph img')){$('#view img').src=e.target.src;$('#view').hidden=false}};
+$('#view').onclick=()=>$('#view').hidden=true;
 
-$('#layers').addEventListener('input', e => {
-  const d = e.target.dataset; if (d.a !== 'op') return;
-  const r = get(d.i); r.op = +e.target.value; r.layer.setOpacity(r.op);
-});
-$('#layers').addEventListener('click', e => {
-  const d = e.target.dataset, r = d.i && get(d.i); if (!r) return;
-  if (d.a === 'zoom') map.fitBounds(r.layer.getBounds());
-  if (d.a === 'del') { map.removeLayer(r.layer); rasters.splice(rasters.indexOf(r), 1); render(); }
-  if (d.a === 'vis') { r.vis = e.target.checked; r.vis ? r.layer.addTo(map) : map.removeLayer(r.layer); clip(); }
-});
+/* ---------- panels ---------- */
+function openP(n){$('#p-'+n).classList.add('open');n==='assets'?list():dataUI()}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-p]');if(b)openP(b.dataset.p);if(e.target.closest('[data-x]'))document.querySelectorAll('.panel').forEach(p=>p.classList.remove('open'))});
 
-$('#open').onclick = () => $('#file').click();
-$('#file').onchange = e => { [...e.target.files].forEach(f => addRaster(f, f.name)); e.target.value = ''; };
-$('#url').onclick = () => { const u = prompt('COG / GeoTIFF URL (server must allow CORS and range requests)'); if (u) addRaster(u, u.split('/').pop().split('?')[0] || 'remote'); };
-addEventListener('dragover', e => { e.preventDefault(); $('#drop').style.display = 'grid'; });
-addEventListener('dragleave', e => { if (!e.relatedTarget) $('#drop').style.display = 'none'; });
-addEventListener('drop', e => { e.preventDefault(); $('#drop').style.display = 'none'; [...e.dataTransfer.files].forEach(f => addRaster(f, f.name)); });
-const qs = new URLSearchParams(location.search).get('url'); if (qs) addRaster(qs, qs.split('/').pop());
-
-/* ---------- swipe compare ---------- */
-const cmp = {on: false, r: 0.5};
-function clip() {
-  if (!cmp.on) return;
-  const s = map.getSize(), nw = map.containerPointToLayerPoint([0, 0]), se = map.containerPointToLayerPoint(s), x = nw.x + s.x * cmp.r;
-  const set = (id, c) => { const r = get(id), el = r && r.layer.getContainer(); if (el) el.style.clip = c; };
-  set($('#selL').value, `rect(${nw.y}px,${x}px,${se.y}px,${nw.x}px)`);
-  set($('#selR').value, `rect(${nw.y}px,${se.x}px,${se.y}px,${x}px)`);
+function list(){
+  const all=Object.values(A),types=[...new Set(all.map(a=>a.type))].sort(),q=norm($('#q').value),raw=$('#q').value.trim().toLowerCase();
+  const specials=['No photo','No shape','Hidden','Working','Basemap'];
+  $('#chips').innerHTML=[{t:'All types',on:selectedTypes.size===0},...types.map(t=>({t,on:selectedTypes.size===0||selectedTypes.has(t)})),...specials.map(t=>({t,on:flt===t}))].map(o=>`<button class="chip${o.on?' on':''}" data-f="${esc(o.t)}">${esc(o.t)}</button>`).join('');
+  let r=all.filter(a=>{
+    const special=flt==='No photo'?!a.photos.length:flt==='No shape'?!a.geom:flt==='Hidden'?isHidden(a):flt==='Working'?a.role==='working':flt==='Basemap'?a.role==='basemap':true;
+    const typeOk=selectedTypes.size===0||selectedTypes.has(a.type);
+    return special&&typeOk&&(!raw||norm(a.id).includes(q)||String(a.name).toLowerCase().includes(raw)||String(a.label).toLowerCase().includes(raw));
+  });
+  const d=new Map(r.map(a=>[a,dist(a)]));r.sort((a,b)=>me?(d.get(a)??1e13)-(d.get(b)??1e13):a.name.localeCompare(b.name,undefined,{numeric:true}));
+  $('#al').innerHTML=r.length?r.map(a=>`<li><button class="row" data-id="${esc(a.key)}"><span class="dot" style="background:${a.role==='basemap'?'#9aa5ab':colr(a.type)}"></span><span><b>${esc(a.name)}${isHidden(a)?' · HIDDEN':''}</b><small>${a.role==='working'?'Working':'Basemap'} · ${esc(a.label)}${me&&d.get(a)!=null?' · '+fd(d.get(a)):''}</small>${a.photos.length?'':' <small class="warn">No photo</small>'}${a.geom?'':' <small class="warn">No shape</small>'}</span></button></li>`).join(''):'<p class="hint">No assets match. Change the filters or import data from the Data screen.</p>';
 }
-function applyCmp() {
-  rasters.forEach(r => { const el = r.layer.getContainer(); if (el) el.style.clip = ''; });
-  cmp.on = $('#cmpOn').checked && rasters.length > 1 && $('#selL').value !== $('#selR').value;
-  $('#cmp').style.display = cmp.on ? 'block' : 'none';
-  if (cmp.on) {
-    [$('#selL').value, $('#selR').value].forEach(id => { const r = get(id); r.vis = true; r.layer.addTo(map); });
-    $('#bar').style.left = cmp.r * 100 + '%'; clip();
-    $('#layers').querySelectorAll('[data-a=vis]').forEach(c => c.checked = get(c.dataset.i).vis);
-  }
-}
-['#cmpOn', '#selL', '#selR'].forEach(s => $(s).onchange = applyCmp);
-map.on('move zoom resize viewreset zoomend', clip);
-$('#bar').addEventListener('pointerdown', e => {
-  e.target.setPointerCapture(e.pointerId); map.dragging.disable();
-  const mv = ev => { const b = $('#map').getBoundingClientRect(); cmp.r = Math.min(1, Math.max(0, (ev.clientX - b.left) / b.width)); $('#bar').style.left = cmp.r * 100 + '%'; clip(); };
-  const up = () => { map.dragging.enable(); e.target.removeEventListener('pointermove', mv); e.target.removeEventListener('pointerup', up); };
-  e.target.addEventListener('pointermove', mv); e.target.addEventListener('pointerup', up);
+$('#q').oninput=list;
+$('#p-assets').addEventListener('click',e=>{
+  const f=e.target.closest('[data-f]');if(f){const t=f.dataset.f;if(['No photo','No shape','Hidden','Working','Basemap'].includes(t)){flt=flt===t?'all':t}else if(t==='All types'){selectedTypes.clear();flt='all'}else{flt='all';if(selectedTypes.size===0)selectedTypes.add(t);else if(selectedTypes.has(t))selectedTypes.delete(t);else selectedTypes.add(t)}applyVisibility();list();return}
+  const r=e.target.closest('[data-id]');if(r){$('#p-assets').classList.remove('open');show(r.dataset.id)}
 });
 
-/* ---------- measure + notes ---------- */
-const sty = {color: '#f2b84b', weight: 3, fillOpacity: .15};
-const fg = L.layerGroup().addTo(map); let feats = [], tool = null, cur = null;
-const hints = {dist: 'Click to add points along the line.', area: 'Click to outline an area.', note: 'Click the map to place a note.'};
-
-function len(pts) { let d = 0; for (let i = 1; i < pts.length; i++) d += map.distance(pts[i - 1], pts[i]); return d; }
-function area(pts) {
-  const R = 6371008.8, r = x => x * Math.PI / 180; let s = 0;
-  for (let i = 0; i < pts.length; i++) { const a = pts[i], b = pts[(i + 1) % pts.length]; s += (r(b.lng) - r(a.lng)) * (2 + Math.sin(r(a.lat)) + Math.sin(r(b.lat))); }
-  return Math.abs(s * R * R / 2);
+function dataUI(){
+  const all=Object.values(A),w=all.filter(a=>a.role==='working'),b=all.filter(a=>a.role==='basemap');
+  const stats=(role)=>{const x=dataset(role),aa=Object.values(A).filter(a=>a.role===role),noRow=aa.filter(a=>a.geom&&!Object.keys(a.props).length).length,noShape=aa.filter(a=>Object.keys(a.props).length&&!a.geom).length,noPh=aa.filter(a=>!a.photos.length).length;return {x,aa,noRow,noShape,noPh}};
+  const st=(n,t,x,acc,cnt,hint,role)=>`<div class="step"><span class="n">${n}</span><div><b>${t}</b><span class="hint">${cnt||hint}</span></div><div class="go"><label class="btn">${cnt?'Add more':'Add'}<input type="file" multiple hidden accept="${acc}" data-import="${role}"></label>${cnt?`<button class="lnk" data-clr="${x}" data-role="${role}">Remove</button>`:''}</div></div>`;
+  const ws=stats('working'),bs=stats('basemap');
+  $('#db').innerHTML=`<div class="step"><span class="n">↥</span><div><b>Import destination</b><span class="hint">Choose which independent dataset receives the files below.</span></div><div class="go"><select id="target" class="btn"><option value="working" ${activeDataset==='working'?'selected':''}>Working</option><option value="basemap" ${activeDataset==='basemap'?'selected':''}>Basemap</option></select></div></div>
+  <div class="step"><span class="n">◉</span><div><b>Basemap visibility</b><span class="hint">Background assets remain selectable when visible.</span></div><div class="go"><button class="btn ${showBasemap?'pri':''}" id="toggle-base">${showBasemap?'Shown':'Hidden'}</button></div></div>
+  <h3>Working assets</h3><p class="hint">Your main inspection dataset.</p>
+  ${st(1,'Shapefiles','shapes','.zip,.shp,.dbf,.prj,.cpg',ws.x.shapes.length?ws.x.shapes.length+' layers, '+ws.x.shapes.reduce((n,s)=>n+s.feats.length,0)+' shapes':'','A .zip, or .shp/.dbf/.prj files together','working')}
+  ${st(2,'Asset list','rows','.csv,text/csv',ws.x.rows.length?ws.x.rows.length+' rows':'','CSV with an “AMX ID” column','working')}
+  ${st(3,'Photos','photos','image/*,.zip',ws.x.photos.length?ws.x.photos.length+' photos':'','A .zip or images named by AMX ID','working')}
+  <h3>Basemap assets</h3><p class="hint">Optional wider inventory, independent from the working dataset.</p>
+  ${st(4,'Shapefiles','shapes','.zip,.shp,.dbf,.prj,.cpg',bs.x.shapes.length?bs.x.shapes.length+' layers, '+bs.x.shapes.reduce((n,s)=>n+s.feats.length,0)+' shapes':'','A .zip, or .shp/.dbf/.prj files together','basemap')}
+  ${st(5,'Asset list','rows','.csv,text/csv',bs.x.rows.length?bs.x.rows.length+' rows':'','CSV with an “AMX ID” column','basemap')}
+  ${st(6,'Photos','photos','image/*,.zip',bs.x.photos.length?bs.x.photos.length+' photos':'','A .zip or images named by AMX ID','basemap')}
+  ${(all.length?`<ul class="ck"><li>${w.length} working assets · ${b.length} basemap assets</li><li>${all.filter(a=>a.geom&&!isHidden(a)).length} assets not hidden</li><li>${S.hidden.length} hidden asset(s)</li><li>${ORPH?ORPH+' photos did not match an AMX ID':'All imported photos matched an asset'}</li></ul><p class="hint">Data and hidden-state preferences are stored locally on this device. Assets with the same AMX ID in each dataset remain separate and independently selectable.</p><button class="btn bad" data-clr="all" style="width:100%">Remove all data from this device</button>`:'<p class="hint">Import a working asset dataset, a basemap dataset, or both. Each dataset uses its own CSV, shapefiles and optional photos.</p>')}`;
 }
-const fmtL = m => m < 1000 ? m.toFixed(m < 10 ? 2 : 1) + ' m' : (m / 1000).toFixed(3) + ' km';
-const fmtA = a => a < 1e4 ? a.toFixed(1) + ' m²' : a < 1e6 ? (a / 1e4).toFixed(2) + ' ha' : (a / 1e6).toFixed(3) + ' km²';
-const label = (k, p) => k === 'area' ? `${fmtA(area(p))}, perimeter ${fmtL(len([...p, p[0]]))}` : fmtL(len(p));
-
-function setTool(t) {
-  finish(true); tool = t === tool ? null : t;
-  document.querySelectorAll('[data-t]').forEach(b => b.classList.toggle('on', b.dataset.t === tool));
-  map.getContainer().style.cursor = tool ? 'crosshair' : '';
-  tool ? map.doubleClickZoom.disable() : map.doubleClickZoom.enable();
-  say(tool ? hints[tool] : '');
-}
-function keep(layer, kind, text, tipOpts) {
-  layer.bindTooltip(text, {permanent: true, className: 'tip', ...tipOpts}).addTo(fg);
-  const f = {layer, kind, label: text}; feats.push(f);
-  layer.on('contextmenu', ev => { L.DomEvent.stop(ev); fg.removeLayer(layer); feats = feats.filter(x => x !== f); });
-}
-function finish(cancel) {
-  if (!cur) return;
-  const min = cur.kind === 'area' ? 3 : 2;
-  map.removeLayer(cur.line);
-  if (!cancel && cur.pts.length >= min) {
-    const l = (cur.kind === 'area' ? L.polygon : L.polyline)(cur.pts, sty);
-    keep(l, cur.kind, label(cur.kind, cur.pts), {direction: 'center'});
-    say(label(cur.kind, cur.pts));
-  }
-  cur = null;
-}
-map.on('click', e => {
-  if (!tool) return;
-  if (tool === 'note') { const t = prompt('Note text'); if (t) keep(L.marker(e.latlng, {icon: L.divIcon({className: 'pin', iconSize: [14, 14]})}), 'note', t, {direction: 'right', offset: [8, 0]}); return; }
-  if (!cur) cur = {kind: tool, pts: [], line: (tool === 'area' ? L.polygon : L.polyline)([], sty).addTo(map)};
-  cur.pts.push(e.latlng); cur.line.setLatLngs(cur.pts);
+$('#db').addEventListener('change',e=>{if(e.target.type==='file'){const f=[...e.target.files],role=e.target.dataset.import||activeDataset;e.target.value='';ingest(f,role)}});
+$('#db').addEventListener('click',async e=>{
+  if(e.target.id==='toggle-base'){showBasemap=!showBasemap;save();applyVisibility();dataUI();return}
+  const c=e.target.closest('[data-clr]');if(!c)return;const k=c.dataset.clr,role=c.dataset.role;
+  if(k==='all'){if(!confirm('Remove all imported working and basemap data, and hidden-state preferences, from this device?'))return;S={working:{shapes:[],rows:[],photos:[]},basemap:{shapes:[],rows:[],photos:[]},hidden:[]};}
+  else {if(!confirm(`Remove ${k} from the ${role} dataset?`))return;dataset(role)[k]=[];}
+  await save();join(true);dataUI();toast('Removed');
 });
-map.on('dblclick', () => { if (cur) { cur.pts.pop(); finish(); } });
-map.on('mousemove', e => {
-  const c = `${e.latlng.lat.toFixed(6)}, ${e.latlng.lng.toFixed(6)}`;
-  if (cur) { const p = [...cur.pts, e.latlng]; cur.line.setLatLngs(p); if (p.length > 1) return say(label(cur.kind, p) + '\n' + c); }
-  if (!tool) say(c);
-});
-addEventListener('keydown', e => { if (e.key === 'Enter') finish(); if (e.key === 'Escape') { finish(true); if (tool) setTool(tool); } });
-document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => setTool(b.dataset.t));
-$('#undo').onclick = () => { const f = feats.pop(); if (f) fg.removeLayer(f.layer); };
-$('#clear').onclick = () => { if (feats.length && confirm('Remove all measurements and notes?')) { fg.clearLayers(); feats = []; } };
-$('#exp').onclick = () => {
-  const fc = {type: 'FeatureCollection', features: feats.map(f => ({...f.layer.toGeoJSON(), properties: {kind: f.kind, label: f.label}}))};
-  const a = Object.assign(document.createElement('a'), {href: URL.createObjectURL(new Blob([JSON.stringify(fc, null, 2)], {type: 'application/geo+json'})), download: 'annotations.geojson'});
-  a.click(); URL.revokeObjectURL(a.href);
-};
-render();
+$('#db').addEventListener('change',e=>{if(e.target.id==='target'){activeDataset=e.target.value;dataUI()}});
+
+/* ---------- start; migrate the original single-dataset storage format ---------- */
+(async()=>{
+  const s=await idb('get');
+  if(s){if(s.working||s.basemap){S={working:s.working||{shapes:[],rows:[],photos:[]},basemap:s.basemap||{shapes:[],rows:[],photos:[]},hidden:s.hidden||[]};showBasemap=s.showBasemap!==false;}
+    else if(s.shapes||s.rows||s.photos){S={working:{shapes:s.shapes||[],rows:s.rows||[],photos:s.photos||[]},basemap:{shapes:[],rows:[],photos:[]},hidden:[]};await save();}}
+  join();if(!Object.keys(A).length)openP('data');
+})();
 </script>
 </body>
 </html>

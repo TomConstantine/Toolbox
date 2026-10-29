@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>PSRA Field Map</title>
+<title>Data Viewer</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
 :root{--ink:#14232e;--mut:#5c6b76;--bg:#f1f4f5;--card:#fff;--line:#d5dde1;--gps:#1a6dff;--bad:#b42318;--ok:#0f7a5a;color-scheme:light dark}
@@ -46,6 +46,7 @@ dt{color:var(--mut)}dd{margin:0;font-weight:500;overflow-wrap:anywhere}
 .pt h2{flex:1;margin:0;font-size:18px}
 .pb{flex:1;overflow:auto;padding:12px 12px calc(env(safe-area-inset-bottom) + 20px)}
 select{max-width:100%;background:var(--card)}
+textarea,input[type=text]{width:100%;min-height:44px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit}textarea{resize:vertical}
 #db h3{margin:18px 0 4px;font-size:16px}
 input[type=search]{width:100%;min-height:46px;padding:0 14px;border-radius:10px;border:1px solid var(--line);background:var(--card)}
 #chips{display:flex;gap:6px;overflow-x:auto;padding:10px 0}
@@ -65,6 +66,21 @@ ul{list-style:none;margin:0;padding:0}
 .ck li:before{content:"";position:absolute;left:4px;top:11px;width:9px;height:9px;border-radius:50%;background:var(--ok)}
 .ck li.w:before{background:var(--bad)}
 .lg{display:flex;flex-wrap:wrap;gap:6px 16px;margin:14px 0;font-size:13.5px;color:var(--mut)}
+.asset-tabs{display:flex;gap:8px;margin:14px 0 12px}.asset-tabs .btn{flex:1}.asset-pane[hidden]{display:none}
+#wizard{position:fixed;inset:0;z-index:2500;background:var(--bg);display:none;flex-direction:column}
+#wizard.open{display:flex}.wizard-card{width:100%;height:100%;overflow:auto;background:var(--bg);padding:0 14px calc(env(safe-area-inset-bottom) + 20px)}
+.wizard-head{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:10px;margin:0 -14px 14px;padding:calc(env(safe-area-inset-top) + 8px) 14px 10px;background:var(--card);border-bottom:1px solid var(--line)}
+.wizard-head h2{flex:1;margin:0;font-size:19px}.wizard-intro{margin:0 0 16px;color:var(--mut)}
+.wiz-step{padding:14px;margin:10px 0;border:1px solid var(--line);border-radius:14px;background:var(--card)}
+.wiz-step b{display:block;margin-bottom:5px}.wiz-step .step-title{display:flex;gap:10px;align-items:center;margin-bottom:6px}
+.wiz-step .n{flex:none;width:30px;height:30px;border-radius:50%;background:var(--ink);color:var(--bg);display:grid;place-items:center;font-weight:700}
+.filepick{display:block;width:100%;padding:12px;border:1px dashed var(--line);border-radius:10px;background:var(--bg);margin-top:10px;font-weight:600}
+.filepick input{display:block;width:100%;margin-top:8px;font-size:13px;font-weight:400}
+.file-status{display:block;margin-top:8px;color:var(--mut);font-size:13px;overflow-wrap:anywhere}
+.dataset-card{padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--card);margin:10px 0}
+.dataset-card h4{margin:0 0 4px;font-size:16px}.dataset-card .act{margin:10px 0 0;flex-wrap:wrap}.dataset-card .act .btn{flex:1;min-width:100px}
+.manager-top{display:flex;gap:10px;align-items:center;margin-bottom:12px}.manager-top .btn{flex:1}
+.manager-empty{padding:22px 16px;text-align:center;border:1px dashed var(--line);border-radius:14px;background:var(--card)}
 #view{position:fixed;inset:0;z-index:3000;background:#000e;display:flex;align-items:center;justify-content:center}
 #view[hidden]{display:none}#view img{max-width:100%;max-height:100%}
 #toast{position:absolute;left:12px;right:12px;top:12px;z-index:1200;padding:11px 14px;border-radius:10px;background:var(--ink);color:var(--bg);font-weight:500;opacity:0;pointer-events:none;transition:opacity .2s;text-align:center}
@@ -75,7 +91,7 @@ ul{list-style:none;margin:0;padding:0}
 <body>
 <div id="app">
   <header>
-    <h1>PSRA Field Map<small id="cnt">No data loaded</small></h1>
+    <h1>Data Viewer<small id="cnt">No data loaded</small></h1>
     <button class="btn" data-p="assets">Assets</button>
     <button class="btn pri" data-p="data">Data</button>
   </header>
@@ -102,9 +118,18 @@ ul{list-style:none;margin:0;padding:0}
 </section>
 
 <section class="panel" id="p-data">
-  <div class="pt"><h2>Data</h2><button class="btn" data-x>Done</button></div>
+  <div class="pt"><h2>Data manager</h2><button class="btn" data-x>Done</button></div>
   <div class="pb" id="db"></div>
 </section>
+<section id="wizard" aria-modal="true" role="dialog" aria-labelledby="wizard-title"><div class="wizard-card">
+  <div class="wizard-head"><h2 id="wizard-title">Create a dataset</h2><button class="btn" data-wiz-close>Exit</button></div>
+  <p class="wizard-intro">Bring the three parts of your field dataset together in one place. Select each source below, check the summary, then create the dataset. Everything is stored locally on this device.</p>
+  <label for="wiz-name" class="hint">Dataset name</label><input id="wiz-name" type="text" placeholder="e.g. River assets — October 2026" autocomplete="off">
+  <div class="wiz-step"><div class="step-title"><span class="n">1</span><div><b>Map geometry</b><span class="hint">A ZIP of shapefile components, or select the .shp, .dbf and .prj files together.</span></div></div><label class="filepick">Select shapefile files<input id="wiz-shapes" type="file" multiple accept=".zip,.shp,.dbf,.prj,.cpg"></label><span class="file-status" id="wiz-shapes-status">No geometry files selected</span></div>
+  <div class="wiz-step"><div class="step-title"><span class="n">2</span><div><b>Asset records</b><span class="hint">CSV containing an “AMX ID” column, used to join records to map features.</span></div></div><label class="filepick">Select CSV file<input id="wiz-rows" type="file" multiple accept=".csv,text/csv"></label><span class="file-status" id="wiz-rows-status">No CSV selected</span></div>
+  <div class="wiz-step"><div class="step-title"><span class="n">3</span><div><b>Photos</b><span class="hint">Select image files or a ZIP. Photo filenames should contain the asset AMX ID.</span></div></div><label class="filepick">Select photos or ZIP<input id="wiz-photos" type="file" multiple accept="image/*,.zip"></label><span class="file-status" id="wiz-photos-status">No photos selected</span></div>
+  <div class="wiz-step"><b>Ready to create?</b><p class="hint" id="wiz-summary">Select your source files above. Geometry is required; records and photos can be added later if needed.</p><div class="act" style="margin:12px 0 0"><button class="btn" data-wiz-close>Cancel</button><button class="btn pri" id="wiz-create">Create dataset</button></div></div>
+</div></section>
 
 <div id="view" hidden><img alt=""></div>
 
@@ -114,7 +139,7 @@ const $=s=>document.querySelector(s),norm=s=>String(s||'').toUpperCase().replace
 esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])),
 COL={Defence:'#0f8a6b',Structure:'#e07b00',Site:'#5b3cc4',Instruments:'#d6336c'},colr=t=>COL[t]||'#6b7780',
 IMG=/^(jpe?g|png|webp|gif|heic)$/,MIME={jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp',gif:'image/gif',heic:'image/heic'};
-let S={working:{shapes:[],rows:[],photos:[]},basemap:{shapes:[],rows:[],photos:[]},hidden:[]},A={},urls=[],sel=null,me=null,wid=null,dot,accC,fitted=false,flt='all',selectedTypes=new Set(),activeDataset='working',showBasemap=true,tt;
+let S={projects:[],activeProjectId:null},A={},urls=[],sel=null,me=null,wid=null,dot,accC,fitted=false,flt='all',selectedTypes=new Set(),assetTab='details',tt;
 
 /* ---------- toast ---------- */
 function toast(m,ms=3500){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);if(ms)tt=setTimeout(()=>t.classList.remove('on'),ms)}
@@ -209,14 +234,15 @@ function crsOf(prj,[x,y]){
 /* ---------- storage (IndexedDB, so data survives closing the page) ---------- */
 const db=new Promise(r=>{try{const q=indexedDB.open('psra-field',1);q.onupgradeneeded=()=>q.result.createObjectStore('kv');q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)}catch{r(null)}});
 async function idb(m,v){const d=await db;if(!d)return;return new Promise(r=>{try{const o=d.transaction('kv',m==='get'?'readonly':'readwrite').objectStore('kv'),q=m==='get'?o.get('s'):o.put(v,'s');q.onsuccess=()=>r(q.result);q.onerror=()=>r()}catch{r()}})}
-const save=()=>{S.showBasemap=showBasemap;return idb('put',S)};
-function dataset(role=activeDataset){return S[role]}
-function isHidden(a){return S.hidden.includes(a.key)}
-function persistHidden(a,hide){S.hidden=S.hidden.filter(k=>k!==a.key);if(hide)S.hidden.push(a.key);save();applyVisibility();if(sel===a.key)show(a.key,true);list();}
-
+const save=()=>idb('put',S);
+function makeProject(name='New dataset'){return {id:'ds-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7),name,shapes:[],rows:[],photos:[],hidden:[],notes:{},actions:{}}}
+function project(){return S.projects.find(p=>p.id===S.activeProjectId)||S.projects[0]||null}
+function dataset(){const p=project();if(!p){const n=makeProject('New dataset');S.projects.push(n);S.activeProjectId=n.id;return n}return p}
+function isHidden(a){return (project()?.hidden||[]).includes(a.id)}
+function persistHidden(a,hide){const p=project();if(!p)return;p.hidden=(p.hidden||[]).filter(k=>k!==a.id);if(hide)p.hidden.push(a.id);save();applyVisibility();if(sel===a.key)show(a.key,true);list();}
 /* ---------- import ---------- */
-async function ingest(files,role=activeDataset){
-  const D=dataset(role);toast('Reading '+(role==='working'?'working':'basemap')+' data…',0);
+async function ingest(files,targetProjectId=null){
+  const D=targetProjectId?(S.projects.find(p=>p.id===targetProjectId)||dataset()):dataset();S.activeProjectId=D.id;toast('Reading dataset data…',0);
   const items=[];
   for(const f of files){
     if(/\.zip$/i.test(f.name)){
@@ -248,47 +274,32 @@ async function ingest(files,role=activeDataset){
     D.shapes=D.shapes.filter(s=>s.layer!==b);D.shapes.push({layer:b,feats});nS+=feats.length;
   }
   await save();join(true);dataUI();
-  toast(err||(nS+nR+nP?'Added to '+(role==='working'?'working assets':'basemap assets')+': '+[nS&&nS+' shapes',nR&&nR+' list rows',nP&&nP+' photos'].filter(Boolean).join(', '):'No supported files found'),5000);
+  toast(err||(nS+nR+nP?'Added to '+D.name+': '+[nS&&nS+' shapes',nR&&nR+' list rows',nP&&nP+' photos'].filter(Boolean).join(', '):'No supported files found'),5000);
 }
 
-/* ---------- join both datasets on AMX ID; namespace IDs to avoid collisions ---------- */
+/* ---------- join active project assets on AMX ID ---------- */
 function join(refit){
   urls.forEach(u=>URL.revokeObjectURL(u));urls=[];A={};ORPH=0;
-  for(const role of ['working','basemap']){
-    const D=dataset(role),get=id=>{const key=role+':'+id;return A[key]??={key,id,role,label:'',props:{},attrs:{},geom:null,photos:[]}};
-    D.rows.forEach(r=>{const id=norm(r['AMX ID']);if(!id)return;const a=get(id);a.props=r;a.label=r['AMX ID']});
-    D.shapes.forEach(s=>s.feats.forEach(f=>{
-      const k=Object.keys(f.attrs).find(k=>/^AMX/i.test(k)),raw=k&&f.attrs[k];if(!raw)return;
-      const a=get(norm(raw));a.attrs=f.attrs;a.label||=raw;if(f.geom)a.geom=f.geom}));
-    const ids=Object.keys(A).filter(k=>A[k].role===role);
-    D.photos.slice().sort((a,b)=>a.name.localeCompare(b.name)).forEach(p=>{
-      const st=norm(p.name.replace(/\.[^.]+$/,'')),key=A[role+':'+st]?role+':'+st:ids.filter(k=>A[k].id.length>5&&st.startsWith(A[k].id)).sort((x,y)=>A[y].id.length-A[x].id.length)[0];
-      if(!key){ORPH++;return}const u=URL.createObjectURL(p.blob);urls.push(u);A[key].photos.push({url:u,name:p.name})});
-  }
-  grp.clearLayers();baseGrp.clearLayers();hl.clearLayers();
-  Object.values(A).forEach(a=>{
-    a.name=a.props.Name||a.attrs.NAME||a.label||a.id;a.type=a.props.Type||a.attrs.TYPE||'Other';a.lay=null;
-    if(!a.geom)return;
-    const c=colr(a.type),ph=a.photos.length>0,o={bubblingMouseEvents:false},ls=[],isBase=a.role==='basemap';
-    if(a.geom.k==='pt')a.geom.parts.forEach(p=>ls.push(L.circleMarker([p[0][1],p[0][0]],{...o,radius:isBase?7:10,weight:ph?2.5:3.5,color:isBase?'#7c8991':ph?'#fff':c,fillColor:isBase?'#b7c0c5':ph?c:'#fff',fillOpacity:isBase?.55:(ph?1:.9)})));
-    else a.geom.parts.forEach(pt=>{const ll=pt.map(([x,y])=>[y,x]);if(a.geom.k==='ln'){ls.push(L.polyline(ll,{...o,weight:28,opacity:0}),L.polyline(ll,{...o,color:isBase?'#8c979e':c,weight:isBase?3:5,opacity:isBase?.65:.95,lineCap:'butt',dashArray:ph?null:'9 7'}))}else ls.push(L.polygon(ll,{...o,color:isBase?'#8c979e':c,weight:isBase?2:3,fillOpacity:isBase?.08:(ph?.3:.1),dashArray:ph?null:'9 7'}))});
-    a.lay=L.featureGroup(ls).on('click',()=>show(a.key)).addTo(isBase?baseGrp:grp);
+  const D=project();if(!D){grp.clearLayers();hl.clearLayers();$('#cnt').textContent='No dataset configured';list();return}
+  const get=id=>{const key=D.id+':'+id;return A[key]??={key,id,projectId:D.id,label:'',props:{},attrs:{},geom:null,photos:[]}};
+  D.rows.forEach(r=>{const id=norm(r['AMX ID']);if(!id)return;const a=get(id);a.props=r;a.label=r['AMX ID']});
+  D.shapes.forEach(s=>s.feats.forEach(f=>{const k=Object.keys(f.attrs).find(k=>/^AMX/i.test(k)),raw=k&&f.attrs[k];if(!raw)return;const a=get(norm(raw));a.attrs=f.attrs;a.label||=raw;if(f.geom)a.geom=f.geom}));
+  const ids=Object.keys(A);
+  D.photos.slice().sort((a,b)=>a.name.localeCompare(b.name)).forEach(p=>{const st=norm(p.name.replace(/\.[^.]+$/,'')),key=A[D.id+':'+st]?D.id+':'+st:ids.filter(k=>A[k].id.length>5&&st.startsWith(A[k].id)).sort((x,y)=>A[y].id.length-A[x].id.length)[0];if(!key){ORPH++;return}const u=URL.createObjectURL(p.blob);urls.push(u);A[key].photos.push({url:u,name:p.name})});
+  grp.clearLayers();hl.clearLayers();
+  Object.values(A).forEach(a=>{a.name=a.props.Name||a.attrs.NAME||a.label||a.id;a.type=a.props.Type||a.attrs.TYPE||'Other';a.lay=null;if(!a.geom)return;const c=colr(a.type),ph=a.photos.length>0,o={bubblingMouseEvents:false},ls=[];
+    if(a.geom.k==='pt')a.geom.parts.forEach(p=>ls.push(L.circleMarker([p[0][1],p[0][0]],{...o,radius:10,weight:ph?2.5:3.5,color:ph?'#fff':c,fillColor:ph?c:'#fff',fillOpacity:ph?1:.9})));
+    else a.geom.parts.forEach(pt=>{const ll=pt.map(([x,y])=>[y,x]);if(a.geom.k==='ln'){ls.push(L.polyline(ll,{...o,weight:28,opacity:0}),L.polyline(ll,{...o,color:c,weight:5,opacity:.95,lineCap:'butt',dashArray:ph?null:'9 7'}))}else ls.push(L.polygon(ll,{...o,color:c,weight:3,fillOpacity:ph?.3:.1,dashArray:ph?null:'9 7'}))});
+    a.lay=L.featureGroup(ls).on('click',()=>show(a.key)).addTo(grp);
   });
-  applyVisibility();
-  const all=Object.values(A),n=all.length,ph=all.filter(a=>a.photos.length).length,w=all.filter(a=>a.role==='working').length,b=all.filter(a=>a.role==='basemap').length;
-  $('#cnt').textContent=n?`${w} working · ${b} basemap · ${ph} with photos`:'No data loaded';
+  applyVisibility();const all=Object.values(A),ph=all.filter(a=>a.photos.length).length;
+  $('#cnt').textContent=all.length?`${D.name} · ${all.length} assets · ${ph} with photos`:'Dataset configured · no assets loaded';
   if(sel&&A[sel])show(sel,true);else closeSheet();
-  if((refit||!fitted)&&all.some(a=>a.geom&&!isHidden(a))){const bounds=L.featureGroup(all.filter(a=>a.geom&&!isHidden(a)&&(a.role==='working'||showBasemap)).map(a=>a.lay)).getBounds();if(bounds.isValid()){map.fitBounds(bounds.pad(.15));fitted=true}}
+  if((refit||!fitted)&&all.some(a=>a.geom&&!isHidden(a))){const b=grp.getBounds();if(b.isValid()){map.fitBounds(b.pad(.15));fitted=true}}
   list();
 }
 let ORPH=0;
-function applyVisibility(){
-  Object.values(A).forEach(a=>{if(!a.lay)return;const wanted=!isHidden(a)&&selectedTypes.size===0||(!isHidden(a)&&selectedTypes.has(a.type));const roleOn=a.role==='working'||showBasemap;const group=a.role==='working'?grp:baseGrp;
-    if(wanted&&roleOn){if(!group.hasLayer(a.lay))group.addLayer(a.lay)}else if(group.hasLayer(a.lay))group.removeLayer(a.lay);
-  });
-  if(sel&&A[sel]?.geom){const a=A[sel];if(!a.lay||isHidden(a)||!(a.role==='working'||showBasemap))hl.clearLayers()}
-  $('#fit').title='Show all visible assets';
-}
+function applyVisibility(){const p=project();Object.values(A).forEach(a=>{if(!a.lay)return;const wanted=!p?.hiddenDataset&&!isHidden(a)&&(selectedTypes.size===0||selectedTypes.has(a.type));if(wanted){if(!grp.hasLayer(a.lay))grp.addLayer(a.lay)}else if(grp.hasLayer(a.lay))grp.removeLayer(a.lay)});if(sel&&A[sel]?.geom&&(isHidden(A[sel])||!grp.hasLayer(A[sel].lay)))hl.clearLayers();$('#fit').title='Show all visible assets';}
 
 /* ---------- map ---------- */
 const map=L.map('map',{zoomControl:false,maxZoom:19}).setView([52.1,-3.8],7);
@@ -296,10 +307,10 @@ map.attributionControl.setPrefix(false);
 const base=[L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}),
   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Imagery © Esri'})];
 let bi=0;base[0].addTo(map);
-const grp=L.featureGroup().addTo(map),baseGrp=L.featureGroup().addTo(map),hl=L.layerGroup().addTo(map);
+const grp=L.featureGroup().addTo(map),hl=L.layerGroup().addTo(map);
 map.on('click',closeSheet);
 $('#sat').onclick=()=>{base[bi].remove();bi=1-bi;base[bi].addTo(map)};
-$('#fit').onclick=()=>{const layers=[...grp.getLayers(),...baseGrp.getLayers()];if(layers.length){const b=L.featureGroup(layers).getBounds();if(b.isValid())map.fitBounds(b.pad(.15))}else toast('Nothing visible to show. Check filters and layers.')};
+$('#fit').onclick=()=>{if(grp.getLayers().length){const b=grp.getBounds();if(b.isValid())map.fitBounds(b.pad(.15))}else toast('Nothing visible to show. Check filters or configure a dataset.')};
 
 /* ---------- location ---------- */
 function stopLoc(){if(wid!=null)navigator.geolocation.clearWatch(wid);wid=null;me=null;dot&&dot.remove();accC&&accC.remove();dot=accC=null;$('#loc').classList.remove('on');$('#acc').hidden=true;updDist()}
@@ -331,7 +342,7 @@ function updDist(){const e=$('#dist');if(e&&sel)e.textContent=fd(dist(A[sel]))}
 function hide2100(v){return/(^|-)2100$/.test(v)?'Not recorded':v}
 function show(id,keep){
   const a=A[id];if(!a)return;sel=id;hl.clearLayers();
-  if(a.geom&&!keep&&!isHidden(a)&&(a.role==='working'||showBasemap)){
+  if(a.geom&&!keep&&!isHidden(a)&&grp.hasLayer(a.lay)){
     if(a.geom.k==='pt')a.geom.parts.forEach(p=>hl.addLayer(L.circleMarker([p[0][1],p[0][0]],{radius:17,color:'#111',weight:3,fill:false,interactive:false})));
     else a.lay.eachLayer(l=>{if(l.options.opacity!==0&&l.options.color)hl.addLayer(L.polyline(l.getLatLngs(),{color:'#ffd400',weight:13,opacity:.95,interactive:false,lineCap:'butt'}))});
     if(a.geom.k!=='pt')hl.eachLayer(l=>l.bringToBack?.());
@@ -342,16 +353,19 @@ function show(id,keep){
   let dir='';if(a.lay){const c=a.lay.getBounds().getCenter();dir=`<a class="btn" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}&travelmode=walking">Directions</a>`}
   $('#sheet').innerHTML=(a.photos.length?`<div class="ph">${a.photos.map(p=>`<img src="${p.url}" alt="${esc(a.name)}">`).join('')}</div>`:`<div class="ph none">No photo imported for this asset.</div>`)
    +`<div class="sb"><div class="tt"><h2>${esc(a.name)}</h2><button class="x" aria-label="Close">✕</button></div>
-   <div class="meta"><span><span class="dot" style="background:${colr(a.type)}"></span>${esc(a.type)}</span><span>${esc(a.label)}</span><span class="chip">${a.role==='working'?'Working asset':'Basemap asset'}</span><span id="dist">${fd(dist(a))}</span>${a.geom?'':'<span class="warn">No shape</span>'}${isHidden(a)?'<span class="warn">Hidden on map</span>':''}</div>
-   <div class="act">${dir}${a.lay?'<button class="btn" data-zoom>Zoom to</button>':''}<button class="btn" data-hide>${isHidden(a)?'Show on map':'Hide asset'}</button></div>
-   <dl>${rows||'<dt>No details</dt><dd>Import the asset CSV</dd>'}</dl></div>`;
+   <div class="meta"><span><span class="dot" style="background:${colr(a.type)}"></span>${esc(a.type)}</span><span>${esc(a.label)}</span><span class="chip">${esc(project()?.name||'Dataset')}</span><span id="dist">${fd(dist(a))}</span>${a.geom?'':'<span class="warn">No shape</span>'}${isHidden(a)?'<span class="warn">Hidden on map</span>':''}</div>
+   <div class="act">${dir}${a.lay?'<button class="btn" data-zoom>Zoom to</button>':''}<button class="btn" data-hide>${isHidden(a)?'Show on map':'Hide asset'}</button><button class="btn ${project()?.actions?.[a.id]?'pri':''}" data-action>${project()?.actions?.[a.id]?'Action completed ✓':'Action completed'}</button></div>
+   <div class="asset-tabs"><button class="btn ${assetTab==='details'?'pri':''}" data-asset-tab="details">Details</button><button class="btn ${assetTab==='comments'?'pri':''}" data-asset-tab="comments">Comments${project()?.notes?.[a.id]?' ✓':''}</button></div><div ${assetTab==='details'?'':'hidden'} class="asset-pane"><dl>${rows||'<dt>No details</dt><dd>Import the asset CSV</dd>'}</dl></div><div ${assetTab==='comments'?'':'hidden'} class="asset-pane"><h3>Comments / field notes</h3><textarea id="asset-note" rows="5" placeholder="Add observations, work required or inspection notes…">${esc(project()?.notes?.[a.id]||'')}</textarea><button class="btn pri" data-save-note style="width:100%;margin:8px 0 14px">Save comment</button></div></div>`;
   $('#sheet').classList.add('open');$('#sheet').scrollTop=0;
 }
 function closeSheet(){sel=null;hl.clearLayers();$('#sheet').classList.remove('open')}
 $('#sheet').onclick=e=>{
   if(e.target.closest('.x'))closeSheet();
+  else if(e.target.closest('[data-asset-tab]')){assetTab=e.target.closest('[data-asset-tab]').dataset.assetTab;show(sel,true)}
   else if(e.target.closest('[data-hide]')){const a=A[sel];if(a)persistHidden(a,!isHidden(a));}
   else if(e.target.closest('[data-zoom]')){const a=A[sel];if(a?.lay&&!isHidden(a))map.fitBounds(a.lay.getBounds(),{maxZoom:19,paddingBottomRight:[30,Math.round(innerHeight*.5)]});}
+  else if(e.target.closest('[data-action]')){const a=A[sel],p=project();if(a&&p){p.actions=p.actions||{};p.actions[a.id]=!p.actions[a.id];save();show(sel,true);list();toast(p.actions[a.id]?'Action marked completed':'Action marked incomplete')}}
+  else if(e.target.closest('[data-save-note]')){const a=A[sel],p=project();if(a&&p){p.notes=p.notes||{};p.notes[a.id]=$('#asset-note').value.trim();save();list();toast('Comment saved')}}
   else if(e.target.matches('.ph img')){$('#view img').src=e.target.src;$('#view').hidden=false}};
 $('#view').onclick=()=>$('#view').hidden=true;
 
@@ -361,55 +375,78 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-p]');if(b)
 
 function list(){
   const all=Object.values(A),types=[...new Set(all.map(a=>a.type))].sort(),q=norm($('#q').value),raw=$('#q').value.trim().toLowerCase();
-  const specials=['No photo','No shape','Hidden','Working','Basemap'];
+  const specials=['No photo','No shape','Hidden','Action completed','Action outstanding'];
   $('#chips').innerHTML=[{t:'All types',on:selectedTypes.size===0},...types.map(t=>({t,on:selectedTypes.size===0||selectedTypes.has(t)})),...specials.map(t=>({t,on:flt===t}))].map(o=>`<button class="chip${o.on?' on':''}" data-f="${esc(o.t)}">${esc(o.t)}</button>`).join('');
-  let r=all.filter(a=>{
-    const special=flt==='No photo'?!a.photos.length:flt==='No shape'?!a.geom:flt==='Hidden'?isHidden(a):flt==='Working'?a.role==='working':flt==='Basemap'?a.role==='basemap':true;
-    const typeOk=selectedTypes.size===0||selectedTypes.has(a.type);
-    return special&&typeOk&&(!raw||norm(a.id).includes(q)||String(a.name).toLowerCase().includes(raw)||String(a.label).toLowerCase().includes(raw));
-  });
+  const p=project();let r=all.filter(a=>{const special=flt==='No photo'?!a.photos.length:flt==='No shape'?!a.geom:flt==='Hidden'?isHidden(a):flt==='Action completed'?!!p?.actions?.[a.id]:flt==='Action outstanding'?!p?.actions?.[a.id]:true;const typeOk=selectedTypes.size===0||selectedTypes.has(a.type);return special&&typeOk&&(!raw||norm(a.id).includes(q)||String(a.name).toLowerCase().includes(raw)||String(a.label).toLowerCase().includes(raw));});
   const d=new Map(r.map(a=>[a,dist(a)]));r.sort((a,b)=>me?(d.get(a)??1e13)-(d.get(b)??1e13):a.name.localeCompare(b.name,undefined,{numeric:true}));
-  $('#al').innerHTML=r.length?r.map(a=>`<li><button class="row" data-id="${esc(a.key)}"><span class="dot" style="background:${a.role==='basemap'?'#9aa5ab':colr(a.type)}"></span><span><b>${esc(a.name)}${isHidden(a)?' · HIDDEN':''}</b><small>${a.role==='working'?'Working':'Basemap'} · ${esc(a.label)}${me&&d.get(a)!=null?' · '+fd(d.get(a)):''}</small>${a.photos.length?'':' <small class="warn">No photo</small>'}${a.geom?'':' <small class="warn">No shape</small>'}</span></button></li>`).join(''):'<p class="hint">No assets match. Change the filters or import data from the Data screen.</p>';
+  $('#al').innerHTML=r.length?r.map(a=>`<li><button class="row" data-id="${esc(a.key)}"><span class="dot" style="background:${colr(a.type)}"></span><span><b>${esc(a.name)}${isHidden(a)?' · HIDDEN':''}${p?.actions?.[a.id]?' · ✓ DONE':''}</b><small>${esc(a.label)}${me&&d.get(a)!=null?' · '+fd(d.get(a)):''}</small>${p?.notes?.[a.id]?' <small>Comment saved</small>':''}${a.photos.length?'':' <small class="warn">No photo</small>'}${a.geom?'':' <small class="warn">No shape</small>'}</span></button></li>`).join(''):'<p class="hint">No assets match. Change the filters or import data.</p>';
 }
 $('#q').oninput=list;
-$('#p-assets').addEventListener('click',e=>{
-  const f=e.target.closest('[data-f]');if(f){const t=f.dataset.f;if(['No photo','No shape','Hidden','Working','Basemap'].includes(t)){flt=flt===t?'all':t}else if(t==='All types'){selectedTypes.clear();flt='all'}else{flt='all';if(selectedTypes.size===0)selectedTypes.add(t);else if(selectedTypes.has(t))selectedTypes.delete(t);else selectedTypes.add(t)}applyVisibility();list();return}
-  const r=e.target.closest('[data-id]');if(r){$('#p-assets').classList.remove('open');show(r.dataset.id)}
-});
+$('#p-assets').addEventListener('click',e=>{const f=e.target.closest('[data-f]');if(f){const t=f.dataset.f;if(['No photo','No shape','Hidden','Action completed','Action outstanding'].includes(t)){flt=flt===t?'all':t}else if(t==='All types'){selectedTypes.clear();flt='all'}else{flt='all';if(selectedTypes.has(t))selectedTypes.delete(t);else selectedTypes.add(t)}applyVisibility();list();return}const r=e.target.closest('[data-id]');if(r){$('#p-assets').classList.remove('open');show(r.dataset.id)}});
 
 function dataUI(){
-  const all=Object.values(A),w=all.filter(a=>a.role==='working'),b=all.filter(a=>a.role==='basemap');
-  const stats=(role)=>{const x=dataset(role),aa=Object.values(A).filter(a=>a.role===role),noRow=aa.filter(a=>a.geom&&!Object.keys(a.props).length).length,noShape=aa.filter(a=>Object.keys(a.props).length&&!a.geom).length,noPh=aa.filter(a=>!a.photos.length).length;return {x,aa,noRow,noShape,noPh}};
-  const st=(n,t,x,acc,cnt,hint,role)=>`<div class="step"><span class="n">${n}</span><div><b>${t}</b><span class="hint">${cnt||hint}</span></div><div class="go"><label class="btn">${cnt?'Add more':'Add'}<input type="file" multiple hidden accept="${acc}" data-import="${role}"></label>${cnt?`<button class="lnk" data-clr="${x}" data-role="${role}">Remove</button>`:''}</div></div>`;
-  const ws=stats('working'),bs=stats('basemap');
-  $('#db').innerHTML=`<div class="step"><span class="n">↥</span><div><b>Import destination</b><span class="hint">Choose which independent dataset receives the files below.</span></div><div class="go"><select id="target" class="btn"><option value="working" ${activeDataset==='working'?'selected':''}>Working</option><option value="basemap" ${activeDataset==='basemap'?'selected':''}>Basemap</option></select></div></div>
-  <div class="step"><span class="n">◉</span><div><b>Basemap visibility</b><span class="hint">Background assets remain selectable when visible.</span></div><div class="go"><button class="btn ${showBasemap?'pri':''}" id="toggle-base">${showBasemap?'Shown':'Hidden'}</button></div></div>
-  <h3>Working assets</h3><p class="hint">Your main inspection dataset.</p>
-  ${st(1,'Shapefiles','shapes','.zip,.shp,.dbf,.prj,.cpg',ws.x.shapes.length?ws.x.shapes.length+' layers, '+ws.x.shapes.reduce((n,s)=>n+s.feats.length,0)+' shapes':'','A .zip, or .shp/.dbf/.prj files together','working')}
-  ${st(2,'Asset list','rows','.csv,text/csv',ws.x.rows.length?ws.x.rows.length+' rows':'','CSV with an “AMX ID” column','working')}
-  ${st(3,'Photos','photos','image/*,.zip',ws.x.photos.length?ws.x.photos.length+' photos':'','A .zip or images named by AMX ID','working')}
-  <h3>Basemap assets</h3><p class="hint">Optional wider inventory, independent from the working dataset.</p>
-  ${st(4,'Shapefiles','shapes','.zip,.shp,.dbf,.prj,.cpg',bs.x.shapes.length?bs.x.shapes.length+' layers, '+bs.x.shapes.reduce((n,s)=>n+s.feats.length,0)+' shapes':'','A .zip, or .shp/.dbf/.prj files together','basemap')}
-  ${st(5,'Asset list','rows','.csv,text/csv',bs.x.rows.length?bs.x.rows.length+' rows':'','CSV with an “AMX ID” column','basemap')}
-  ${st(6,'Photos','photos','image/*,.zip',bs.x.photos.length?bs.x.photos.length+' photos':'','A .zip or images named by AMX ID','basemap')}
-  ${(all.length?`<ul class="ck"><li>${w.length} working assets · ${b.length} basemap assets</li><li>${all.filter(a=>a.geom&&!isHidden(a)).length} assets not hidden</li><li>${S.hidden.length} hidden asset(s)</li><li>${ORPH?ORPH+' photos did not match an AMX ID':'All imported photos matched an asset'}</li></ul><p class="hint">Data and hidden-state preferences are stored locally on this device. Assets with the same AMX ID in each dataset remain separate and independently selectable.</p><button class="btn bad" data-clr="all" style="width:100%">Remove all data from this device</button>`:'<p class="hint">Import a working asset dataset, a basemap dataset, or both. Each dataset uses its own CSV, shapefiles and optional photos.</p>')}`;
+  const cards=S.projects.map(p=>{
+    const records=(p.rows||[]).length,features=(p.shapes||[]).reduce((n,l)=>n+(l.feats||[]).length,0),photos=(p.photos||[]).length;
+    const current=p.id===S.activeProjectId;
+    return `<article class="dataset-card"><h4>${esc(p.name)} ${current?'<span class="hint">· Open</span>':''}</h4><div class="hint">${features.toLocaleString()} map features · ${records.toLocaleString()} records · ${photos.toLocaleString()} photos${p.hiddenDataset?' · Hidden from map':''}</div><div class="act"><button class="btn ${current?'pri':''}" data-ds="use" data-id="${esc(p.id)}">${current?'Currently open':'Open dataset'}</button><button class="btn" data-ds="hide" data-id="${esc(p.id)}">${p.hiddenDataset?'Show on map':'Hide on map'}</button></div><div class="act"><button class="btn" data-ds="export" data-id="${esc(p.id)}">Export backup</button><button class="btn bad" data-ds="delete" data-id="${esc(p.id)}">Delete</button></div></article>`;
+  }).join('');
+  $('#db').innerHTML=`<div class="manager-top"><button class="btn pri" id="open-wizard">＋ Create dataset</button><label class="btn">Import backup<input id="project-file" type="file" accept=".json,application/json" hidden></label></div>
+  <p class="hint">Each dataset keeps its map geometry, asset records, photos, comments and action statuses together. Create a new dataset using the guided three-part import, or open a saved backup.</p>
+  <h3 style="margin:20px 0 6px">Your datasets (${S.projects.length})</h3>
+  ${cards||'<div class="manager-empty"><b>No datasets yet</b><p class="hint">Create a dataset to start importing geometry, asset records and photos.</p><button class="btn pri" id="open-wizard">Create dataset</button></div>'}`;
 }
-$('#db').addEventListener('change',e=>{if(e.target.type==='file'){const f=[...e.target.files],role=e.target.dataset.import||activeDataset;e.target.value='';ingest(f,role)}});
+async function blobToDataURL(blob){const bytes=new Uint8Array(await blob.arrayBuffer());let binary='';const step=0x8000;for(let i=0;i<bytes.length;i+=step)binary+=String.fromCharCode(...bytes.subarray(i,i+step));return 'data:'+(blob.type||'application/octet-stream')+';base64,'+btoa(binary)}
+async function exportProject(){const p=project();if(!p)return toast('Create a dataset first.');toast('Preparing project file…',0);const out={format:'DataViewerProject',version:1,id:p.id,name:p.name,hiddenDataset:!!p.hiddenDataset,shapes:p.shapes,rows:p.rows,hidden:p.hidden||[],notes:p.notes||{},actions:p.actions||{},photos:[]};for(const ph of p.photos||[])out.photos.push({name:ph.name,data:await blobToDataURL(ph.blob)});const blob=new Blob([JSON.stringify(out)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=(p.name||'data-viewer-project').replace(/[^a-z0-9_-]+/gi,'-')+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);toast('Project file saved. Keep it as a backup or transfer it to another device.')}
+async function importProjectFile(file){try{toast('Opening project…',0);const o=JSON.parse(await file.text());if(o.format!=='DataViewerProject'||!Array.isArray(o.shapes)||!Array.isArray(o.rows))throw Error('This is not a Data Viewer project file.');const p={id:'ds-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7),name:String(o.name||file.name.replace(/\.json$/i,'')),hiddenDataset:!!o.hiddenDataset,shapes:o.shapes,rows:o.rows,photos:[],hidden:o.hidden||[],notes:o.notes||{},actions:o.actions||{}};for(const ph of o.photos||[]){const m=String(ph.data||'').match(/^data:([^;]*);base64,(.*)$/s);if(!m)continue;const bin=atob(m[2]),bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);p.photos.push({name:ph.name,blob:new Blob([bytes],{type:m[1]||'application/octet-stream'})})}S.projects.push(p);S.activeProjectId=p.id;selectedTypes.clear();flt='all';sel=null;await save();join(true);dataUI();toast('Project imported: '+p.name,5000)}catch(e){toast('Could not open project: '+(e.message||'invalid file'),6000)}}
+function fileLabel(inputId){
+  const files=[...($('#'+inputId).files||[])];
+  if(!files.length)return inputId==='wiz-shapes'?'No geometry files selected':inputId==='wiz-rows'?'No CSV selected':'No photos selected';
+  const total=files.reduce((n,f)=>n+f.size,0),size=total>1024*1024?(total/1024/1024).toFixed(1)+' MB':Math.max(1,Math.round(total/1024))+' KB';
+  return `${files.length} file${files.length===1?'':'s'} selected · ${size} · ${files.slice(0,3).map(f=>f.name).join(', ')}${files.length>3?'…':''}`;
+}
+function updateWizardSummary(){
+  const shape=[...$('#wiz-shapes').files],rows=[...$('#wiz-rows').files],photos=[...$('#wiz-photos').files];
+  $('#wiz-shapes-status').textContent=fileLabel('wiz-shapes');
+  $('#wiz-rows-status').textContent=fileLabel('wiz-rows');
+  $('#wiz-photos-status').textContent=fileLabel('wiz-photos');
+  $('#wiz-summary').textContent=`${shape.length} geometry file(s) · ${rows.length} CSV file(s) · ${photos.length} photo/archive file(s). Geometry is required; records and photos can be added later if needed.`;
+  $('#wiz-create').disabled=!shape.length||!$('#wiz-name').value.trim();
+}
+function openWizard(){
+  $('#wiz-name').value='';$('#wiz-shapes').value='';$('#wiz-rows').value='';$('#wiz-photos').value='';
+  updateWizardSummary();$('#wizard').classList.add('open');setTimeout(()=>$('#wiz-name').focus(),50);
+}
+function closeWizard(){$('#wizard').classList.remove('open')}
+['wiz-name','wiz-shapes','wiz-rows','wiz-photos'].forEach(id=>$('#'+id).addEventListener(id==='wiz-name'?'input':'change',updateWizardSummary));
+$('#db').addEventListener('change',async e=>{if(e.target.id==='project-file'){const f=e.target.files?.[0];e.target.value='';if(f)await importProjectFile(f)}});
 $('#db').addEventListener('click',async e=>{
-  if(e.target.id==='toggle-base'){showBasemap=!showBasemap;save();applyVisibility();dataUI();return}
-  const c=e.target.closest('[data-clr]');if(!c)return;const k=c.dataset.clr,role=c.dataset.role;
-  if(k==='all'){if(!confirm('Remove all imported working and basemap data, and hidden-state preferences, from this device?'))return;S={working:{shapes:[],rows:[],photos:[]},basemap:{shapes:[],rows:[],photos:[]},hidden:[]};}
-  else {if(!confirm(`Remove ${k} from the ${role} dataset?`))return;dataset(role)[k]=[];}
-  await save();join(true);dataUI();toast('Removed');
+  if(e.target.closest('#open-wizard')){openWizard();return}
+  const d=e.target.closest('[data-ds]');if(!d)return;const id=d.dataset.id,act=d.dataset.ds,p=S.projects.find(x=>x.id===id);if(!p)return;
+  if(act==='use'){S.activeProjectId=id;selectedTypes.clear();flt='all';sel=null;await save();join(true);dataUI();toast('Opened '+p.name);return}
+  if(act==='hide'){p.hiddenDataset=!p.hiddenDataset;await save();if(id===S.activeProjectId){applyVisibility();if(p.hiddenDataset)hl.clearLayers()}dataUI();toast(p.hiddenDataset?'Dataset hidden from map':'Dataset shown on map');return}
+  if(act==='export'){S.activeProjectId=id;await save();join(false);await exportProject();dataUI();return}
+  if(act==='delete'){if(!confirm(`Delete “${p.name}” and all its imported data, photos, comments and action statuses?`))return;S.projects=S.projects.filter(x=>x.id!==id);if(S.activeProjectId===id)S.activeProjectId=S.projects[0]?.id||null;if(!S.projects.length){const n=makeProject('New dataset');S.projects.push(n);S.activeProjectId=n.id}sel=null;await save();join(true);dataUI();toast('Dataset deleted');return}
 });
-$('#db').addEventListener('change',e=>{if(e.target.id==='target'){activeDataset=e.target.value;dataUI()}});
-
-/* ---------- start; migrate the original single-dataset storage format ---------- */
+$('#wizard').addEventListener('click',e=>{if(e.target.closest('[data-wiz-close]'))closeWizard()});
+$('#wiz-create').addEventListener('click',async()=>{
+  const name=$('#wiz-name').value.trim(),shapes=[...$('#wiz-shapes').files],rows=[...$('#wiz-rows').files],photos=[...$('#wiz-photos').files];
+  if(!name){toast('Give this dataset a name first.');$('#wiz-name').focus();return}
+  if(!shapes.length){toast('Select the map geometry files first.');$('#wiz-shapes').focus();return}
+  const files=[...shapes,...rows,...photos],p=makeProject(name);
+  S.projects.push(p);S.activeProjectId=p.id;selectedTypes.clear();flt='all';sel=null;
+  closeWizard();await save();join(true);dataUI();await ingest(files,p.id);
+});
+/* ---------- start; migrate older saved formats ---------- */
 (async()=>{
-  const s=await idb('get');
-  if(s){if(s.working||s.basemap){S={working:s.working||{shapes:[],rows:[],photos:[]},basemap:s.basemap||{shapes:[],rows:[],photos:[]},hidden:s.hidden||[]};showBasemap=s.showBasemap!==false;}
-    else if(s.shapes||s.rows||s.photos){S={working:{shapes:s.shapes||[],rows:s.rows||[],photos:s.photos||[]},basemap:{shapes:[],rows:[],photos:[]},hidden:[]};await save();}}
-  join();if(!Object.keys(A).length)openP('data');
+  const old=await idb('get');
+  if(old){
+    if(Array.isArray(old.projects)){S={projects:old.projects,activeProjectId:old.activeProjectId||old.projects[0]?.id||null};}
+    else if(old.working||old.basemap){S={projects:[],activeProjectId:null};if(old.working&&(old.working.shapes?.length||old.working.rows?.length||old.working.photos?.length)){const p=makeProject('Working dataset');Object.assign(p,old.working);p.hidden=(old.hidden||[]).filter(k=>String(k).startsWith('working:')).map(k=>String(k).slice(8));S.projects.push(p)}if(old.basemap&&(old.basemap.shapes?.length||old.basemap.rows?.length||old.basemap.photos?.length)){const p=makeProject('Basemap dataset');Object.assign(p,old.basemap);p.hidden=(old.hidden||[]).filter(k=>String(k).startsWith('basemap:')).map(k=>String(k).slice(8));S.projects.push(p)}S.activeProjectId=S.projects[0]?.id||null;}
+    else if(old.shapes||old.rows||old.photos){const p=makeProject('Imported dataset');Object.assign(p,{shapes:old.shapes||[],rows:old.rows||[],photos:old.photos||[]});S={projects:[p],activeProjectId:p.id};}
+  }
+  if(!S.projects.length){const p=makeProject('New dataset');S.projects.push(p);S.activeProjectId=p.id;}
+  S.projects.forEach(p=>{p.hidden=p.hidden||[];p.hiddenDataset=!!p.hiddenDataset;p.notes=p.notes||{};p.actions=p.actions||{};p.shapes=p.shapes||[];p.rows=p.rows||[];p.photos=p.photos||[]});
+  await save();join();if(!Object.keys(A).length)openP('data');
 })();
 </script>
 </body>

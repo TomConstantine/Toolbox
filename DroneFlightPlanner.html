@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Drone Flight Planner</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{--bg:#f3f5f7;--card:#fff;--tx:#14202b;--mu:#5d6b78;--bd:#dde3e8;--ac:#0b6bcb}
+@media(prefers-color-scheme:dark){:root{--bg:#10161c;--card:#1a232b;--tx:#e8eef3;--mu:#93a2b0;--bd:#2c3945;--ac:#4aa3ff}}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.4 system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--tx);padding-bottom:env(safe-area-inset-bottom)}
+header{position:sticky;top:0;z-index:2000;background:var(--card);border-bottom:1px solid var(--bd);padding:env(safe-area-inset-top) 10px 0}
+h1{font-size:17px;margin:8px 0}
+nav{display:flex;gap:4px}
+nav button{flex:1;border:0;background:none;color:var(--mu);font:600 14px inherit;padding:10px 0;border-bottom:3px solid transparent}
+nav button.on{color:var(--ac);border-color:var(--ac)}
+.tab{display:none;padding:10px}.tab.on{display:block}
+#map{height:52vh;min-height:320px;border-radius:12px;border:1px solid var(--bd)}
+.bar{display:flex;gap:6px;margin:8px 0}
+.bar input{flex:1;min-width:0}
+input,select,button{font:inherit;color:inherit}
+input,select{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px;width:100%}
+button{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px 12px;min-height:44px}
+.bar button{flex:1;padding:8px 4px;font-size:13px}
+.pri{background:var(--ac);color:#fff;border:0;width:100%;font-weight:700;font-size:16px;margin-top:10px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:10px;margin:8px 0}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+label{font-size:12px;color:var(--mu);display:block;margin-bottom:2px}
+.mu,small{color:var(--mu)}small{display:block;font-size:12.5px}
+.vx{width:18px;height:18px;margin:2px;border-radius:50%;background:#fff;border:3px solid #0b6bcb;box-shadow:0 1px 4px #0006}
+.badge{color:#fff;font-weight:800;text-align:center;padding:16px 10px;border-radius:12px;font-size:17px}
+.row{display:flex;gap:8px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--bd)}.row:last-child{border:0}
+.row i{width:12px;height:12px;border-radius:50%;margin-top:4px;flex:none}
+.row div{flex:1}.row em{font-style:normal;font-size:12px;font-weight:700}
+.f{cursor:pointer}
+h3{margin:14px 0 4px;font-size:15px}
+#t3 p{margin:3px 0;white-space:pre-wrap}
+.disc{font-size:12px;color:var(--mu);margin:14px 0}
+@media print{header,.bar,.disc,.noprint{display:none!important}.tab{display:none!important}#t3{display:block!important}body{background:#fff;color:#000}}
+</style></head><body>
+<header><h1>🛩 Drone Flight Planner</h1>
+<nav id="tabs"><button data-t="1" class="on">Plan</button><button data-t="2">Risk</button><button data-t="3">Method</button></nav></header>
+
+<div id="t1" class="tab on">
+ <div class="bar"><input id="q" placeholder="Search place or postcode"><button id="sq" style="flex:0 0 64px">Go</button></div>
+ <div id="map"></div>
+ <div class="bar"><button id="dr">✏️ Draw</button><button id="un">↩ Undo</button><button id="cl">🗑 Clear</button><button id="ly">🛰 Layer</button><button id="lc">📍 Me</button></div>
+ <div id="stat" class="mu"></div>
+ <div class="card">
+  <div class="grid">
+   <div><label>Date / time of flight</label><input id="tv" type="datetime-local"></div>
+   <div><label>Max altitude AGL (m)</label><input id="alt" type="number" value="120"></div>
+   <div><label>Aircraft</label><input id="ac" value="DJI Mini"></div>
+   <div><label>Rated wind limit (mph)</label><input id="wind" type="number" value="24"></div>
+   <div><label>Weight class</label><select id="cls"><option>Under 250 g</option><option>250 g – 900 g</option><option>Over 900 g</option></select></div>
+   <div><label>Purpose</label><input id="pur" value="Aerial photography / survey"></div>
+   <div><label>Pilot name</label><input id="pn"></div>
+   <div><label>Flyer ID / Operator ID</label><input id="ids"></div>
+  </div>
+ </div>
+ <button id="go" class="pri">Assess risk for this area</button>
+ <div id="msg" class="mu" style="margin-top:8px"></div>
+</div>
+
+<div id="t2" class="tab"><p class="mu">Draw a flight area on the Plan tab, then tap Assess.</p></div>
+
+<div id="t3" class="tab">
+ <p class="mu noprint">Method statement appears here after assessment.</p>
+ <div id="ms"></div>
+ <div class="bar noprint" id="mb" style="display:none"><button id="cp">📋 Copy text</button><button id="pr">🖨 Print / save PDF</button></div>
+</div>
+
+<p class="disc" style="padding:0 10px">Decision-support only. Airspace data is derived from OpenStreetMap and indicative ATZ/FRZ circles — always confirm with official sources (e.g. NATS Drone Assist, CAA, NOTAMs) and landowner permissions. Weather: Open-Meteo. Space weather: NOAA SWPC. You remain responsible for the flight.</p>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const $=id=>document.getElementById(id),esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const LV=['Low','Moderate','High','No-go'],COL=['#1a9850','#e6a700','#e8710a','#c62828'],
+HEAD=['LOW RISK — GO','MODERATE — GO WITH CONTROLS','HIGH RISK — MITIGATE OR POSTPONE','NO-GO / PERMISSION REQUIRED'];
+const CAT={airport:{n:'Airfield (ATZ/FRZ)',c:'#c62828'},strip:{n:'Airstrip',c:'#c62828',hi:500,md:2000},heli:{n:'Heliport / helipad',c:'#e8710a',hi:500,md:2000},
+mil:{n:'Military / danger area',c:'#7b1fa2',hi:200,md:1000},prison:{n:'Prison',c:'#7b1fa2',hi:400,md:1000},nuc:{n:'Nuclear site',c:'#7b1fa2',hi:400,md:1500},
+power:{n:'Power plant',c:'#8d6e63',hi:0,md:200},hosp:{n:'Hospital',c:'#d81b60',hi:0,md:500},school:{n:'School / college',c:'#1e88e5',hi:0,md:150},
+nature:{n:'Nature reserve',c:'#2e7d32',hi:-1,md:0},stadium:{n:'Stadium',c:'#f57c00',hi:0,md:300}};
+const cls=t=>t.aeroway==='aerodrome'?((t.icao||t.iata)?'airport':'strip'):t.aeroway==='heliport'?'heli':
+ (t.landuse==='military'||t.military)?'mil':t.amenity==='prison'?'prison':t.power==='plant'?(t['plant:source']==='nuclear'?'nuc':'power'):
+ t.amenity==='hospital'?'hosp':/^(school|college|university)$/.test(t.amenity)?'school':t.leisure==='nature_reserve'?'nature':t.leisure==='stadium'?'stadium':null;
+const fmt=d=>d<=0?'inside / overlaps':d<1000?Math.round(d)+' m':(d/1000).toFixed(1)+' km';
+const cp=d=>['N','NE','E','SE','S','SW','W','NW'][Math.round(d/45)%8],R=x=>Math.round(x);
+
+/* geometry (local planar projection, metres) */
+const RAD=Math.PI/180,ER=6371000;
+const proj=(p,o)=>[(p[1]-o[1])*RAD*ER*Math.cos(o[0]*RAD),(p[0]-o[0])*RAD*ER];
+const inP=(p,P)=>{if(P.length<3)return false;let c=false;for(let i=0,j=P.length-1;i<P.length;j=i++){const a=P[i],b=P[j];if((a[1]>p[1])!=(b[1]>p[1])&&p[0]<(b[0]-a[0])*(p[1]-a[1])/(b[1]-a[1])+a[0])c=!c}return c};
+const sd=(p,a,b)=>{const dx=b[0]-a[0],dy=b[1]-a[1],l=dx*dx+dy*dy;let t=l?((p[0]-a[0])*dx+(p[1]-a[1])*dy)/l:0;t=Math.max(0,Math.min(1,t));return Math.hypot(p[0]-a[0]-t*dx,p[1]-a[1]-t*dy)};
+const cr=(a,b,c)=>(b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]);
+const si=(a,b,c,d)=>cr(a,b,c)*cr(a,b,d)<0&&cr(c,d,a)*cr(c,d,b)<0;
+function pd(A,B){
+ if(A.some(p=>inP(p,B))||B.some(p=>inP(p,A)))return 0;
+ const E=P=>P.map((p,i)=>[p,P[(i+1)%P.length]]),ea=E(A),eb=E(B);
+ for(const[a,b]of ea)for(const[c,d]of eb)if(si(a,b,c,d))return 0;
+ let m=1e12;
+ for(const p of A)for(const[c,d]of eb)m=Math.min(m,sd(p,c,d));
+ for(const p of B)for(const[a,b]of ea)m=Math.min(m,sd(p,a,b));
+ return m}
+
+/* map + drawing */
+const map=L.map('map',{zoomControl:false}).setView([52.5,-1.5],6);
+const base=[L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}),
+ L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Esri'})];
+let bi=0;base[0].addTo(map);L.control.zoom({position:'topright'}).addTo(map);
+const poly=L.polygon([],{color:'#0b6bcb',weight:3,fillOpacity:.2}).addTo(map),fl=L.featureGroup().addTo(map);
+let pts=[],mk=[],drawing=false,S=null;
+function rebuild(){mk.forEach(m=>m.remove());
+ mk=pts.map((p,i)=>{const m=L.marker(p,{draggable:true,icon:L.divIcon({className:'',html:'<div class="vx"></div>',iconSize:[22,22]})}).addTo(map);
+  m.on('drag',e=>{pts[i]=e.latlng;poly.setLatLngs(pts)});m.on('dragend',stat);return m});
+ poly.setLatLngs(pts);stat()}
+function geo(){if(pts.length<3)return null;
+ const o=[pts.reduce((s,p)=>s+p.lat,0)/pts.length,pts.reduce((s,p)=>s+p.lng,0)/pts.length],xy=pts.map(p=>proj([p.lat,p.lng],o));
+ let a=0,per=0,span=0;xy.forEach((p,i)=>{const q=xy[(i+1)%xy.length];a+=p[0]*q[1]-q[0]*p[1];per+=Math.hypot(q[0]-p[0],q[1]-p[1]);xy.forEach(r=>span=Math.max(span,Math.hypot(r[0]-p[0],r[1]-p[1])))});
+ return{o,xy,area:Math.abs(a)/2,per,span}}
+function stat(){const g=geo();$('stat').textContent=g?`Area ${(g.area/1e4).toFixed(2)} ha · perimeter ${R(g.per)} m · max span ${R(g.span)} m · drag corners to adjust`:
+ drawing?'Tap the map to add corners (3+), then press Done.':'Press Draw, then tap the map to outline your flight area.'}
+map.on('click',e=>{if(drawing){pts.push(e.latlng);rebuild()}});
+$('dr').onclick=()=>{drawing=!drawing;$('dr').textContent=drawing?'✓ Done':'✏️ Draw';stat()};
+$('un').onclick=()=>{pts.pop();rebuild()};
+$('cl').onclick=()=>{pts=[];fl.clearLayers();rebuild()};
+$('ly').onclick=()=>{base[bi].remove();bi=1-bi;base[bi].addTo(map)};
+$('lc').onclick=()=>navigator.geolocation?navigator.geolocation.getCurrentPosition(p=>{const c=[p.coords.latitude,p.coords.longitude];map.setView(c,16);L.circleMarker(c,{radius:7,color:'#fff',fillColor:'#0b6bcb',fillOpacity:1}).addTo(map)},()=>msg('Location unavailable')):msg('Location unavailable');
+async function search(){const q=$('q').value.trim();if(!q)return;try{const r=(await(await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(q))).json())[0];
+ if(!r)return msg('Place not found');const b=r.boundingbox.map(Number);map.fitBounds([[b[0],b[2]],[b[1],b[3]]],{maxZoom:17})}catch(e){msg('Search failed')}}
+$('sq').onclick=search;$('q').onkeydown=e=>{if(e.key==='Enter')search()};
+const msg=t=>$('msg').textContent=t;
+function show(n){document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x.id==='t'+n));
+ document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x.dataset.t==n));scrollTo(0,0);if(n==1)setTimeout(()=>map.invalidateSize(),50)}
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>show(b.dataset.t));
+{const d=new Date(Date.now()+36e5-new Date().getTimezoneOffset()*6e4);$('tv').value=d.toISOString().slice(0,13)+':00'}
+
+/* data */
+async function ovp(q){for(const u of['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter']){
+ try{const r=await fetch(u,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}});if(r.ok)return(await r.json()).elements}catch(e){}}throw 0}
+async function getW(lat,lon,tv){
+ const j=await(await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,precipitation_probability,precipitation,visibility,cloud_cover,wind_speed_10m,wind_speed_120m,wind_gusts_10m,wind_direction_10m&daily=sunrise,sunset&wind_speed_unit=mph&timezone=auto&forecast_days=7`)).json();
+ const h=j.hourly,i=h.time.indexOf(tv.slice(0,13)+':00'),d=j.daily.time.indexOf(tv.slice(0,10));if(i<0)throw 0;
+ return{off:j.utc_offset_seconds,rise:j.daily.sunrise[d],set:j.daily.sunset[d],t:{temp:h.temperature_2m[i],pp:h.precipitation_probability[i],pr:h.precipitation[i],vis:h.visibility[i],cc:h.cloud_cover[i],w10:h.wind_speed_10m[i],w120:h.wind_speed_120m[i],g:h.wind_gusts_10m[i],wd:h.wind_direction_10m[i]}}}
+async function getK(tu){
+ const r=await(await fetch('https://services.swpc.noaa.gov/products/noaa-planetary-k-index-forecast.json')).json(),P=s=>Date.parse(s.replace(' ','T')+(/Z$/.test(s)?'':'Z'));
+ const rows=r.filter(x=>Array.isArray(x)?x[0]!=='time_tag':true).map(x=>Array.isArray(x)?{t:P(x[0]),k:+x[1]}:{t:P(x.time_tag),k:+x.kp}),H=36e5;
+ const cur=rows.find(x=>x.t<=tu&&tu<x.t+3*H),win=rows.filter(x=>x.t>=tu-3*H&&x.t<=tu+6*H);if(!cur&&!win.length)throw 0;
+ return{kp:cur?cur.k:Math.max(...win.map(x=>x.k)),max:Math.max(...win.map(x=>x.k),cur?cur.k:0)}}
+
+function feats(E,g){const P=(a,b)=>proj([a,b],g.o);
+ return E.map(e=>{const t=e.tags||{},c=cls(t);if(!c)return null;
+  const b=e.bounds||{minlat:e.lat,maxlat:e.lat,minlon:e.lon,maxlon:e.lon},cl=(b.minlat+b.maxlat)/2,co=(b.minlon+b.maxlon)/2,pt=b.minlat==b.maxlat&&b.minlon==b.maxlon;
+  const B=pt?[P(cl,co)]:[P(b.minlat,b.minlon),P(b.minlat,b.maxlon),P(b.maxlat,b.maxlon),P(b.maxlat,b.minlon)],d=pd(g.xy,B),k=CAT[c];let atz=0,lvl=0,ex=null;
+  if(c==='airport'){atz=t.iata?4630:3704;ex=pd(g.xy,[P(cl,co)])-atz;lvl=ex<=0?3:ex<=2000?2:ex<=5000?1:0}
+  else lvl=d<=k.hi?2:d<=k.md?1:0;
+  return{n:t.name||t['name:en']||t.icao||k.n,c,k,d,atz,ex,lvl,cl,co,b}}).filter(Boolean).sort((a,b)=>a.d-b.d)}
+
+/* assess */
+$('go').onclick=async()=>{
+ const g=geo();if(!g)return msg('Draw a flight area with at least 3 corners first.');
+ drawing=false;$('dr').textContent='✏️ Draw';$('go').disabled=true;msg('Fetching weather, Kp and nearby airspace…');
+ const tv=$('tv').value,[la,lo]=g.o,r2=Math.round(3000+g.span),a=`(around:${r2},${la},${lo})`;
+ const op=ovp(`[out:json][timeout:25];(nwr(around:${15000+R(g.span)},${la},${lo})[aeroway~"^(aerodrome|heliport)$"];nwr${a}[landuse=military];nwr${a}[military];nwr${a}[amenity~"^(prison|hospital|school|college|university)$"];nwr${a}[power=plant];nwr${a}[leisure~"^(nature_reserve|stadium)$"];);out tags bb 500;`).catch(()=>null);
+ let W=null,K=null;try{W=await getW(la,lo,tv)}catch(e){}
+ try{K=await getK(W?Date.parse(tv+':00Z')-W.off*1e3:Date.parse(tv))}catch(e){}
+ const E=await op,F=E?feats(E,g):[];
+ S={g,tv,W,K,F,E:!!E,fa:[]};factors();draw();renderRisk();renderMS();
+ $('go').disabled=false;msg('');show(2)};
+
+function factors(){
+ const{W,K,F,g,tv}=S,rated=+$('wind').value||24,alt=+$('alt').value||120,fa=S.fa,add=(n,v,l,c)=>fa.push({n,v,l,c}),L4=(x,t)=>t.filter(v=>x>=v).length;
+ const ap=F.filter(f=>f.c==='airport').sort((a,b)=>a.ex-b.ex)[0];
+ if(!S.E)add('Airspace','Data unavailable',1,'Could not load airfield data — check NATS Drone Assist / Drone Safety Map before flying.');
+ else if(ap)add('Airspace',`${ap.n}: ${ap.ex<=0?'INSIDE':fmt(ap.ex)+' outside'} indicative ATZ/FRZ (r ${(ap.atz/1000).toFixed(1)} km)`,ap.lvl,ap.lvl>=3?'Do not fly without permission from the aerodrome/ATC (UK: FRZ permission via the airfield / NATS process).':ap.lvl?'Close to an airfield — check CTR/ATZ, NOTAMs and consider contacting the aerodrome.':'Outside indicative zones; still verify official airspace maps.');
+ else add('Airspace','No coded airfield within 15 km',0,'Indicative only — verify danger/restricted areas and NOTAMs on official maps.');
+ const ot=F.filter(f=>f.c!=='airport'),ml=Math.max(0,...ot.map(f=>f.lvl)),nr=ot[0];
+ add('Sensitive sites',S.E?(nr?`${ot.filter(f=>f.lvl).length} flagged · nearest: ${nr.n} (${nr.k.n}) ${fmt(nr.d)}`:'None mapped within 3 km'):'Data unavailable',S.E?ml:1,ml>=2?'Restricted-type site close/overlapping — obtain permission or relocate the area.':ml?'Sensitive site nearby — keep clear, avoid overflight, brief observers.':'Keep clear of people, vehicles and structures not under your control.');
+ if(W){const w=W.t,r1=w.w120/rated,r2=w.g/rated;
+  add('Wind',`${R(w.w10)} mph @10 m · ${R(w.w120)} mph @120 m · from ${cp(w.wd)}`,L4(r1,[.5,.7,.9]),`Rated ${rated} mph. Land if sustained wind passes 70% of rated; expect turbulence in the lee of obstacles.`);
+  add('Gusts',`${R(w.g)} mph (${R(r2*100)}% of rated)`,L4(r2,[.6,.8,1]),'Abort as gusts near the rated limit; keep battery reserve for a headwind return.');
+  add('Precipitation',`${w.pr} mm/h · ${w.pp}% chance`,w.pr>=.5?3:w.pr>=.1?2:w.pp>=40?1:0,'Most small drones are not waterproof; avoid rain and wet landing areas.');
+  add('Visibility',`${(w.vis/1000).toFixed(1)} km · cloud ${w.cc}%`,w.vis<1000?3:w.vis<3000?2:w.vis<5000?1:0,'Maintain unaided VLOS; shorten range if visibility drops.');
+  add('Temperature',`${w.temp} °C`,(w.temp<-5||w.temp>40)?3:(w.temp<0||w.temp>35)?2:(w.temp<5||w.temp>30)?1:0,'Cold cuts battery capacity — keep batteries warm and land early; avoid heat soak.');
+  if(W.rise)add('Daylight',`Sunrise ${W.rise.slice(11)} · sunset ${W.set.slice(11)}`,tv>=W.rise&&tv<=W.set?0:2,'Night flight needs lighting and additional controls; plan to land before sunset.')}
+ else add('Weather','Unavailable (time must be within 7 days)',1,'Forecast not loaded — check a weather source manually.');
+ if(K)add('Geomagnetic (Kp)',`Kp ${K.kp.toFixed(1)} · max ${K.max.toFixed(1)} nearby`,L4(K.max,[4,5,7]),'High Kp degrades GNSS and compass — verify satellite count, avoid launching on compass errors, be ready for manual flight.');
+ else add('Geomagnetic (Kp)','Unavailable (beyond ~3-day forecast)',1,'Check NOAA SWPC / Met Office space weather on the day.');
+ add('Altitude',`${alt} m AGL`,alt>120?3:alt>100?1:0,'Open-category ceiling is 120 m (400 ft) AGL; keep clear of manned aircraft.');
+ add('Range / VLOS',`Max span ${R(g.span)} m`,g.span>1000?2:g.span>500?1:0,'Aircraft must stay in visual line of sight — use an observer or reposition the pilot.');
+ S.ov=Math.max(...fa.map(f=>f.l))}
+
+function draw(){fl.clearLayers();S.F.slice(0,150).forEach(f=>{const b=f.b;
+ if(b.maxlat>b.minlat)L.rectangle([[b.minlat,b.minlon],[b.maxlat,b.maxlon]],{color:f.k.c,weight:1,fillOpacity:.08,dashArray:'4'}).addTo(fl);
+ if(f.atz)L.circle([f.cl,f.co],{radius:f.atz,color:'#c62828',weight:2,dashArray:'8 6',fillOpacity:.06}).addTo(fl);
+ L.circleMarker([f.cl,f.co],{radius:7,color:'#fff',weight:1.5,fillColor:f.k.c,fillOpacity:1}).bindPopup(`<b>${esc(f.n)}</b><br>${f.k.n}<br>${fmt(f.d)} from area${f.atz?'<br>Indicative ATZ/FRZ radius '+f.atz+' m':''}`).addTo(fl)})}
+
+function renderRisk(){const{fa,F,ov,g,tv}=S,show=F.filter((f,i)=>f.lvl||i<10);
+ $('t2').innerHTML=`<div class="badge" style="background:${COL[ov]}">${HEAD[ov]}</div><p class="mu">${tv.replace('T',' ')} · ${(g.area/1e4).toFixed(2)} ha</p>
+ <div class="card">${fa.map(f=>`<div class="row"><i style="background:${COL[f.l]}"></i><div><b>${f.n}</b> <span class="mu">${esc(f.v)}</span><small>${esc(f.c)}</small></div><em style="color:${COL[f.l]}">${LV[f.l]}</em></div>`).join('')}</div>
+ <h3>Nearest airspace &amp; sensitive areas</h3><div class="card">${show.length?show.map(f=>`<div class="row f" data-i="${F.indexOf(f)}"><i style="background:${f.k.c}"></i><div><b>${esc(f.n)}</b><small>${f.k.n}${f.atz?' · ATZ/FRZ r '+(f.atz/1000).toFixed(1)+' km (indicative)':''}</small></div><em>${fmt(f.d)}</em></div>`).join(''):'<span class="mu">Nothing mapped in range.</span>'}</div>
+ <button id="vm" class="pri">🗺 View on map</button><button id="vs" class="pri" style="background:var(--card);color:var(--ac);border:1px solid var(--ac)">📄 Method statement</button>`;
+ $('vm').onclick=()=>{show_(1);map.fitBounds(fl.getBounds().extend(poly.getBounds()).pad(.1))};$('vs').onclick=()=>show_(3);
+ document.querySelectorAll('.f').forEach(r=>r.onclick=()=>{const f=F[r.dataset.i];show_(1);map.setView([f.cl,f.co],15)})}
+const show_=n=>{show(n)};
+
+const PRE=['Landowner / site permission obtained; Operator ID displayed; Flyer ID and insurance valid','Airspace, NOTAMs and restrictions re-checked on the day on official sources','Aircraft, props, gimbal and battery condition checked; firmware current','Batteries charged and warm; return-to-home height set above tallest obstacle','GNSS lock with good satellite count, home point recorded, compass OK','Take-off/landing area clear; uninvolved people kept away; observer briefed if used','Stop and re-assess if conditions change'],
+EM=['Lost link / GNSS: let RTH run or take manual control; land at once if people or property are at risk','Low battery: return and land at the set threshold (e.g. 30%) — never push for extra footage','Manned aircraft approaching: descend/land immediately and give way','Fly-away / lost aircraft: note last position and time; inform the aerodrome/ATC if nearby; search without trespassing','Injury or damage: stop flying, make safe, give first aid, call 999 if needed; report as required by the CAA and notify insurer','Battery damage/fire: keep clear, avoid fumes, call 999 if it cannot be contained'];
+function renderMS(){const{g,tv,W,K,F,fa,ov}=S,v=id=>$(id).value.trim()||'—',rated=+$('wind').value||24,c=g.o.map(x=>x.toFixed(5)).join(', ');
+ const sec=[['Operation',[`Date / time: ${tv.replace('T',' ')} (local)`,`Pilot: ${v('pn')}`,`Flyer ID / Operator ID: ${v('ids')}`,`Aircraft: ${v('ac')} · ${v('cls')} · rated wind ${rated} mph`,`Purpose: ${v('pur')}`,`Maximum altitude: ${v('alt')} m AGL`]],
+ ['Site',[`Centre: ${c}`,`Area ${(g.area/1e4).toFixed(2)} ha · perimeter ${R(g.per)} m · max span ${R(g.span)} m`,'Corners:',...pts.map((p,i)=>`  ${i+1}. ${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}`)]],
+ ['Conditions at flight time',fa.filter(f=>/Wind|Gusts|Precip|Visib|Temp|Daylight|Geo/.test(f.n)).map(f=>`${f.n}: ${f.v} [${LV[f.l]}]`)],
+ ['Airspace & sensitive areas',(S.E?(F.length?F.filter((f,i)=>f.lvl||i<8).map(f=>`• ${f.n} (${f.k.n}): ${fmt(f.d)}${f.atz?` — ATZ/FRZ r ${(f.atz/1000).toFixed(1)} km indicative, ${f.ex<=0?'INSIDE':fmt(f.ex)+' outside'}`:''}`):['None mapped within search range']):['Data unavailable — check manually']).concat('Official airspace maps and NOTAMs must be checked before flight.')],
+ ['Risk assessment — overall: '+HEAD[ov],fa.map(f=>`• ${f.n}: ${f.v} [${LV[f.l]}] — ${f.c}`)],
+ ['Go / no-go criteria',[`Sustained wind at altitude ≤ ${(rated*.7).toFixed(0)} mph; abort if gusts ≥ ${(rated*.8).toFixed(0)} mph`,'No flight in rain; visibility ≥ 3 km with VLOS maintained','Kp ≥ 5: fly only if GNSS/compass stable and confident in manual control; Kp ≥ 7: no-go','Unresolved airspace permission or restricted-site proximity: no-go','Daylight only unless night procedures are in place']],
+ ['Pre-flight checks',PRE.map(x=>'☐ '+x)],['Emergency procedures',EM.map(x=>'• '+x)],
+ ['Sign-off',['Pilot: ____________________   Date: ____________','Observer: __________________   Time: ____________']]];
+ S.text='DRONE FLIGHT METHOD STATEMENT / RISK ASSESSMENT\n\n'+sec.map(([h,l])=>h.toUpperCase()+'\n'+l.join('\n')).join('\n\n')+'\n\nGenerated by Drone Flight Planner — decision support only; verify with official sources.';
+ const m=$('ms');m.innerHTML='';const h1=document.createElement('h3');h1.textContent='Drone Flight Method Statement / Risk Assessment';m.append(h1);
+ sec.forEach(([h,l])=>{const e=document.createElement('h3');e.textContent=h;m.append(e);l.forEach(x=>{const p=document.createElement('p');p.textContent=x;m.append(p)})});
+ $('mb').style.display='flex'}
+$('cp').onclick=async()=>{try{await navigator.clipboard.writeText(S.text);$('cp').textContent='✓ Copied'}catch(e){prompt('Copy:',S.text)}};
+$('pr').onclick=()=>print();
+stat();
+</script></body></html>

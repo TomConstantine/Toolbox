@@ -1,210 +1,93 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Field Surveying & Analysis Suite</title>
-
-  <!-- Google Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
-  <!-- Tailwind CSS CDN -->
+  <title>Field Surveying & Analysis</title>
   <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- Custom Theme Configurations & Variables -->
-  <style>
-    :root {
-      --ink: #0b0f19;
-      --stone: #161f30;
-      --stone-light: #212e46;
-      --moss: #10b981;
-      --water: #3b82f6;
-      --brass: #f59e0b;
-      --parchment: #f8fafc;
-      --parchment-muted: #94a3b8;
-    }
-
-    body {
-      background-color: var(--ink);
-      color: var(--parchment);
-      font-family: 'Inter', sans-serif;
-    }
-
-    .font-serif-custom {
-      font-family: 'Fraunces', serif;
-    }
-
-    .font-mono-custom {
-      font-family: 'IBM Plex Mono', monospace;
-    }
-
-    /* Subtle Glassmorphism Card Style */
-    .survey-card {
-      background: linear-gradient(145deg, rgba(22, 31, 48, 0.7), rgba(15, 23, 42, 0.8));
-      border: 1px solid rgba(255, 255, 255, 0.07);
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    .survey-card:hover {
-      border-color: rgba(255, 255, 255, 0.2);
-      transform: translateY(-4px);
-      box-shadow: 0 12px 24px -10px rgba(0, 0, 0, 0.5);
-    }
-  </style>
 </head>
-<body class="min-h-screen flex flex-col justify-between selection:bg-emerald-500 selection:text-slate-900">
+<body class="bg-[#f7f6f2] text-stone-800 font-sans antialiased min-h-screen flex flex-col justify-between">
 
-  <!-- Header Section -->
-  <header class="border-b border-slate-800/80 bg-slate-950/40 backdrop-blur-md sticky top-0 z-50">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex justify-between items-center">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-blue-600 flex items-center justify-center shadow-lg shadow-emerald-500/10">
-          <svg class="w-6 h-6 text-slate-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-          </svg>
-        </div>
-        <div>
-          <h1 class="font-serif-custom text-xl font-bold tracking-tight text-slate-100">Field Surveying & Analysis</h1>
-          <p class="font-mono-custom text-xs text-emerald-400">GEOSPATIAL DIRECTORY v2.5</p>
-        </div>
-      </div>
-      <div class="hidden sm:flex items-center gap-2 font-mono-custom text-xs text-slate-400 border border-slate-800 rounded-full px-4 py-1.5 bg-slate-900/50">
-        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-        GitHub Pages Ready
-      </div>
+  <!-- Header -->
+  <header class="bg-white border-b border-stone-300">
+    <div class="max-w-5xl mx-auto px-6 py-6 flex justify-between items-baseline">
+      <h1 class="font-serif text-2xl font-bold text-stone-900 tracking-tight">
+        Field Surveying & Analysis
+      </h1>
+      <span class="text-xs font-mono uppercase tracking-wider text-stone-500">
+        Tool Directory
+      </span>
     </div>
   </header>
 
-  <!-- Main Content / Directory Grid -->
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 flex-grow w-full">
-    <div class="mb-10 max-w-2xl">
-      <h2 class="font-serif-custom text-3xl sm:text-4xl font-bold text-slate-50 mb-3">Tool Suite Directory</h2>
-      <p class="text-slate-400 text-sm sm:text-base leading-relaxed">
-        Select a application module below to launch localized spatial processing, real-time telemetry capture, river dynamics modeling, or elevation cross-section analysis.
-      </p>
-    </div>
+  <!-- Main Directory -->
+  <main class="max-w-5xl mx-auto px-6 py-12 flex-grow w-full">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
 
-    <!-- 6 Card Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-
-      <!-- Card 1: 360 Field Record -->
-      <a href="360-field-record.html" class="survey-card rounded-2xl p-6 flex flex-col justify-between group">
-        <div>
-          <div class="flex items-center justify-between mb-4">
-            <span class="font-mono-custom text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">Spatial Viewer</span>
-            <span class="text-slate-500 group-hover:text-blue-400 transition-colors">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
-            </span>
-          </div>
-          <h3 class="font-serif-custom text-xl font-semibold text-slate-100 group-hover:text-blue-400 transition-colors mb-2">360° Field Record</h3>
-          <p class="text-slate-400 text-sm leading-relaxed mb-6">Interactive spatial visualizer and 360° field imagery logging platform for remote site inspection.</p>
-        </div>
-        <div class="font-mono-custom text-xs text-slate-500 pt-4 border-t border-slate-800/60 flex justify-between items-center">
-          <span>360-field-record.html</span>
-          <span class="text-slate-400">LAUNCH &rarr;</span>
-        </div>
+      <!-- 1. 360 Field Record -->
+      <a href="360-field-record.html" class="block bg-white border border-stone-300 p-6 hover:border-stone-800 hover:shadow-sm transition-all">
+        <div class="text-xs font-mono uppercase tracking-wider text-stone-500 mb-2">Spatial Viewer</div>
+        <h2 class="font-serif text-lg font-bold text-stone-900 mb-1">360° Field Record</h2>
+        <p class="text-sm text-stone-600 mb-4">360° field imagery and site inspection.</p>
+        <div class="text-xs font-mono text-stone-400">360-field-record.html &rarr;</div>
       </a>
 
-      <!-- Card 2: River View & Navigation -->
-      <a href="Riverview.html" class="survey-card rounded-2xl p-6 flex flex-col justify-between group">
-        <div>
-          <div class="flex items-center justify-between mb-4">
-            <span class="font-mono-custom text-xs font-semibold px-2.5 py-1 rounded-full bg-teal-500/10 text-teal-400 border border-teal-500/20">River Navigation</span>
-            <span class="text-slate-500 group-hover:text-teal-400 transition-colors">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
-            </span>
-          </div>
-          <h3 class="font-serif-custom text-xl font-semibold text-slate-100 group-hover:text-teal-400 transition-colors mb-2">River View & Navigation</h3>
-          <p class="text-slate-400 text-sm leading-relaxed mb-6">Hydrographic navigation suite equipped with real-time station positioning and river course trajectory tools.</p>
-        </div>
-        <div class="font-mono-custom text-xs text-slate-500 pt-4 border-t border-slate-800/60 flex justify-between items-center">
-          <span>Riverview.html</span>
-          <span class="text-slate-400">LAUNCH &rarr;</span>
-        </div>
+      <!-- 2. River View & Navigation -->
+      <a href="Riverview.html" class="block bg-white border border-stone-300 p-6 hover:border-stone-800 hover:shadow-sm transition-all">
+        <div class="text-xs font-mono uppercase tracking-wider text-stone-500 mb-2">River Navigation</div>
+        <h2 class="font-serif text-lg font-bold text-stone-900 mb-1">River View & Navigation</h2>
+        <p class="text-sm text-stone-600 mb-4">Station positioning and river course tracking.</p>
+        <div class="text-xs font-mono text-stone-400">Riverview.html &rarr;</div>
       </a>
 
-      <!-- Card 3: Survey Data Formatter -->
-      <a href="survey-data-formatter.html" class="survey-card rounded-2xl p-6 flex flex-col justify-between group">
-        <div>
-          <div class="flex items-center justify-between mb-4">
-            <span class="font-mono-custom text-xs font-semibold px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20">CSV & Mapping</span>
-            <span class="text-slate-500 group-hover:text-purple-400 transition-colors">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
-            </span>
-          </div>
-          <h3 class="font-serif-custom text-xl font-semibold text-slate-100 group-hover:text-purple-400 transition-colors mb-2">Survey Data Formatter</h3>
-          <p class="text-slate-400 text-sm leading-relaxed mb-6">Convert, format, and structure raw CSV coordinate files for GIS mapping and CAD integration.</p>
-        </div>
-        <div class="font-mono-custom text-xs text-slate-500 pt-4 border-t border-slate-800/60 flex justify-between items-center">
-          <span>survey-data-formatter.html</span>
-          <span class="text-slate-400">LAUNCH &rarr;</span>
-        </div>
+      <!-- 3. Survey Data Formatter -->
+      <a href="survey-data-formatter.html" class="block bg-white border border-stone-300 p-6 hover:border-stone-800 hover:shadow-sm transition-all">
+        <div class="text-xs font-mono uppercase tracking-wider text-stone-500 mb-2">CSV & Mapping</div>
+        <h2 class="font-serif text-lg font-bold text-stone-900 mb-1">Survey Data Formatter</h2>
+        <p class="text-sm text-stone-600 mb-4">Format raw CSV coordinates for GIS and CAD.</p>
+        <div class="text-xs font-mono text-stone-400">survey-data-formatter.html &rarr;</div>
       </a>
 
-      <!-- Card 4: Cross Section Tool -->
-      <a href="cross-section-tool.html" class="survey-card rounded-2xl p-6 flex flex-col justify-between group">
-        <div>
-          <div class="flex items-center justify-between mb-4">
-            <span class="font-mono-custom text-xs font-semibold px-2.5 py-1 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">Analysis & Elevation</span>
-            <span class="text-slate-500 group-hover:text-cyan-400 transition-colors">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
-            </span>
-          </div>
-          <h3 class="font-serif-custom text-xl font-semibold text-slate-100 group-hover:text-cyan-400 transition-colors mb-2">Cross Section Tool</h3>
-          <p class="text-slate-400 text-sm leading-relaxed mb-6">Generate profile elevation graphs, compute channel volume, and perform cross-sectional analysis.</p>
-        </div>
-        <div class="font-mono-custom text-xs text-slate-500 pt-4 border-t border-slate-800/60 flex justify-between items-center">
-          <span>cross-section-tool.html</span>
-          <span class="text-slate-400">LAUNCH &rarr;</span>
-        </div>
+      <!-- 4. Cross Section Tool -->
+      <a href="cross-section-tool.html" class="block bg-white border border-stone-300 p-6 hover:border-stone-800 hover:shadow-sm transition-all">
+        <div class="text-xs font-mono uppercase tracking-wider text-stone-500 mb-2">Elevation Analysis</div>
+        <h2 class="font-serif text-lg font-bold text-stone-900 mb-1">Cross Section Tool</h2>
+        <p class="text-sm text-stone-600 mb-4">Elevation profiles and channel volume calculation.</p>
+        <div class="text-xs font-mono text-stone-400">cross-section-tool.html &rarr;</div>
       </a>
 
-      <!-- Card 5: Edge & Erosion Monitor -->
-      <a href="Riverbank-edge-tool.html" class="survey-card rounded-2xl p-6 flex flex-col justify-between group">
-        <div>
-          <div class="flex items-center justify-between mb-4">
-            <span class="font-mono-custom text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">Detection & Monitoring</span>
-            <span class="text-slate-500 group-hover:text-indigo-400 transition-colors">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
-            </span>
-          </div>
-          <h3 class="font-serif-custom text-xl font-semibold text-slate-100 group-hover:text-indigo-400 transition-colors mb-2">Edge & Erosion Monitor</h3>
-          <p class="text-slate-400 text-sm leading-relaxed mb-6">Track temporal riverbank migration, bank shift detection, and shoreline erosion progression.</p>
-        </div>
-        <div class="font-mono-custom text-xs text-slate-500 pt-4 border-t border-slate-800/60 flex justify-between items-center">
-          <span>Riverbank-edge-tool.html</span>
-          <span class="text-slate-400">LAUNCH &rarr;</span>
-        </div>
+      <!-- 5. Edge & Erosion Monitor -->
+      <a href="Riverbank-edge-tool.html" class="block bg-white border border-stone-300 p-6 hover:border-stone-800 hover:shadow-sm transition-all">
+        <div class="text-xs font-mono uppercase tracking-wider text-stone-500 mb-2">Monitoring</div>
+        <h2 class="font-serif text-lg font-bold text-stone-900 mb-1">Edge & Erosion Monitor</h2>
+        <p class="text-sm text-stone-600 mb-4">Riverbank migration and shoreline erosion tracking.</p>
+        <div class="text-xs font-mono text-stone-400">Riverbank-edge-tool.html &rarr;</div>
       </a>
 
-      <!-- Card 6: RTK GNSS Bluetooth Collector (New Entry) -->
-      <a href="Survey-web-app.html" class="survey-card rounded-2xl p-6 flex flex-col justify-between group border-amber-500/20">
-        <div>
-          <div class="flex items-center justify-between mb-4">
-            <span class="font-mono-custom text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">RTK & Web Bluetooth</span>
-            <span class="text-slate-500 group-hover:text-amber-400 transition-colors">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
-            </span>
-          </div>
-          <h3 class="font-serif-custom text-xl font-semibold text-slate-100 group-hover:text-amber-400 transition-colors mb-2">RTK GNSS Collector</h3>
-          <p class="text-slate-400 text-sm leading-relaxed mb-6">High-accuracy GNSS surveying tool featuring direct Web Bluetooth connectivity for Emlid & NMEA receivers.</p>
-        </div>
-        <div class="font-mono-custom text-xs text-slate-500 pt-4 border-t border-slate-800/60 flex justify-between items-center">
-          <span>Survey-web-app.html</span>
-          <span class="text-amber-400 group-hover:translate-x-1 transition-transform">LAUNCH &rarr;</span>
-        </div>
+      <!-- 6. RTK GNSS Collector -->
+      <a href="Survey-web-app.html" class="block bg-white border border-stone-300 p-6 hover:border-stone-800 hover:shadow-sm transition-all">
+        <div class="text-xs font-mono uppercase tracking-wider text-stone-500 mb-2">GNSS & Bluetooth</div>
+        <h2 class="font-serif text-lg font-bold text-stone-900 mb-1">RTK GNSS Collector</h2>
+        <p class="text-sm text-stone-600 mb-4">Web Bluetooth collector for Emlid & NMEA receivers.</p>
+        <div class="text-xs font-mono text-stone-400">Survey-web-app.html &rarr;</div>
+      </a>
+
+      <!-- 7. Drone Flight Planner (New) -->
+      <a href="DronePlan.html" class="block bg-white border border-stone-300 p-6 hover:border-stone-800 hover:shadow-sm transition-all">
+        <div class="text-xs font-mono uppercase tracking-wider text-stone-500 mb-2">Aerial Survey</div>
+        <h2 class="font-serif text-lg font-bold text-stone-900 mb-1">Drone Flight Planner</h2>
+        <p class="text-sm text-stone-600 mb-4">Photogrammetry grid and waypoint mission planning.</p>
+        <div class="text-xs font-mono text-stone-400">DronePlan.html &rarr;</div>
       </a>
 
     </div>
   </main>
 
   <!-- Footer -->
-  <footer class="border-t border-slate-800/80 bg-slate-950/60 py-6">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs font-mono-custom text-slate-500">
-      <div>Geospatial & Hydrographic Surveying Framework</div>
-      <div>Designed for Desktop & Mobile Web Browsers</div>
+  <footer class="border-t border-stone-300 bg-white py-6">
+    <div class="max-w-5xl mx-auto px-6 text-xs font-mono text-stone-500 flex justify-between">
+      <span>Geospatial & Hydrographic Surveying</span>
+      <span>7 Modules</span>
     </div>
   </footer>
 

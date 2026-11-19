@@ -2,7 +2,7 @@
 <html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Drone Flight Planner</title>
+<title>Drone Flight Planner — Wales</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
 :root{--bg:#f3f5f7;--card:#fff;--tx:#14202b;--mu:#5d6b78;--bd:#dde3e8;--ac:#0b6bcb}
@@ -10,9 +10,11 @@
 *{box-sizing:border-box}
 body{margin:0;font:15px/1.4 system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--tx);padding-bottom:env(safe-area-inset-bottom)}
 header{position:sticky;top:0;z-index:2000;background:var(--card);border-bottom:1px solid var(--bd);padding:env(safe-area-inset-top) 10px 0}
-h1{font-size:17px;margin:8px 0}
+h1{font-size:17px;margin:8px 0;display:flex;align-items:center;gap:8px}
+.pill{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:#e6f1fc;color:#0b6bcb}
+@media(prefers-color-scheme:dark){.pill{background:#16324f;color:#6cb6ff}}
 nav{display:flex;gap:4px}
-nav button{flex:1;border:0;background:none;color:var(--mu);font:600 14px inherit;padding:10px 0;border-bottom:3px solid transparent}
+nav button{flex:1;border:0;background:none;color:var(--mu);font:600 14px inherit;padding:10px 0;border-bottom:3px solid transparent;cursor:pointer}
 nav button.on{color:var(--ac);border-color:var(--ac)}
 .tab{display:none;padding:10px}.tab.on{display:block}
 #map{height:52vh;min-height:320px;border-radius:12px;border:1px solid var(--bd)}
@@ -37,25 +39,73 @@ label{font-size:12px;color:var(--mu);display:block;margin-bottom:2px}
 .card-hd h3{margin:0;font-size:14px}
 .mini-btn{min-height:30px;padding:4px 8px;font-size:12px;border-radius:8px}
 h3{margin:14px 0 4px;font-size:15px}
-#t3 p{margin:3px 0;white-space:pre-wrap}
 .disc{font-size:12px;color:var(--mu);margin:14px 0}
-@media print{header,.bar,.disc,.noprint{display:none!important}.tab{display:none!important}#t3{display:block!important}body{background:#fff;color:#000}}
+
+/* Risk Matrix */
+.mx-wrap{overflow-x:auto;margin-top:6px}
+.mx{width:100%;border-collapse:collapse;font-size:11.5px;text-align:center}
+.mx th,.mx td{border:1px solid var(--bd);padding:6px 4px;vertical-align:middle}
+.mx th{background:var(--bg);font-weight:700;color:var(--mu)}
+.mx td.cell{height:44px;min-width:56px;position:relative;color:#111;font-weight:600}
+.mx .c-low{background:#d7f0df}
+.mx .c-mod{background:#fff2cc}
+.mx .c-hi{background:#fde0c2}
+.mx .c-no{background:#f8cecc}
+.mx .tag{display:inline-block;background:#14202b;color:#fff;font-size:10px;padding:1px 5px;border-radius:4px;margin:1px}
+.mx-leg{display:flex;gap:10px;flex-wrap:wrap;font-size:11.5px;margin-top:6px;color:var(--mu)}
+.mx-leg span{display:inline-flex;align-items:center;gap:4px}
+.mx-leg i{width:10px;height:10px;border-radius:2px;display:inline-block}
+
+/* Aesthetic Method Statement / PDF Layout */
+.ms-doc{background:var(--card);border:1px solid var(--bd);border-radius:14px;overflow:hidden}
+.ms-hero{background:linear-gradient(135deg,#0f2942,#1b4d7e);color:#fff;padding:18px 20px}
+.ms-hero h2{margin:0 0 4px;font-size:19px;letter-spacing:.2px}
+.ms-hero .sub{font-size:12.5px;opacity:.88}
+.ms-status{display:inline-block;margin-top:10px;padding:5px 12px;border-radius:999px;font-weight:800;font-size:12px;letter-spacing:.4px;color:#fff}
+.ms-body{padding:16px 20px}
+.ms-sec{margin-bottom:16px;page-break-inside:avoid}
+.ms-sec h4{margin:0 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--ac);border-bottom:1.5px solid var(--bd);padding-bottom:4px}
+.ms-kv{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;font-size:13px}
+.ms-kv div{padding:3px 0;border-bottom:1px dashed var(--bd)}
+.ms-kv b{color:var(--mu);font-weight:600;display:inline-block;min-width:110px}
+.ms-map-box{border:1px solid var(--bd);border-radius:10px;overflow:hidden;background:#eef3f7}
+.ms-map-cap{font-size:11.5px;color:var(--mu);padding:6px 10px;background:var(--bg);border-top:1px solid var(--bd);display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px}
+.ms-tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.ms-tbl th,.ms-tbl td{border:1px solid var(--bd);padding:6px 8px;text-align:left;vertical-align:top}
+.ms-tbl th{background:var(--bg);font-weight:700}
+.pill-lv{display:inline-block;padding:2px 7px;border-radius:999px;color:#fff;font-weight:700;font-size:11px}
+.ms-list{margin:0;padding-left:18px;font-size:13px}
+.ms-list li{margin:3px 0}
+.ms-sign{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px}
+.ms-sign div{border:1px solid var(--bd);border-radius:8px;padding:10px 12px;font-size:12.5px;background:var(--bg)}
+
+@media print{
+ @page{size:A4;margin:12mm}
+ header,.bar,.disc,.noprint{display:none!important}
+ .tab{display:none!important}
+ #t3{display:block!important;padding:0!important}
+ body{background:#fff!important;color:#14202b!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+ .ms-doc{border:1px solid #cbd5e1;box-shadow:none}
+ .ms-hero{background:#0f2942!important;color:#fff!important}
+ .ms-kv div,.ms-tbl th,.ms-tbl td,.ms-sign div{border-color:#cbd5e1!important}
+ .ms-tbl th,.ms-sign div,.ms-map-cap{background:#f8fafc!important}
+}
 </style></head><body>
-<header><h1>🛩 Drone Flight Planner</h1>
+<header><h1>🛩 Drone Flight Planner <span class="pill">Wales + Buffer</span></h1>
 <nav id="tabs"><button data-t="1" class="on">Plan</button><button data-t="2">Risk</button><button data-t="3">Method</button></nav></header>
 
 <div id="t1" class="tab on">
- <div class="bar"><input id="q" placeholder="Search place or postcode"><button id="sq" style="flex:0 0 64px">Go</button></div>
+ <div class="bar"><input id="q" placeholder="Search place or postcode in Wales"><button id="sq" style="flex:0 0 64px">Go</button></div>
  <div id="map"></div>
  <div class="bar"><button id="dr">✏️ Draw</button><button id="un">↩ Undo</button><button id="cl">🗑 Clear</button><button id="ly">🛰 Layer</button><button id="lc">📍 Me</button></div>
  <div id="stat" class="mu"></div>
 
  <div class="card" id="near-card">
   <div class="card-hd">
-   <h3 id="near-title">Nearest hazards &amp; no-fly zones</h3>
+   <h3 id="near-title">Nearest hazards &amp; no-fly zones (Wales)</h3>
    <button id="rz" class="mini-btn" type="button">↻ Refresh</button>
   </div>
-  <div id="near-sub" class="mu" style="font-size:12.5px;margin-bottom:4px">Loading nearby airspace &amp; sensitive sites…</div>
+  <div id="near-sub" class="mu" style="font-size:12.5px;margin-bottom:4px">Loading Wales airspace &amp; sensitive areas…</div>
   <div id="near-list"><span class="mu">Fetching zones…</span></div>
  </div>
 
@@ -83,17 +133,31 @@ h3{margin:14px 0 4px;font-size:15px}
  <div class="bar noprint" id="mb" style="display:none"><button id="cp">📋 Copy text</button><button id="pr">🖨 Print / save PDF</button></div>
 </div>
 
-<p class="disc" style="padding:0 10px">Decision-support only. Airspace data is derived from OpenStreetMap and indicative ATZ/FRZ circles — always confirm with official sources (e.g. NATS Drone Assist, CAA, NOTAMs) and landowner permissions. Weather: Open-Meteo. Space weather: NOAA SWPC. You remain responsible for the flight.</p>
+<p class="disc" style="padding:0 10px">Decision-support only. Airspace &amp; sensitive site geometry is sourced from OpenStreetMap (Overpass API) with indicative ATZ/FRZ &amp; proximity buffers — always confirm with official CAA / NATS Drone Assist maps and NOTAMs. Weather: Open-Meteo. Space weather: NOAA SWPC.</p>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
 const $=id=>document.getElementById(id),esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const LV=['Low','Moderate','High','No-go'],COL=['#1a9850','#e6a700','#e8710a','#c62828'],
 HEAD=['LOW RISK — GO','MODERATE — GO WITH CONTROLS','HIGH RISK — MITIGATE OR POSTPONE','NO-GO / PERMISSION REQUIRED'];
-const CAT={airport:{n:'Airfield (ATZ/FRZ)',c:'#c62828'},strip:{n:'Airstrip',c:'#c62828',hi:500,md:2000},heli:{n:'Heliport / helipad',c:'#e8710a',hi:500,md:2000},
-mil:{n:'Military / danger area',c:'#7b1fa2',hi:200,md:1000},prison:{n:'Prison',c:'#7b1fa2',hi:400,md:1000},nuc:{n:'Nuclear site',c:'#7b1fa2',hi:400,md:1500},
-power:{n:'Power plant',c:'#8d6e63',hi:0,md:200},hosp:{n:'Hospital',c:'#d81b60',hi:0,md:500},school:{n:'School / college',c:'#1e88e5',hi:0,md:150},
-nature:{n:'Nature reserve',c:'#2e7d32',hi:-1,md:0},stadium:{n:'Stadium',c:'#f57c00',hi:0,md:300}};
+
+/* Wales + ~25km border buffer [south, west, north, east] */
+const WALES_BBOX={s:51.20,w:-5.65,n:53.65,e:-2.45};
+const inWales=(lat,lon)=>lat>=WALES_BBOX.s&&lat<=WALES_BBOX.n&&lon>=WALES_BBOX.w&&lon<=WALES_BBOX.e;
+
+const CAT={
+ airport:{n:'Airfield (ATZ/FRZ)',c:'#c62828',hi:0,md:2000},
+ strip:{n:'Airstrip',c:'#c62828',hi:500,md:2000},
+ heli:{n:'Heliport / helipad',c:'#e8710a',hi:500,md:2000},
+ mil:{n:'Military / danger area',c:'#7b1fa2',hi:200,md:1000},
+ prison:{n:'Prison',c:'#7b1fa2',hi:400,md:1000},
+ nuc:{n:'Nuclear site',c:'#7b1fa2',hi:400,md:1500},
+ power:{n:'Power plant',c:'#8d6e63',hi:0,md:200},
+ hosp:{n:'Hospital',c:'#d81b60',hi:0,md:500},
+ school:{n:'School / college',c:'#1e88e5',hi:0,md:150},
+ nature:{n:'Nature reserve',c:'#2e7d32',hi:-1,md:0},
+ stadium:{n:'Stadium',c:'#f57c00',hi:0,md:300}
+};
 const cls=t=>t.aeroway==='aerodrome'?((t.icao||t.iata)?'airport':'strip'):t.aeroway==='heliport'?'heli':
  (t.landuse==='military'||t.military)?'mil':t.amenity==='prison'?'prison':t.power==='plant'?(t['plant:source']==='nuclear'?'nuc':'power'):
  t.amenity==='hospital'?'hosp':/^(school|college|university)$/.test(t.amenity)?'school':t.leisure==='nature_reserve'?'nature':t.leisure==='stadium'?'stadium':null;
@@ -121,12 +185,22 @@ function bearingDeg([lat1,lon1],[lat2,lon2]){
  return(Math.atan2(y,x)*180/Math.PI+360)%360}
 const fmtProx=(f,d)=>d<=0?'inside / overlaps':`${fmt(d)} ${f.dir}`;
 
-/* map + drawing */
-const map=L.map('map',{zoomControl:false}).setView([52.5,-1.5],6);
+/* Approximate circle polygon in lat/lng so buffer areas render as true areas */
+function circlePoly([lat,lon],radiusM,steps=36){
+ const pts=[],dLat=radiusM/ER/RAD,dLon=radiusM/(ER*Math.cos(lat*RAD))/RAD;
+ for(let i=0;i<steps;i++){const a=2*Math.PI*i/steps;pts.push([lat+dLat*Math.sin(a),lon+dLon*Math.cos(a)])}
+ return pts}
+
+/* map + drawing (centered on Wales) */
+const map=L.map('map',{zoomControl:false}).setView([52.35,-3.75],8);
 const base=[L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}),
  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Esri'})];
 let bi=0;base[0].addTo(map);L.control.zoom({position:'topright'}).addTo(map);
-const poly=L.polygon([],{color:'#0b6bcb',weight:3,fillOpacity:.2}).addTo(map),fl=L.featureGroup().addTo(map);
+
+/* Show Wales + buffer boundary */
+L.rectangle([[WALES_BBOX.s,WALES_BBOX.w],[WALES_BBOX.n,WALES_BBOX.e]],{color:'#0b6bcb',weight:1.5,dashArray:'6 6',fill:false,interactive:false}).addTo(map);
+
+const poly=L.polygon([],{color:'#0b6bcb',weight:3,fillOpacity:.22}).addTo(map),fl=L.featureGroup().addTo(map);
 let pts=[],mk=[],drawing=false,S=null,previewF=[];
 function rebuild(){mk.forEach(m=>m.remove());
  mk=pts.map((p,i)=>{const m=L.marker(p,{draggable:true,icon:L.divIcon({className:'',html:'<div class="vx"></div>',iconSize:[22,22]})}).addTo(map);
@@ -143,9 +217,12 @@ $('dr').onclick=()=>{drawing=!drawing;$('dr').textContent=drawing?'✓ Done':'�
 $('un').onclick=()=>{pts.pop();rebuild();refreshPreviewProximity()};
 $('cl').onclick=()=>{pts=[];fl.clearLayers();previewF=[];rebuild();loadPreviewZones()};
 $('ly').onclick=()=>{base[bi].remove();bi=1-bi;base[bi].addTo(map)};
-$('lc').onclick=()=>navigator.geolocation?navigator.geolocation.getCurrentPosition(p=>{const c=[p.coords.latitude,p.coords.longitude];map.setView(c,15);L.circleMarker(c,{radius:7,color:'#fff',fillColor:'#0b6bcb',fillOpacity:1}).addTo(map);loadPreviewZones(c)},()=>msg('Location unavailable')):msg('Location unavailable');
-async function search(){const q=$('q').value.trim();if(!q)return;try{const r=(await(await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(q))).json())[0];
- if(!r)return msg('Place not found');const b=r.boundingbox.map(Number);map.fitBounds([[b[0],b[2]],[b[1],b[3]]],{maxZoom:16});const center=[(b[0]+b[1])/2,(b[2]+b[3])/2];loadPreviewZones(center)}catch(e){msg('Search failed')}}
+$('lc').onclick=()=>navigator.geolocation?navigator.geolocation.getCurrentPosition(p=>{const c=[p.coords.latitude,p.coords.longitude];map.setView(c,14);L.circleMarker(c,{radius:7,color:'#fff',fillColor:'#0b6bcb',fillOpacity:1}).addTo(map);loadPreviewZones(c)},()=>msg('Location unavailable')):msg('Location unavailable');
+async function search(){const q=$('q').value.trim();if(!q)return;try{
+ const r=(await(await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&viewbox=${WALES_BBOX.w},${WALES_BBOX.n},${WALES_BBOX.e},${WALES_BBOX.s}&bounded=1&q=`+encodeURIComponent(q))).json())[0];
+ if(!r)return msg('Place not found inside Wales + buffer');
+ const b=r.boundingbox.map(Number);map.fitBounds([[b[0],b[2]],[b[1],b[3]]],{maxZoom:15});
+ loadPreviewZones([(b[0]+b[1])/2,(b[2]+b[3])/2])}catch(e){msg('Search failed')}}
 $('sq').onclick=search;$('q').onkeydown=e=>{if(e.key==='Enter')search()};
 const msg=t=>$('msg').textContent=t;
 function show(n){document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x.id==='t'+n));
@@ -166,6 +243,21 @@ async function getK(tu){
  const cur=rows.find(x=>x.t<=tu&&tu<x.t+3*H),win=rows.filter(x=>x.t>=tu-3*H&&x.t<=tu+6*H);if(!cur&&!win.length)throw 0;
  return{kp:cur?cur.k:Math.max(...win.map(x=>x.k)),max:Math.max(...win.map(x=>x.k),cur?cur.k:0)}}
 
+/* Extract actual polygon rings from Overpass `out geom` elements */
+function extractRings(e){
+ const rings=[];
+ if(e.type==='way'&&Array.isArray(e.geometry)&&e.geometry.length>=3){
+  rings.push(e.geometry.map(p=>[p.lat,p.lon]));
+ }else if(e.type==='relation'&&Array.isArray(e.members)){
+  for(const m of e.members){
+   if(m.role==='outer'&&Array.isArray(m.geometry)&&m.geometry.length>=3){
+    rings.push(m.geometry.map(p=>[p.lat,p.lon]));
+   }
+  }
+ }
+ return rings;
+}
+
 function feats(E,g){
  const hasPoly=!!(g&&g.xy&&g.xy.length>=3);
  const ref=hasPoly?g.o:[map.getCenter().lat,map.getCenter().lng];
@@ -173,74 +265,108 @@ function feats(E,g){
  const refPoly=hasPoly?g.xy:[P(ref[0],ref[1])];
  return E.map(e=>{
   const t=e.tags||{},c=cls(t);if(!c)return null;
-  const lat=e.lat??e.center?.lat??e.bounds?.minlat;
-  const lon=e.lon??e.center?.lon??e.bounds?.minlon;
-  if(lat==null||lon==null)return null;
-  const b=e.bounds||{minlat:lat,maxlat:lat,minlon:lon,maxlon:lon};
-  const cl=e.center?.lat??(b.minlat+b.maxlat)/2;
-  const co=e.center?.lon??(b.minlon+b.maxlon)/2;
-  const pt=b.minlat==b.maxlat&&b.minlon==b.maxlon;
-  const B=pt?[P(cl,co)]:[P(b.minlat,b.minlon),P(b.minlat,b.maxlon),P(b.maxlat,b.maxlon),P(b.maxlat,b.minlon)];
+  const rings=extractRings(e);
+  let cl,co;
+  if(rings.length){
+   const flat=rings[0];
+   cl=flat.reduce((s,p)=>s+p[0],0)/flat.length;
+   co=flat.reduce((s,p)=>s+p[1],0)/flat.length;
+  }else if(e.lat!=null&&e.lon!=null){
+   cl=e.lat;co=e.lon;
+  }else if(e.bounds){
+   cl=(e.bounds.minlat+e.bounds.maxlat)/2;
+   co=(e.bounds.minlon+e.bounds.maxlon)/2;
+  }else return null;
+
+  if(!inWales(cl,co))return null;
+  const k=CAT[c];
+  const atz=c==='airport'?(t.iata?4630:3704):0;
+  const bufR=atz||(k.md>0?k.md:k.hi>0?k.hi:0);
+  const polyLL=rings.length?rings[0]:(bufR>0?circlePoly([cl,co],bufR,32):null);
+  const B=rings.length?rings[0].map(p=>P(p[0],p[1])):[P(cl,co)];
   const d=hasPoly?pd(refPoly,B):Math.hypot(...P(cl,co));
   const dir=cp(bearingDeg(ref,[cl,co]));
-  const k=CAT[c];let atz=0,lvl=0,ex=null;
-  if(c==='airport'){atz=t.iata?4630:3704;ex=(hasPoly?pd(refPoly,[P(cl,co)]):Math.hypot(...P(cl,co)))-atz;lvl=ex<=0?3:ex<=2000?2:ex<=5000?1:0}
-  else lvl=d<=k.hi?2:d<=k.md?1:0;
-  return{n:t.name||t['name:en']||t.icao||k.n,c,k,d,dir,atz,ex,lvl,cl,co,b}
+  let lvl=0,ex=null;
+  if(c==='airport'){
+   ex=(hasPoly?pd(refPoly,[P(cl,co)]):Math.hypot(...P(cl,co)))-atz;
+   lvl=ex<=0?3:ex<=2000?2:ex<=5000?1:0;
+  }else{
+   lvl=d<=k.hi?2:d<=k.md?1:0;
+  }
+  return{n:t.name||t['name:en']||t.icao||k.n,c,k,d,dir,atz,bufR,ex,lvl,cl,co,rings,polyLL}
  }).filter(Boolean).sort((a,b)=>a.d-b.d)}
 
-function buildQuery(la,lo,airR,genR){
- return `[out:json][timeout:25];(
-  nwr(around:${airR},${la},${lo})[aeroway~"^(aerodrome|heliport)$"];
-  nwr(around:${genR},${la},${lo})[landuse=military];
-  nwr(around:${genR},${la},${lo})[military];
-  nwr(around:${genR},${la},${lo})[amenity~"^(prison|hospital|school|college|university)$"];
-  nwr(around:${genR},${la},${lo})[power=plant];
-  nwr(around:${genR},${la},${lo})[leisure~"^(nature_reserve|stadium)$"];
- );out bb center 250;`
+/* Clamped Wales-only Overpass query */
+function clampBBox(lat,lon,radM){
+ const dLat=radM/ER/RAD,dLon=radM/(ER*Math.cos(lat*RAD))/RAD;
+ const s=Math.max(WALES_BBOX.s,lat-dLat).toFixed(4);
+ const n=Math.min(WALES_BBOX.n,lat+dLat).toFixed(4);
+ const w=Math.max(WALES_BBOX.w,lon-dLon).toFixed(4);
+ const e=Math.min(WALES_BBOX.e,lon+dLon).toFixed(4);
+ return `${s},${w},${n},${e}`;
+}
+
+function buildWalesQuery(la,lo,airR,genR){
+ const airBox=clampBBox(la,lo,airR);
+ const genBox=clampBBox(la,lo,genR);
+ return `[out:json][timeout:20];(
+  nwr[aeroway~"^(aerodrome|heliport)$"](${airBox});
+  nwr[landuse=military](${genBox});
+  nwr[military](${genBox});
+  nwr[amenity~"^(prison|hospital|school|college|university)$"](${genBox});
+  nwr[power=plant](${genBox});
+  nwr[leisure~"^(nature_reserve|stadium)$"](${genBox});
+ );out geom 250;`
 }
 
 function renderNearestList(list,hasPoly){
  const el=$('near-list'),sub=$('near-sub'),title=$('near-title');
- title.textContent=hasPoly?'Nearest hazards & no-fly zones to flight area':'Nearest hazards & no-fly zones to map view';
+ title.textContent=hasPoly?'Nearest hazards & no-fly zones to flight area':'Nearest hazards & no-fly zones (Wales view)';
  if(!list||!list.length){
-  sub.textContent=hasPoly?'No mapped zones found within search radius of your area.':'No mapped zones found near this map centre — try Zooming in or searching a place.';
+  sub.textContent='No mapped zones found in this Wales sector — pan/zoom or search another town.';
   el.innerHTML='<span class="mu">None mapped in range.</span>';
   return;
  }
  const top=list.slice(0,6);
- sub.textContent=`Showing ${top.length} of ${list.length} loaded zone${list.length===1?'':'s'} · tap a row to inspect on map`;
- el.innerHTML=top.map((f,idx)=>`<div class="row f" data-ni="${idx}"><i style="background:${f.k.c}"></i><div><b>${esc(f.n)}</b><small>${esc(f.k.n)}${f.atz?` · ATZ/FRZ r ${(f.atz/1000).toFixed(1)} km`:''}</small></div><em>${esc(fmtProx(f,f.d))}</em></div>`).join('');
- el.querySelectorAll('.f').forEach(r=>r.onclick=()=>{const f=top[r.dataset.ni];if(f)map.setView([f.cl,f.co],Math.max(map.getZoom(),14))});
+ sub.textContent=`Showing ${top.length} of ${list.length} Wales zone${list.length===1?'':'s'} · tap a row to zoom to area`;
+ el.innerHTML=top.map((f,idx)=>`<div class="row f" data-ni="${idx}"><i style="background:${f.k.c}"></i><div><b>${esc(f.n)}</b><small>${esc(f.k.n)}${f.atz?` · ATZ/FRZ r ${(f.atz/1000).toFixed(1)} km`:f.bufR?` · buffer ${fmt(f.bufR)}`:''}</small></div><em>${esc(fmtProx(f,f.d))}</em></div>`).join('');
+ el.querySelectorAll('.f').forEach(r=>r.onclick=()=>{
+  const f=top[r.dataset.ni];if(!f)return;
+  if(f.rings&&f.rings.length)map.fitBounds(L.polygon(f.rings).getBounds().pad(.25),{maxZoom:15});
+  else map.setView([f.cl,f.co],14);
+ });
 }
 
 async function loadPreviewZones(centerLatLng){
  const c=centerLatLng||[map.getCenter().lat,map.getCenter().lng];
+ if(!inWales(c[0],c[1])){
+  $('near-sub').textContent='Outside Wales + buffer boundary.';
+  $('near-list').innerHTML='<span class="mu">Pan or search within Wales to load zones.</span>';
+  fl.clearLayers();return;
+ }
  const g=geo();
- const airR=g?Math.round(15000+g.span):25000;
- const genR=g?Math.round(3000+g.span):12000;
- $('near-sub').textContent='Querying OpenStreetMap for nearby airfields & hazards…';
+ const airR=g?Math.round(18000+g.span):32000;
+ const genR=g?Math.round(4000+g.span):14000;
+ $('near-sub').textContent='Querying OpenStreetMap (Wales bbox)…';
  try{
-  const E=await ovp(buildQuery(c[0],c[1],airR,genR));
+  const E=await ovp(buildWalesQuery(c[0],c[1],airR,genR));
   previewF=feats(E,g);
   drawFeatures(previewF);
   renderNearestList(previewF,!!g);
  }catch(e){
-  $('near-sub').textContent='Could not load nearby zones right now.';
-  $('near-list').innerHTML='<span class="mu">Zone lookup unavailable — check connection or try Refresh.</span>';
+  $('near-sub').textContent='Could not load Wales zones right now.';
+  $('near-list').innerHTML='<span class="mu">Overpass timeout/error — tap Refresh to retry.</span>';
  }
 }
 
 function refreshPreviewProximity(){
  if(!previewF.length)return;
- const g=geo();
- const hasPoly=!!g;
+ const g=geo(),hasPoly=!!g;
  const ref=hasPoly?g.o:[map.getCenter().lat,map.getCenter().lng];
  const P=(a,b)=>proj([a,b],ref);
  const refPoly=hasPoly?g.xy:[P(ref[0],ref[1])];
  previewF=previewF.map(f=>{
-  const pt=f.b.minlat==f.b.maxlat&&f.b.minlon==f.b.maxlon;
-  const B=pt?[P(f.cl,f.co)]:[P(f.b.minlat,f.b.minlon),P(f.b.minlat,f.b.maxlon),P(f.b.maxlat,f.maxlon),P(f.b.maxlat,f.minlon)];
+  const B=f.rings.length?f.rings[0].map(p=>P(p[0],p[1])):[P(f.cl,f.co)];
   const d=hasPoly?pd(refPoly,B):Math.hypot(...P(f.cl,f.co));
   const dir=cp(bearingDeg(ref,[f.cl,f.co]));
   const ex=f.c==='airport'?((hasPoly?pd(refPoly,[P(f.cl,f.co)]):Math.hypot(...P(f.cl,f.co)))-f.atz):f.ex;
@@ -249,16 +375,163 @@ function refreshPreviewProximity(){
  renderNearestList(previewF,hasPoly);
 }
 
+/* Render true polygon areas + buffer zones on Leaflet */
+function drawFeatures(list){
+ fl.clearLayers();
+ list.slice(0,160).forEach(f=>{
+  const pop=`<b>${esc(f.n)}</b><br>${esc(f.k.n)}<br>${esc(fmtProx(f,f.d))} from area${f.atz?'<br>Indicative ATZ/FRZ radius '+f.atz+' m':f.bufR?'<br>Sensitivity buffer '+fmt(f.bufR):''}`;
+  if(f.atz){
+   L.circle([f.cl,f.co],{radius:f.atz,color:'#c62828',weight:2,dashArray:'8 6',fillColor:'#c62828',fillOpacity:.08}).bindPopup(pop).addTo(fl);
+  }else if(f.bufR>0&&!f.rings.length){
+   L.circle([f.cl,f.co],{radius:f.bufR,color:f.k.c,weight:1.5,dashArray:'5 5',fillColor:f.k.c,fillOpacity:.10}).bindPopup(pop).addTo(fl);
+  }
+  if(f.rings&&f.rings.length){
+   L.polygon(f.rings,{color:f.k.c,weight:2,fillColor:f.k.c,fillOpacity:.22}).bindPopup(pop).addTo(fl);
+  }else{
+   L.circleMarker([f.cl,f.co],{radius:6,color:'#fff',weight:1.5,fillColor:f.k.c,fillOpacity:1}).bindPopup(pop).addTo(fl);
+  }
+ });
+}
+
+/* 5x5 Risk Matrix (Likelihood 1-5 x Severity 1-5) */
+function calcMatrix(fa){
+ const mapLS={
+  'Airspace':l=>l===3?[4,5]:l===2?[3,5]:l===1?[2,4]:[1,4],
+  'Sensitive sites':l=>l>=2?[4,4]:l===1?[3,3]:[1,3],
+  'Wind':l=>l===3?[4,4]:l===2?[3,3]:l===1?[2,3]:[1,2],
+  'Gusts':l=>l===3?[4,4]:l===2?[3,4]:l===1?[2,3]:[1,2],
+  'Precipitation':l=>l===3?[4,3]:l===2?[3,3]:l===1?[2,2]:[1,2],
+  'Visibility':l=>l===3?[4,4]:l===2?[3,4]:l===1?[2,3]:[1,3],
+  'Temperature':l=>l===3?[3,3]:l===2?[3,2]:l===1?[2,2]:[1,2],
+  'Daylight':l=>l>=2?[3,4]:[1,2],
+  'Geomagnetic (Kp)':l=>l===3?[3,4]:l===2?[2,4]:l===1?[2,3]:[1,3],
+  'Altitude':l=>l===3?[4,5]:l===1?[2,4]:[1,3],
+  'Range / VLOS':l=>l===2?[3,4]:l===1?[2,3]:[1,3]
+ };
+ const short={
+  'Airspace':'AIR','Sensitive sites':'SITE','Wind':'WIND','Gusts':'GUST','Precipitation':'RAIN',
+  'Visibility':'VIS','Temperature':'TEMP','Daylight':'DAY','Geomagnetic (Kp)':'KP','Altitude':'ALT','Range / VLOS':'VLOS'
+ };
+ return fa.map(f=>{
+  const fn=mapLS[f.n]||(l=>[l+1,l+2]);
+  const [L,S]=fn(f.l);
+  return{...f,code:short[f.n]||f.n.slice(0,4).toUpperCase(),L,S,score:L*S};
+ });
+}
+
+function renderMatrixHTML(items){
+ const L_LAB=['5 · Almost Certain','4 · Likely','3 · Possible','2 · Unlikely','1 · Rare'];
+ const S_LAB=['1 · Negligible','2 · Minor','3 · Moderate','4 · Major','5 · Catastrophic'];
+ const clsCell=(L,S)=>{const sc=L*S;return sc>=15?'c-no':sc>=9?'c-hi':sc>=4?'c-mod':'c-low'};
+ let rows='';
+ for(let r=0;r<5;r++){
+  const L=5-r;
+  let tds=`<th>${L_LAB[r]}</th>`;
+  for(let S=1;S<=5;S++){
+   const hits=items.filter(x=>x.L===L&&x.S===S);
+   tds+=`<td class="cell ${clsCell(L,S)}"><div>${L*S}</div>${hits.map(h=>`<span class="tag" title="${esc(h.n)}: ${esc(h.v)}">${h.code}</span>`).join('')}</td>`;
+  }
+  rows+=`<tr>${tds}</tr>`;
+ }
+ return `<div class="mx-wrap"><table class="mx">
+  <thead><tr><th>Likelihood \\ Severity</th>${S_LAB.map(s=>`<th>${s}</th>`).join('')}</tr></thead>
+  <tbody>${rows}</tbody>
+ </table></div>
+ <div class="mx-leg">
+  <span><i style="background:#d7f0df;border:1px solid #94c9a9"></i> 1–3 Low</span>
+  <span><i style="background:#fff2cc;border:1px solid #d6b656"></i> 4–8 Moderate</span>
+  <span><i style="background:#fde0c2;border:1px solid #d79b00"></i> 9–14 High</span>
+  <span><i style="background:#f8cecc;border:1px solid #b85450"></i> 15–25 No-Go / Critical</span>
+ </div>`;
+}
+
+/* Generate high-res vector SVG map snapshot for Method Statement & PDF */
+function renderStaticMapSVG(g,F){
+ const W=680,H=300,pad=34;
+ const allPts=[...g.xy];
+ const nearF=F.slice(0,12);
+ nearF.forEach(f=>{
+  if(f.rings&&f.rings.length){
+   f.rings[0].forEach(p=>allPts.push(proj(p,g.o)));
+  }else{
+   allPts.push(proj([f.cl,f.co],g.o));
+  }
+ });
+ let minX=Math.min(...allPts.map(p=>p[0])),maxX=Math.max(...allPts.map(p=>p[0]));
+ let minY=Math.min(...allPts.map(p=>p[1])),maxY=Math.max(...allPts.map(p=>p[1]));
+ const spanX=Math.max(maxX-minX,250),spanY=Math.max(maxY-minY,250);
+ const cx=(minX+maxX)/2,cy=(minY+maxY)/2;
+ const scale=Math.min((W-2*pad)/spanX,(H-2*pad)/spanY);
+ const toSVG=([x,y])=>[W/2+(x-cx)*scale,H/2-(y-cy)*scale];
+
+ /* Grid lines */
+ let grid='';
+ for(let gx=40;gx<W;gx+=60)grid+=`<line x1="${gx}" y1="0" x2="${gx}" y2="${H}" stroke="#dce4ec" stroke-width="1"/>`;
+ for(let gy=40;gy<H;gy+=60)grid+=`<line x1="0" y1="${gy}" x2="${W}" y2="${gy}" stroke="#dce4ec" stroke-width="1"/>`;
+
+ /* Nearby zones & ATZ/FRZ rings */
+ let zonesSVG='';
+ nearF.forEach(f=>{
+  const [fx,fy]=toSVG(proj([f.cl,f.co],g.o));
+  if(f.atz){
+   const rPx=f.atz*scale;
+   zonesSVG+=`<circle cx="${fx.toFixed(1)}" cy="${fy.toFixed(1)}" r="${rPx.toFixed(1)}" fill="#c62828" fill-opacity="0.08" stroke="#c62828" stroke-width="1.5" stroke-dasharray="6,4"/>`;
+  }
+  if(f.rings&&f.rings.length){
+   const ptsStr=f.rings[0].map(p=>toSVG(proj(p,g.o)).map(n=>n.toFixed(1)).join(',')).join(' ');
+   zonesSVG+=`<polygon points="${ptsStr}" fill="${f.k.c}" fill-opacity="0.22" stroke="${f.k.c}" stroke-width="1.5"/>`;
+  }else{
+   zonesSVG+=`<circle cx="${fx.toFixed(1)}" cy="${fy.toFixed(1)}" r="5" fill="${f.k.c}" stroke="#fff" stroke-width="1.5"/>`;
+  }
+  if(fx>10&&fx<W-10&&fy>12&&fy<H-10){
+   zonesSVG+=`<text x="${(fx+7).toFixed(1)}" y="${(fy+4).toFixed(1)}" font-size="10" font-family="system-ui,sans-serif" font-weight="600" fill="#1e293b">${esc(f.n.slice(0,26))}</text>`;
+  }
+ });
+
+ /* Flight area polygon + numbered vertices */
+ const flightPts=g.xy.map(p=>toSVG(p));
+ const flightStr=flightPts.map(p=>p.map(n=>n.toFixed(1)).join(',')).join(' ');
+ const vertsSVG=flightPts.map(([vx,vy],i)=>`<circle cx="${vx.toFixed(1)}" cy="${vy.toFixed(1)}" r="5" fill="#0b6bcb" stroke="#fff" stroke-width="1.5"/><text x="${(vx+7).toFixed(1)}" y="${(vy-5).toFixed(1)}" font-size="10" font-weight="700" font-family="system-ui,sans-serif" fill="#0b6bcb">P${i+1}</text>`).join('');
+
+ /* Scale bar */
+ const rawBarM=(100/scale);
+ const niceSteps=[50,100,200,250,500,1000,2000,5000,10000];
+ const barM=niceSteps.find(s=>s>=rawBarM)||Math.round(rawBarM);
+ const barPx=barM*scale;
+ const barLabel=barM>=1000?(barM/1000)+' km':barM+' m';
+
+ return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;max-height:290px" xmlns="http://www.w3.org/2000/svg">
+  <rect width="${W}" height="${H}" fill="#f1f5f9"/>
+  ${grid}
+  ${zonesSVG}
+  <polygon points="${flightStr}" fill="#0b6bcb" fill-opacity="0.25" stroke="#0b6bcb" stroke-width="2.5"/>
+  ${vertsSVG}
+  <g transform="translate(${W-36},30)">
+   <circle r="16" fill="#fff" stroke="#cbd5e1"/>
+   <polygon points="0,-11 4,4 0,1 -4,4" fill="#c62828"/>
+   <text y="-18" text-anchor="middle" font-size="9" font-weight="800" font-family="system-ui,sans-serif" fill="#334155">N</text>
+  </g>
+  <g transform="translate(16,${H-22})">
+   <rect x="-4" y="-12" width="${Math.max(barPx+16,65)}" height="22" rx="4" fill="#fff" fill-opacity="0.9" stroke="#cbd5e1"/>
+   <line x1="4" y1="2" x2="${4+barPx}" y2="2" stroke="#0f172a" stroke-width="2.5"/>
+   <text x="4" y="-2" font-size="9.5" font-weight="700" font-family="system-ui,sans-serif" fill="#0f172a">${barLabel}</text>
+  </g>
+ </svg>`;
+}
+
 /* assess */
 $('go').onclick=async()=>{
  const g=geo();if(!g)return msg('Draw a flight area with at least 3 corners first.');
- drawing=false;$('dr').textContent='✏️ Draw';$('go').disabled=true;msg('Fetching weather, Kp and nearby airspace…');
- const tv=$('tv').value,[la,lo]=g.o,r2=Math.round(3000+g.span);
- const op=ovp(buildQuery(la,lo,15000+R(g.span),r2)).catch(()=>null);
+ const [la,lo]=g.o;
+ if(!inWales(la,lo))return msg('Flight area is outside the Wales + buffer region.');
+ drawing=false;$('dr').textContent='✏️ Draw';$('go').disabled=true;msg('Fetching weather, Kp and Wales airspace…');
+ const tv=$('tv').value,r2=Math.round(3500+g.span);
+ const op=ovp(buildWalesQuery(la,lo,18000+R(g.span),r2)).catch(()=>null);
  let W=null,K=null;try{W=await getW(la,lo,tv)}catch(e){}
  try{K=await getK(W?Date.parse(tv+':00Z')-W.off*1e3:Date.parse(tv))}catch(e){}
  const E=await op,F=E?feats(E,g):[];
- S={g,tv,W,K,F,E:!!E,fa:[]};factors();drawFeatures(F);renderNearestList(F,true);renderRisk();renderMS();
+ S={g,tv,W,K,F,E:!!E,fa:[],mx:[]};factors();S.mx=calcMatrix(S.fa);
+ drawFeatures(F);renderNearestList(F,true);renderRisk();renderMS();
  $('go').disabled=false;msg('');show(2)};
 
 function factors(){
@@ -283,39 +556,109 @@ function factors(){
  add('Range / VLOS',`Max span ${R(g.span)} m`,g.span>1000?2:g.span>500?1:0,'Aircraft must stay in visual line of sight — use an observer or reposition the pilot.');
  S.ov=Math.max(...fa.map(f=>f.l))}
 
-function drawFeatures(list){fl.clearLayers();list.slice(0,150).forEach(f=>{const b=f.b;
- if(b.maxlat>b.minlat)L.rectangle([[b.minlat,b.minlon],[b.maxlat,b.maxlon]],{color:f.k.c,weight:1,fillOpacity:.08,dashArray:'4'}).addTo(fl);
- if(f.atz)L.circle([f.cl,f.co],{radius:f.atz,color:'#c62828',weight:2,dashArray:'8 6',fillOpacity:.06}).addTo(fl);
- L.circleMarker([f.cl,f.co],{radius:7,color:'#fff',weight:1.5,fillColor:f.k.c,fillOpacity:1}).bindPopup(`<b>${esc(f.n)}</b><br>${esc(f.k.n)}<br>${esc(fmtProx(f,f.d))} from area${f.atz?'<br>Indicative ATZ/FRZ radius '+f.atz+' m':''}`).addTo(fl)})}
-
-function renderRisk(){const{fa,F,ov,g,tv}=S,shown=F.filter((f,i)=>f.lvl||i<10);
+function renderRisk(){const{fa,F,ov,g,tv,mx}=S,shown=F.filter((f,i)=>f.lvl||i<10);
  $('t2').innerHTML=`<div class="badge" style="background:${COL[ov]}">${HEAD[ov]}</div><p class="mu">${tv.replace('T',' ')} · ${(g.area/1e4).toFixed(2)} ha</p>
  <div class="card">${fa.map(f=>`<div class="row"><i style="background:${COL[f.l]}"></i><div><b>${f.n}</b> <span class="mu">${esc(f.v)}</span><small>${esc(f.c)}</small></div><em style="color:${COL[f.l]}">${LV[f.l]}</em></div>`).join('')}</div>
+ <h3>5×5 Risk Matrix (Likelihood × Severity)</h3>
+ <div class="card">${renderMatrixHTML(mx)}</div>
  <h3>Nearest airspace &amp; sensitive areas</h3><div class="card">${shown.length?shown.map(f=>`<div class="row f" data-i="${F.indexOf(f)}"><i style="background:${f.k.c}"></i><div><b>${esc(f.n)}</b><small>${esc(f.k.n)}${f.atz?' · ATZ/FRZ r '+(f.atz/1000).toFixed(1)+' km (indicative)':''}</small></div><em>${esc(fmtProx(f,f.d))}</em></div>`).join(''):'<span class="mu">Nothing mapped in range.</span>'}</div>
- <button id="vm" class="pri">🗺 View on map</button><button id="vs" class="pri" style="background:var(--card);color:var(--ac);border:1px solid var(--ac)">📄 Method statement</button>`;
+ <button id="vm" class="pri">🗺 View on map</button><button id="vs" class="pri" style="background:var(--card);color:var(--ac);border:1px solid var(--ac)">📄 Method statement / PDF</button>`;
  $('vm').onclick=()=>{show_(1);const bounds=fl.getBounds().isValid()?fl.getBounds().extend(poly.getBounds()):poly.getBounds();if(bounds.isValid())map.fitBounds(bounds.pad(.1))};$('vs').onclick=()=>show_(3);
- document.querySelectorAll('#t2 .f').forEach(r=>r.onclick=()=>{const f=F[r.dataset.i];show_(1);map.setView([f.cl,f.co],15)})}
+ document.querySelectorAll('#t2 .f').forEach(r=>r.onclick=()=>{
+  const f=F[r.dataset.i];show_(1);
+  if(f.rings&&f.rings.length)map.fitBounds(L.polygon(f.rings).getBounds().pad(.25),{maxZoom:15});
+  else map.setView([f.cl,f.co],15);
+ })}
 const show_=n=>{show(n)};
 
 const PRE=['Landowner / site permission obtained; Operator ID displayed; Flyer ID and insurance valid','Airspace, NOTAMs and restrictions re-checked on the day on official sources','Aircraft, props, gimbal and battery condition checked; firmware current','Batteries charged and warm; return-to-home height set above tallest obstacle','GNSS lock with good satellite count, home point recorded, compass OK','Take-off/landing area clear; uninvolved people kept away; observer briefed if used','Stop and re-assess if conditions change'],
 EM=['Lost link / GNSS: let RTH run or take manual control; land at once if people or property are at risk','Low battery: return and land at the set threshold (e.g. 30%) — never push for extra footage','Manned aircraft approaching: descend/land immediately and give way','Fly-away / lost aircraft: note last position and time; inform the aerodrome/ATC if nearby; search without trespassing','Injury or damage: stop flying, make safe, give first aid, call 999 if needed; report as required by the CAA and notify insurer','Battery damage/fire: keep clear, avoid fumes, call 999 if it cannot be contained'];
-function renderMS(){const{g,tv,W,K,F,fa,ov}=S,v=id=>$(id).value.trim()||'—',rated=+$('wind').value||24,c=g.o.map(x=>x.toFixed(5)).join(', ');
- const sec=[['Operation',[`Date / time: ${tv.replace('T',' ')} (local)`,`Pilot: ${v('pn')}`,`Flyer ID / Operator ID: ${v('ids')}`,`Aircraft: ${v('ac')} · ${v('cls')} · rated wind ${rated} mph`,`Purpose: ${v('pur')}`,`Maximum altitude: ${v('alt')} m AGL`]],
- ['Site',[`Centre: ${c}`,`Area ${(g.area/1e4).toFixed(2)} ha · perimeter ${R(g.per)} m · max span ${R(g.span)} m`,'Corners:',...pts.map((p,i)=>`  ${i+1}. ${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}`)]],
- ['Conditions at flight time',fa.filter(f=>/Wind|Gusts|Precip|Visib|Temp|Daylight|Geo/.test(f.n)).map(f=>`${f.n}: ${f.v} [${LV[f.l]}]`)],
- ['Airspace & sensitive areas',(S.E?(F.length?F.filter((f,i)=>f.lvl||i<8).map(f=>`• ${f.n} (${f.k.n}): ${fmtProx(f,f.d)}${f.atz?` — ATZ/FRZ r ${(f.atz/1000).toFixed(1)} km indicative, ${f.ex<=0?'INSIDE':fmt(f.ex)+' '+f.dir+' outside'}`:''}`):['None mapped within search range']):['Data unavailable — check manually']).concat('Official airspace maps and NOTAMs must be checked before flight.')],
- ['Risk assessment — overall: '+HEAD[ov],fa.map(f=>`• ${f.n}: ${f.v} [${LV[f.l]}] — ${f.c}`)],
- ['Go / no-go criteria',[`Sustained wind at altitude ≤ ${(rated*.7).toFixed(0)} mph; abort if gusts ≥ ${(rated*.8).toFixed(0)} mph`,'No flight in rain; visibility ≥ 3 km with VLOS maintained','Kp ≥ 5: fly only if GNSS/compass stable and confident in manual control; Kp ≥ 7: no-go','Unresolved airspace permission or restricted-site proximity: no-go','Daylight only unless night procedures are in place']],
- ['Pre-flight checks',PRE.map(x=>'☐ '+x)],['Emergency procedures',EM.map(x=>'• '+x)],
- ['Sign-off',['Pilot: ____________________   Date: ____________','Observer: __________________   Time: ____________']]];
- S.text='DRONE FLIGHT METHOD STATEMENT / RISK ASSESSMENT\n\n'+sec.map(([h,l])=>h.toUpperCase()+'\n'+l.join('\n')).join('\n\n')+'\n\nGenerated by Drone Flight Planner — decision support only; verify with official sources.';
- const m=$('ms');m.innerHTML='';const h1=document.createElement('h3');h1.textContent='Drone Flight Method Statement / Risk Assessment';m.append(h1);
- sec.forEach(([h,l])=>{const e=document.createElement('h3');e.textContent=h;m.append(e);l.forEach(x=>{const p=document.createElement('p');p.textContent=x;m.append(p)})});
- $('mb').style.display='flex'}
+
+function renderMS(){
+ const{g,tv,F,fa,ov,mx}=S,v=id=>$(id).value.trim()||'—',rated=+$('wind').value||24,c=g.o.map(x=>x.toFixed(5)).join(', ');
+ const zoneRows=S.E?(F.length?F.filter((f,i)=>f.lvl||i<8).map(f=>`<tr><td><b>${esc(f.n)}</b></td><td>${esc(f.k.n)}</td><td>${esc(fmtProx(f,f.d))}</td><td>${f.atz?`ATZ/FRZ r ${(f.atz/1000).toFixed(1)} km (${f.ex<=0?'INSIDE':fmt(f.ex)+' '+f.dir+' outside'})`:f.bufR?`Buffer ${fmt(f.bufR)}`:'—'}</td></tr>`).join(''):'<tr><td colspan="4">None mapped within search range</td></tr>'):'<tr><td colspan="4">Data unavailable — verify manually</td></tr>';
+
+ $('ms').innerHTML=`<div class="ms-doc">
+  <div class="ms-hero">
+   <h2>UAS Flight Method Statement &amp; Risk Assessment</h2>
+   <div class="sub">Wales Operational Area · ${esc(tv.replace('T',' '))} (Local) · Centre ${c}</div>
+   <div class="ms-status" style="background:${COL[ov]}">${HEAD[ov]}</div>
+  </div>
+  <div class="ms-body">
+   <div class="ms-sec">
+    <h4>1. Operation &amp; Site Details</h4>
+    <div class="ms-kv">
+     <div><b>Pilot:</b> ${esc(v('pn'))}</div>
+     <div><b>Flyer / Op ID:</b> ${esc(v('ids'))}</div>
+     <div><b>Aircraft:</b> ${esc(v('ac'))} (${esc(v('cls'))})</div>
+     <div><b>Wind Limit:</b> ${rated} mph rated</div>
+     <div><b>Purpose:</b> ${esc(v('pur'))}</div>
+     <div><b>Max Altitude:</b> ${esc(v('alt'))} m AGL</div>
+     <div><b>Area / Span:</b> ${(g.area/1e4).toFixed(2)} ha · ${R(g.span)} m span</div>
+     <div><b>Perimeter:</b> ${R(g.per)} m (${pts.length} vertices)</div>
+    </div>
+   </div>
+
+   <div class="ms-sec">
+    <h4>2. Flight Area &amp; Airspace Overview Map</h4>
+    <div class="ms-map-box">
+     ${renderStaticMapSVG(g,F)}
+     <div class="ms-map-cap">
+      <span><strong style="color:#0b6bcb">■</strong> Planned Flight Area (${pts.map((p,i)=>`P${i+1}: ${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}`).join(' · ')})</span>
+      <span><strong style="color:#c62828">◌</strong> Indicative ATZ/FRZ &amp; Hazard Polygons</span>
+     </div>
+    </div>
+   </div>
+
+   <div class="ms-sec">
+    <h4>3. Nearest Airspace &amp; Sensitive Areas (Wales OSM Data)</h4>
+    <table class="ms-tbl">
+     <thead><tr><th>Site Name</th><th>Category</th><th>Proximity</th><th>Zone / Buffer</th></tr></thead>
+     <tbody>${zoneRows}</tbody>
+    </table>
+   </div>
+
+   <div class="ms-sec">
+    <h4>4. 5×5 Risk Matrix</h4>
+    ${renderMatrixHTML(mx)}
+   </div>
+
+   <div class="ms-sec">
+    <h4>5. Factor Assessment &amp; Mitigations</h4>
+    <table class="ms-tbl">
+     <thead><tr><th>Factor</th><th>Observation</th><th>L×S</th><th>Rating</th><th>Control / Mitigation</th></tr></thead>
+     <tbody>${mx.map(f=>`<tr><td><b>${esc(f.n)}</b></td><td>${esc(f.v)}</td><td>${f.L}×${f.S} (${f.score})</td><td><span class="pill-lv" style="background:${COL[f.l]}">${LV[f.l]}</span></td><td>${esc(f.c)}</td></tr>`).join('')}</tbody>
+    </table>
+   </div>
+
+   <div class="ms-sec">
+    <h4>6. Go / No-Go Limits &amp; Pre-Flight Checklist</h4>
+    <ul class="ms-list">
+     <li><b>Weather Limits:</b> Sustained wind ≤ ${(rated*.7).toFixed(0)} mph; gusts &lt; ${(rated*.8).toFixed(0)} mph; no rain; visibility ≥ 3 km with unaided VLOS.</li>
+     <li><b>Geomagnetic / Airspace:</b> Kp &lt; 5 (no-go ≥ 7); valid aerodrome/FRZ permission and NOTAM check prior to launch.</li>
+     ${PRE.map(x=>`<li>☐ ${esc(x)}</li>`).join('')}
+    </ul>
+   </div>
+
+   <div class="ms-sec">
+    <h4>7. Emergency Procedures &amp; Pilot Sign-Off</h4>
+    <ul class="ms-list">${EM.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
+    <div class="ms-sign">
+     <div><b>Pilot Signature:</b> _______________________<br><br><b>Date / Time:</b> _________________________</div>
+     <div><b>Observer / Spotter:</b> ____________________<br><br><b>Site Briefing Complete:</b> ☐ Yes &nbsp; ☐ N/A</div>
+    </div>
+   </div>
+  </div>
+ </div>`;
+
+ S.text=`UAS FLIGHT METHOD STATEMENT & RISK ASSESSMENT\nOverall: ${HEAD[ov]}\nDate/Time: ${tv.replace('T',' ')} | Centre: ${c} | Area: ${(g.area/1e4).toFixed(2)} ha\n\nFACTORS:\n`+mx.map(f=>`- ${f.n}: ${f.v} [L${f.L}xS${f.S}=${f.score}, ${LV[f.l]}] -> ${f.c}`).join('\n');
+ $('mb').style.display='flex';
+}
+
 $('cp').onclick=async()=>{try{await navigator.clipboard.writeText(S.text);$('cp').textContent='✓ Copied'}catch(e){prompt('Copy:',S.text)}};
 $('pr').onclick=()=>print();
 $('rz').onclick=()=>loadPreviewZones();
 stat();
-loadPreviewZones([52.5,-1.5]);
+loadPreviewZones([52.35,-3.75]);
 </script></body></html>
 

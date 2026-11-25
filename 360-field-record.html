@@ -1110,6 +1110,24 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
   .export-image-actions{grid-template-columns:1fr;}
   .export-image-row{grid-template-columns:minmax(0,1fr) 58px 82px;}
 }
+
+  /* Local privacy-redaction tools */
+  .privacy-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px;}
+  .privacy-controls select{min-width:180px;max-width:100%;background:var(--stone-2);border:1px solid var(--rule);color:var(--parchment);padding:8px 10px;border-radius:5px;}
+  .privacy-modal{width:min(1050px,96vw);padding:0;display:flex;flex-direction:column;max-height:94vh;overflow:hidden;}
+  .privacy-modal-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--rule);}
+  .privacy-modal-body{padding:14px 18px;overflow:auto;min-height:0;}
+  .privacy-stage{position:relative;display:inline-block;max-width:100%;line-height:0;background:#101418;}
+  .privacy-stage img{display:block;max-width:100%;max-height:62vh;width:auto;height:auto;object-fit:contain;}
+  .privacy-stage canvas{position:absolute;left:0;top:0;touch-action:none;cursor:crosshair;}
+  .privacy-toolbar{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin:10px 0;}
+  .privacy-toolbar .active{border-color:var(--moss);color:#fff;background:#34423b;}
+  .privacy-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 18px;border-top:1px solid var(--rule);}
+  .privacy-note{font-size:11px;line-height:1.45;color:var(--parchment-dim);}
+  .privacy-progress{height:5px;background:#30373d;border-radius:5px;overflow:hidden;margin-top:8px;}
+  .privacy-progress>span{display:block;height:100%;width:0;background:var(--moss);transition:width .15s;}
+  @media(max-width:700px){.privacy-modal{max-height:96vh}.privacy-modal-body{padding:10px}.privacy-foot{padding:10px}.privacy-stage img{max-height:55vh}}
+
 </style>
 </head>
 <body>
@@ -1129,6 +1147,7 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
     <span id="meta-orientation">Pitch / Heading<b>N/A</b></span>
     <span id="meta-alt">Altitude<b>N/A</b></span>
     <span id="meta-coords">Coordinates<b>N/A</b></span>
+    <span id="meta-river">Nearest main river<b>Not matched</b></span>
   </div>
 </header>
 
@@ -1368,47 +1387,58 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
         <div class="export-status" id="correctedExportProgress">Ready.</div>
       </section>
 
-      <section class="export-section" id="advancedRiverExportSection">
+
+      <section class="export-section" id="advancedToolsSection">
         <div class="export-section-head">
-          <div>
-            <div class="export-section-title">Advanced export · group by nearby river</div>
+          <div class="export-section-title">Advanced tools</div>
+        </div>
+
+        <section class="export-section" id="privacyRedactionSection">
+          <div class="export-section-head"><div><div class="export-section-title">Privacy redaction</div><div class="export-count">Detect faces and number plates, then review or add manual masks.</div></div></div>
+          <div class="privacy-note">Detection runs on this device. The detector model is downloaded on first use; your images are not uploaded. Review results before sharing.</div>
+          <div class="privacy-controls">
+            <select id="privacyDateSelect" aria-label="Survey date to process"><option value="all">All loaded images</option></select>
+            <button type="button" id="privacyBatchDetectBtn" class="upload-btn">Detect &amp; blur date</button>
+            <button type="button" id="privacyEditCurrentBtn" class="upload-btn secondary">Review / manual masks</button>
+            <button type="button" id="privacyCancelBatchBtn" class="upload-btn secondary" style="display:none;">Cancel</button>
           </div>
-        </div>
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-          <button type="button" id="exportByRiverBtn" class="upload-btn">Export images grouped by river (ZIP)</button>
-          <span id="riverExportStatus" class="export-status" aria-live="polite">Ready.</span>
-        </div>
-      </section>
+          <div class="export-status" id="privacyBatchStatus" aria-live="polite">No privacy processing run yet.</div>
+          <div class="privacy-progress" id="privacyBatchProgress" style="display:none;"><span id="privacyBatchProgressBar"></span></div>
+        </section>
 
-      <section class="export-section">
-        <div class="export-section-title">Field record HTML</div>
-
-        <div class="form-group" style="margin-top:12px;">
-          <label for="exportFilename">Output Filename</label>
-          <input type="text" id="exportFilename" value="Field_Record_360.html">
-        </div>
-
-        <div class="form-group">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <label for="exportScaleSlider">Image Scale Percentage</label>
-            <span id="scaleValLabel" style="font-family:Arial,Helvetica,sans-serif; font-size:11px; color:var(--moss); font-weight:600;">100%</span>
+        <section class="export-section" id="advancedRiverExportSection">
+          <div class="export-section-head"><div class="export-section-title">River export</div></div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <button type="button" id="exportByRiverBtn" class="upload-btn">Export images grouped by river (ZIP)</button>
+            <span id="riverExportStatus" class="export-status" aria-live="polite">Ready.</span>
           </div>
-          <input type="range" id="exportScaleSlider" min="15" max="100" step="5" value="100" oninput="updateExportEstimateUI()">
-        </div>
+        </section>
 
-        <div class="checkbox-group">
-          <input type="checkbox" id="exportKeepAnnotations" checked>
-          <label for="exportKeepAnnotations">Retain annotations</label>
-        </div>
-
-        <div style="margin-top:12px; padding:9px 10px; background:#20252a; border:1px solid var(--rule); border-radius:5px; font-size:11px; color:var(--parchment-dim);">
-          Estimated size: <b id="estSizeText" style="color:var(--moss);">Calculating...</b>
-        </div>
-
-        <div class="export-html-actions">
-          <button id="cancelExportConfigBtn" class="upload-btn secondary">Cancel</button>
-          <button id="confirmExportConfigBtn" class="upload-btn">Generate HTML</button>
-        </div>
+        <section class="export-section" id="fieldRecordHtmlExportSection">
+          <div class="export-section-title">Field record HTML</div>
+          <div class="form-group" style="margin-top:12px;">
+            <label for="exportFilename">Output Filename</label>
+            <input type="text" id="exportFilename" value="Field_Record_360.html">
+          </div>
+          <div class="form-group">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <label for="exportScaleSlider">Image Scale Percentage</label>
+              <span id="scaleValLabel" style="font-family:Arial,Helvetica,sans-serif; font-size:11px; color:var(--moss); font-weight:600;">100%</span>
+            </div>
+            <input type="range" id="exportScaleSlider" min="15" max="100" step="5" value="100" oninput="updateExportEstimateUI()">
+          </div>
+          <div class="checkbox-group">
+            <input type="checkbox" id="exportKeepAnnotations" checked>
+            <label for="exportKeepAnnotations">Retain annotations</label>
+          </div>
+          <div style="margin-top:12px; padding:9px 10px; background:#20252a; border:1px solid var(--rule); border-radius:5px; font-size:11px; color:var(--parchment-dim);">
+            Estimated size: <b id="estSizeText" style="color:var(--moss);">Calculating...</b>
+          </div>
+          <div class="export-html-actions">
+            <button id="cancelExportConfigBtn" class="upload-btn secondary">Cancel</button>
+            <button id="confirmExportConfigBtn" class="upload-btn">Generate HTML</button>
+          </div>
+        </section>
       </section>
     </div>
 
@@ -1684,6 +1714,32 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
   </div>
 </div>
 
+
+<!-- Local privacy redaction editor -->
+<div id="privacyEditorModal" class="modal-overlay" style="display:none;">
+  <div class="modal-content privacy-modal">
+    <div class="privacy-modal-head"><h3 style="margin:0;">Privacy review &amp; manual masks</h3><button type="button" id="privacyEditorClose" class="note-mini-btn" title="Close">✕</button></div>
+    <div class="privacy-modal-body">
+      <div class="form-group" style="margin-bottom:8px;"><label for="privacyImageSelect">Image</label><select id="privacyImageSelect"></select></div>
+      <div class="privacy-note" id="privacyReviewProgress" style="margin-bottom:8px;">Review queue</div>
+      <div class="privacy-note">Select a detected area to remove it, or draw a rectangle / polygon around anything missed. Apply changes to generate a locally stored redacted copy.</div>
+      <div class="privacy-toolbar">
+        <button type="button" class="anno-action-btn active" id="privacySelectMode">Select</button>
+        <button type="button" class="anno-action-btn" id="privacyRectMode">Draw rectangle</button>
+        <button type="button" class="anno-action-btn" id="privacyPolyMode">Draw polygon</button>
+        <button type="button" class="anno-action-btn" id="privacyFinishPolygon">Finish polygon</button>
+        <button type="button" class="anno-action-btn" id="privacyRemoveMask">Remove selected</button>
+        <button type="button" class="anno-action-btn" id="privacyClearMasks">Clear all</button>
+      </div>
+      <div style="text-align:center;overflow:auto;background:#101418;border:1px solid var(--rule);border-radius:5px;padding:8px;">
+        <div class="privacy-stage" id="privacyStage"><img id="privacyEditorImage" alt="Image privacy review"><canvas id="privacyEditorCanvas"></canvas></div>
+      </div>
+      <div class="privacy-note" id="privacyEditorStatus" style="margin-top:8px;">No masks on this image.</div>
+    </div>
+    <div class="privacy-foot"><span class="privacy-note">Original image retained locally; redacted copy used for viewing and export.</span><div style="display:flex;gap:8px;"><button type="button" id="privacyEditorCancel" class="upload-btn secondary">Close</button><button type="button" id="privacyApplyBtn" class="upload-btn">Apply &amp; next image</button></div></div>
+  </div>
+</div>
+
 <script>
   const SAVED_PROJECT_TITLE = "";
   const SAVED_BASE_NODES = [];
@@ -1695,6 +1751,7 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
 
   let projectTitle = "360° Field Record";
   let nodes = [];
+  function getNodeDisplayUrl(node) { return node && (node.privacyRedactedDataUrl || node.previewUrl || node.url); }
   // Browser-local dataset persistence. Images are stored as data URLs in IndexedDB,
   // avoiding localStorage's small quota and keeping the project available after refresh.
   const DATASET_DB_NAME = 'field-record-360-datasets';
@@ -3222,7 +3279,7 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
 
       const viewer = pannellum.viewer(`panorama-${targetPrefix}`, {
         type: 'equirectangular',
-        panorama: node.url,
+        panorama: getNodeDisplayUrl(node),
         autoLoad: true,
         compass: false,
         showZoomCtrl: true,
@@ -3273,7 +3330,7 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
       panoEl.style.display = 'none';
       panoEl.innerHTML = '';
       flatEl.onload = () => { applyFlatTransform(targetPrefix); renderAllPins(targetPrefix); };
-      flatEl.src = node.previewUrl || node.url;
+      flatEl.src = getNodeDisplayUrl(node);
       flatEl.style.display = 'block';
       applyFlatTransform(targetPrefix);
     }
@@ -3421,6 +3478,9 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
     if (!nodeData.dateKey) nodeData.dateKey = 'undated';
     if (!nodeData.dateKeyLabel) nodeData.dateKeyLabel = prettifyDateKey(nodeData.dateKey);
     nodeData.annotations = nodeData.annotations || [];
+    nodeData.privacyMasks = Array.isArray(nodeData.privacyMasks) ? nodeData.privacyMasks : [];
+    nodeData.privacyRedactionPending = !!nodeData.privacyRedactionPending;
+    nodeData.privacyReviewed = !!nodeData.privacyReviewed;
     nodeData.metadataDirty = !!nodeData.metadataDirty;
     nodeData.sourceFileName = nodeData.sourceFileName || nodeData.originalName || ((nodeData.title || 'image') + (nodeData.is360 ? '.jpg' : '.jpg'));
     nodeData.sourceMimeType = nodeData.sourceMimeType || inferMimeFromName(nodeData.sourceFileName);
@@ -3491,6 +3551,9 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
     document.getElementById('meta-date').innerHTML = `Captured<b>${escapeHtml(primary.date)}</b>`;
     document.getElementById('meta-alt').innerHTML = `Altitude<b>${escapeHtml(primary.alt)}</b>`;
     document.getElementById('meta-coords').innerHTML = `Coordinates<b>${Math.abs(primary.lat).toFixed(4)}°, ${Math.abs(primary.lon).toFixed(4)}°</b>`;
+    const riverLabel = primary.mainRiverName || (primary.hasGps ? 'Not matched' : 'No GPS');
+    const riverDistance = primary.mainRiverDistanceM != null && Number.isFinite(Number(primary.mainRiverDistanceM)) ? ` · ${(Number(primary.mainRiverDistanceM)/1000).toFixed(1)} km` : '';
+    document.getElementById('meta-river').innerHTML = `Nearest main river<b>${escapeHtml(riverLabel)}${riverLabel !== 'Not matched' && riverLabel !== 'No GPS' ? riverDistance : ''}</b>`;
 
     const pitchText = (typeof primary.pitch === 'number') ? `${Math.round(primary.pitch)}°` : 'N/A';
     const yawText = primary.hasHeading ? `${Math.round(primary.heading)}°` : 'N/A';
@@ -3716,6 +3779,7 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
     if (!files.length) return;
 
     this.disabled = true;
+    const firstNewNodeIndex = nodes.length;
     try {
       for (let i = 0; i < files.length; i++) {
         showToast(`Loading image ${i + 1} of ${files.length}…`, 1600);
@@ -3724,6 +3788,17 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
         } catch (err) {
           console.error(err);
           alert(`Could not load ${files[i].name}. ${err.message || ''}`);
+        }
+      }
+      const newlyUploaded = nodes.slice(firstNewNodeIndex);
+      if (newlyUploaded.length) {
+        try {
+          showToast('Matching uploaded images to nearby rivers…', 1800);
+          const result = await matchUploadedImagesToRivers(newlyUploaded);
+          showToast(`River matching complete · ${result.matched} of ${result.total} GPS images matched.`, 3200);
+        } catch (riverErr) {
+          console.warn('Automatic river matching unavailable:', riverErr);
+          showToast('Images uploaded; automatic river matching was unavailable. You can retry with river export.', 4200);
         }
       }
     } finally {
@@ -4531,7 +4606,10 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
   }
 
   async function prepareCorrectedExport(node) {
-    const { bytes, converted } = await getJpegBytesForNode(node);
+    if (node.privacyRedactionPending || ((node.privacyMasks || []).length && !node.privacyRedactedDataUrl)) await generatePrivacyRedactedPreview(node);
+    const { bytes, converted } = node.privacyRedactedDataUrl
+      ? { bytes: dataUrlToBytes(node.privacyRedactedDataUrl), converted: true }
+      : await getJpegBytesForNode(node);
     const edits = buildExifEdits(node);
     const out = writeJpegMetadata(bytes, node, edits);
     verifyExif(out, node, edits);
@@ -4553,23 +4631,25 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
   /* ---------- Advanced export: nearest river grouping ---------- */
   const RIVER_LAYER_WFS = 'https://datamap.gov.wales/geoserver/ows';
   const RIVER_LAYER_TYPE = 'inspire-nrw:NRW_MAIN_RIVERS';
-  let mainRiversGeoJsonPromise = null;
+  const mainRiversGeoJsonCache = new Map();
   function safeFolderName(value) { return safeFilename(String(value || 'Unmatched').replace(/[\\/:*?"<>|]/g, '-')).replace(/\s+/g, '_') || 'Unmatched'; }
   async function loadMainRiversGeoJson(bounds) {
-    if (mainRiversGeoJsonPromise) return mainRiversGeoJsonPromise;
     const [minLon, minLat, maxLon, maxLat] = bounds;
+    const cacheKey = bounds.map(v => Number(v).toFixed(4)).join(',');
+    if (mainRiversGeoJsonCache.has(cacheKey)) return mainRiversGeoJsonCache.get(cacheKey);
     const params = new URLSearchParams({
       service: 'WFS', version: '1.0.0', request: 'GetFeature', typeName: RIVER_LAYER_TYPE,
       outputFormat: 'application/json', srsName: 'EPSG:4326', maxFeatures: '10000',
       bbox: `${minLon},${minLat},${maxLon},${maxLat},EPSG:4326`
     });
-    mainRiversGeoJsonPromise = fetch(`${RIVER_LAYER_WFS}?${params.toString()}`).then(async response => {
+    const request = fetch(`${RIVER_LAYER_WFS}?${params.toString()}`).then(async response => {
       if (!response.ok) throw new Error(`River data service returned HTTP ${response.status}.`);
       const data = await response.json();
       if (!data || !Array.isArray(data.features)) throw new Error('The Main Rivers service did not return GeoJSON features.');
       return data;
-    }).catch(err => { mainRiversGeoJsonPromise = null; throw err; });
-    return mainRiversGeoJsonPromise;
+    }).catch(err => { mainRiversGeoJsonCache.delete(cacheKey); throw err; });
+    mainRiversGeoJsonCache.set(cacheKey, request);
+    return request;
   }
   function pointSegmentDistanceMeters(lat, lon, a, b) {
     const cos = Math.cos(lat * Math.PI / 180), mx = 111320 * cos, my = 110574;
@@ -4594,6 +4674,28 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
       else if (g.type === 'MultiLineString') g.coordinates.forEach(line => inspectLine(line, props));
     });
     return best;
+  }
+  async function matchUploadedImagesToRivers(uploadedNodes) {
+    const located = (uploadedNodes || []).filter(n => n.hasGps && Number.isFinite(Number(n.lat)) && Number.isFinite(Number(n.lon)) && (Number(n.lat) || Number(n.lon)));
+    if (!located.length) return { matched: 0, total: (uploadedNodes || []).length };
+    const lats = located.map(n => Number(n.lat)), lons = located.map(n => Number(n.lon)), pad = 0.12;
+    const data = await loadMainRiversGeoJson([Math.min(...lons)-pad, Math.min(...lats)-pad, Math.max(...lons)+pad, Math.max(...lats)+pad]);
+    let matched = 0;
+    (uploadedNodes || []).forEach(n => {
+      if (!n.hasGps) { n.mainRiverName = null; n.mainRiverDistanceM = null; return; }
+      const nearest = nearestPointOnRiver(Number(n.lat), Number(n.lon), data.features);
+      const hit = nearest && nearest.distance <= 15000 ? nearest : null;
+      n.mainRiverName = hit ? hit.name : null;
+      n.mainRiverDistanceM = hit ? Math.round(hit.distance) : null;
+      n.mainRiverFeatureId = hit ? hit.id : null;
+      n.mainRiverMatchedAt = new Date().toISOString();
+      if (hit) matched++;
+    });
+    for (const key of new Set((uploadedNodes || []).map(n => n.dateKey || 'undated'))) {
+      if (savedDatasetKeys.has(key)) await persistDataset(key);
+    }
+    if (nodes.some(n => n.id === selectedNodeId)) updateMetaPanels();
+    return { matched, total: located.length };
   }
   document.getElementById('exportByRiverBtn').addEventListener('click', async () => {
     const btn = document.getElementById('exportByRiverBtn'), status = document.getElementById('riverExportStatus');
@@ -4646,7 +4748,316 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
     } finally { btn.disabled = false; }
   });
 
+  /* ---------- Local privacy redaction: faces, plates and manual masks ---------- */
+  const PRIVACY_MODEL_URL = 'https://huggingface.co/ordnaryai/meridian-blur/resolve/main/meridian-blur-1-int8.onnx';
+  const PRIVACY_ORT_URL = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.min.js';
+  const PRIVACY_ORT_WASM = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/';
+  let privacyWorker = null, privacyWorkerObjectUrl = null, privacyWorkerReady = null;
+  let privacyWorkerSequence = 0;
+  const privacyWorkerJobs = new Map();
+  let privacyBatchCancelled = false;
+  let privacyEditorNodeId = null;
+  let privacyReviewQueue = [];
+  let privacyDrawMode = 'select';
+  let privacySelectedMaskId = null;
+  let privacyDragStart = null;
+  let privacyDraftPoint = null;
+  let privacyPolygonPoints = [];
+
+  function privacyWorkerSource() {
+    return `
+      importScripts('${PRIVACY_ORT_URL}');
+      ort.env.wasm.wasmPaths = '${PRIVACY_ORT_WASM}';
+      ort.env.wasm.numThreads = 1;
+      let session = null;
+      const MODEL_URL = '${PRIVACY_MODEL_URL}';
+      const INPUT_SIZE = 640, TILE = 960, OVERLAP = 160, THRESHOLD = 0.30;
+      const MEAN = [0.485,0.456,0.406], STD = [0.229,0.224,0.225];
+      function sigmoid(x){ return 1/(1+Math.exp(-Math.max(-88,Math.min(88,x)))); }
+      function windows(w,h){
+        const out=[[0,0,w,h]]; if(Math.max(w,h)<=TILE) return out;
+        const step=TILE-OVERLAP, tw=Math.min(TILE,w), th=Math.min(TILE,h);
+        for(let y=0;y<Math.max(1,h-OVERLAP);y+=step) for(let x=0;x<Math.max(1,w-OVERLAP);x+=step){
+          const win=[Math.min(x,w-tw),Math.min(y,h-th),tw,th];
+          if(!out.some(a=>a.every((v,i)=>v===win[i]))) out.push(win);
+        }
+        return out;
+      }
+      function iou(a,b){const iw=Math.max(0,Math.min(a.x1,b.x1)-Math.max(a.x0,b.x0));const ih=Math.max(0,Math.min(a.y1,b.y1)-Math.max(a.y0,b.y0));const inter=iw*ih;const union=(a.x1-a.x0)*(a.y1-a.y0)+(b.x1-b.x0)*(b.y1-b.y0)-inter;return union?inter/union:0;}
+      function nms(items){const kept=[];items.sort((a,b)=>b.score-a.score);for(const d of items){if(kept.every(k=>k.kind!==d.kind||iou(k,d)<0.4))kept.push(d);}return kept;}
+      async function init(){
+        self.postMessage({type:'status',message:'Downloading local detection model (about 38 MB)…'});
+        const response=await fetch(MODEL_URL);
+        if(!response.ok) throw new Error('Could not download the detection model (HTTP '+response.status+').');
+        const total=Number(response.headers.get('content-length'))||0;
+        let buf;
+        if(response.body && response.body.getReader){
+          const reader=response.body.getReader(), chunks=[];let received=0;
+          while(true){const r=await reader.read();if(r.done)break;chunks.push(r.value);received+=r.value.length;self.postMessage({type:'modelprogress',loaded:received,total});}
+          const all=new Uint8Array(received);let off=0;for(const c of chunks){all.set(c,off);off+=c.length;}buf=all.buffer;
+        } else buf=await response.arrayBuffer();
+        session=await ort.InferenceSession.create(buf,{executionProviders:['wasm'],graphOptimizationLevel:'all'});
+        self.postMessage({type:'ready'});
+      }
+      async function detect(bitmap,jobId){
+        const w=bitmap.width,h=bitmap.height, wins=windows(w,h), found=[];
+        const canvas=new OffscreenCanvas(INPUT_SIZE,INPUT_SIZE),ctx=canvas.getContext('2d',{willReadFrequently:true});
+        const inputName=session.inputNames[0];
+        const detName=session.outputNames.find(n=>n.toLowerCase().includes('det'))||session.outputNames[0];
+        const labelName=session.outputNames.find(n=>n!==detName)||session.outputNames[1];
+        for(let wi=0;wi<wins.length;wi++){
+          const [x,y,tw,th]=wins[wi];
+          ctx.clearRect(0,0,INPUT_SIZE,INPUT_SIZE);ctx.drawImage(bitmap,x,y,tw,th,0,0,INPUT_SIZE,INPUT_SIZE);
+          const rgba=ctx.getImageData(0,0,INPUT_SIZE,INPUT_SIZE).data;
+          const plane=INPUT_SIZE*INPUT_SIZE, input=new Float32Array(plane*3);
+          for(let p=0;p<plane;p++){const q=p*4;input[p]=(rgba[q]/255-MEAN[0])/STD[0];input[plane+p]=(rgba[q+1]/255-MEAN[1])/STD[1];input[2*plane+p]=(rgba[q+2]/255-MEAN[2])/STD[2];}
+          const tensor=new ort.Tensor('float32',input,[1,3,INPUT_SIZE,INPUT_SIZE]);
+          const output=await session.run({[inputName]:tensor});
+          const boxes=output[detName].data, logits=output[labelName].data;
+          const boxCount=Math.floor(boxes.length/4), classCount=Math.floor(logits.length/boxCount);
+          const candidates=[];
+          for(let q=0;q<boxCount;q++) for(let c=0;c<Math.min(2,classCount);c++){
+            const score=sigmoid(logits[q*classCount+c]); if(score<THRESHOLD)continue;
+            const cx=boxes[q*4],cy=boxes[q*4+1],bw=boxes[q*4+2],bh=boxes[q*4+3];
+            const x0=Math.max(0,(cx-bw/2)*tw),y0=Math.max(0,(cy-bh/2)*th),x1=Math.min(tw,(cx+bw/2)*tw),y1=Math.min(th,(cy+bh/2)*th);
+            if(x1>x0&&y1>y0)candidates.push({kind:c===0?'face':'plate',x0:x+x0,y0:y+y0,x1:x+x1,y1:y+y1,score});
+          }
+          found.push(...candidates);
+          self.postMessage({type:'progress',jobId,done:wi+1,total:wins.length});
+        }
+        bitmap.close();
+        return nms(found);
+      }
+      self.onmessage=async e=>{
+        const d=e.data||{};
+        try{
+          if(d.type==='init'){await init();return;}
+          if(d.type==='detect'){const boxes=await detect(d.bitmap,d.jobId);self.postMessage({type:'result',jobId:d.jobId,boxes});}
+        }catch(err){self.postMessage({type:'error',jobId:d.jobId,message:err&&err.message?err.message:String(err)});}
+      };
+    `;
+  }
+
+  function ensurePrivacyWorker() {
+    if (privacyWorker && privacyWorkerReady) return privacyWorkerReady;
+    privacyWorkerObjectUrl = URL.createObjectURL(new Blob([privacyWorkerSource()], { type: 'text/javascript' }));
+    privacyWorker = new Worker(privacyWorkerObjectUrl);
+    privacyWorkerReady = new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('The privacy detector did not initialise in time.')), 180000);
+      privacyWorker.onmessage = e => {
+        const d=e.data||{};
+        if (d.type==='ready') { clearTimeout(timeout); resolve(); return; }
+        if (d.type==='error' && (d.jobId === undefined || d.jobId === null)) { clearTimeout(timeout); reject(new Error(d.message || 'Could not initialise privacy detector.')); return; }
+        if (d.type==='status') { document.getElementById('privacyBatchStatus').textContent=d.message; return; }
+        if (d.type==='modelprogress') { const mb=(d.loaded/1048576).toFixed(1); const total=d.total?` / ${(d.total/1048576).toFixed(1)} MB`:''; document.getElementById('privacyBatchStatus').textContent=`Downloading detection model: ${mb} MB${total}`; return; }
+        if (d.type==='progress') { const status=document.getElementById('privacyBatchStatus'); if(status) status.textContent=`Scanning image tiles ${d.done}/${d.total}…`; return; }
+        if (d.type==='result' || d.type==='error') {
+          const job=privacyWorkerJobs.get(d.jobId); if(!job)return; privacyWorkerJobs.delete(d.jobId);
+          if(d.type==='error') job.reject(new Error(d.message)); else job.resolve(d.boxes||[]);
+        }
+      };
+      privacyWorker.onerror = err => { clearTimeout(timeout); reject(new Error('Privacy detection worker failed to start.')); };
+      privacyWorker.postMessage({type:'init'});
+    });
+    return privacyWorkerReady;
+  }
+
+  async function runPrivacyDetection(imageBlob) {
+    await ensurePrivacyWorker();
+    const bitmap=await createImageBitmap(imageBlob);
+    const jobId=++privacyWorkerSequence;
+    const result=new Promise((resolve,reject)=>privacyWorkerJobs.set(jobId,{resolve,reject}));
+    privacyWorker.postMessage({type:'detect',jobId,bitmap},[bitmap]);
+    return result;
+  }
+
+  function updatePrivacyDateOptions() {
+    const select=document.getElementById('privacyDateSelect'); if(!select)return;
+    const current=select.value||'all';
+    const dates=Array.from(new Set(nodes.map(n=>n.dateKey||'undated'))).sort();
+    select.innerHTML='<option value="all">All loaded images</option>'+dates.map(k=>`<option value="${escapeHtml(k)}">${escapeHtml(prettifyDateKey(k))}</option>`).join('');
+    if(dates.includes(current))select.value=current;
+  }
+
+  function getPrivacySourceUrl(node) { return node && (node.previewUrl || node.url || node.sourceDataUrl); }
+  function privacyMaskBounds(mask) {
+    const pts=mask.shape==='polygon'?(mask.points||[]):[{x:mask.x,y:mask.y},{x:mask.x+mask.w,y:mask.y+mask.h}];
+    if(!pts.length)return null;
+    const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y);
+    return {x0:Math.min(...xs),y0:Math.min(...ys),x1:Math.max(...xs),y1:Math.max(...ys)};
+  }
+
+  async function generatePrivacyRedactedPreview(node) {
+    const src=getPrivacySourceUrl(node); if(!src)throw new Error('Original image data is unavailable.');
+    const img=await new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>resolve(im);im.onerror=()=>reject(new Error('Could not decode the original image for redaction.'));im.src=src;});
+    const w=img.naturalWidth,h=img.naturalHeight;
+    const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
+    const ctx=canvas.getContext('2d');if(!ctx)throw new Error('Could not allocate image canvas for redaction.');
+    ctx.drawImage(img,0,0,w,h);
+    const masks=node.privacyMasks||[];
+    if(!masks.length){node.privacyRedactedDataUrl=null;node.privacyRedactionPending=false;canvas.width=0;canvas.height=0;img.removeAttribute('src');return null;}
+    const blurred=document.createElement('canvas');blurred.width=w;blurred.height=h;
+    const blurCtx=blurred.getContext('2d');
+    if(!blurCtx)throw new Error('Could not allocate blur canvas.');
+    blurCtx.filter='blur(36px)';blurCtx.drawImage(img,0,0,w,h);blurCtx.filter='none';
+    for(const mask of masks){
+      const b=privacyMaskBounds(mask);if(!b)continue;
+      const padX=mask.shape==='polygon'?0:(mask.source==='auto'?(mask.kind==='face'?0.35:0.12):0.12)*(b.x1-b.x0);
+      const padY=mask.shape==='polygon'?0:(mask.source==='auto'?(mask.kind==='face'?0.35:0.12):0.12)*(b.y1-b.y0);
+      const x0=Math.max(0,Math.floor((b.x0-padX)*w)),y0=Math.max(0,Math.floor((b.y0-padY)*h));
+      const x1=Math.min(w,Math.ceil((b.x1+padX)*w)),y1=Math.min(h,Math.ceil((b.y1+padY)*h));
+      if(x1-x0<2||y1-y0<2)continue;
+      ctx.save();
+      if(mask.shape==='polygon'&&Array.isArray(mask.points)&&mask.points.length>=3){
+        ctx.beginPath();mask.points.forEach((pt,i)=>{const px=pt.x*w,py=pt.y*h;if(i===0)ctx.moveTo(px,py);else ctx.lineTo(px,py);});ctx.closePath();ctx.clip();
+      } else { ctx.beginPath();ctx.rect(x0,y0,x1-x0,y1-y0);ctx.clip(); }
+      ctx.drawImage(blurred,0,0,w,h);ctx.restore();
+    }
+    blurred.width=0;blurred.height=0;
+    const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('Could not encode redacted image.')),'image/jpeg',0.96));
+    node.privacyRedactedDataUrl=await blobToDataUrl(blob);
+    node.privacyRedactionPending=false;
+    canvas.width=0;canvas.height=0;img.removeAttribute('src');
+    return node.privacyRedactedDataUrl;
+  }
+
+  async function persistPrivacyNode(node) {
+    const key=node.dateKey||'undated';
+    if(savedDatasetKeys.has(key)) await persistDataset(key);
+  }
+
+  async function runPrivacyBatch() {
+    const btn=document.getElementById('privacyBatchDetectBtn'),status=document.getElementById('privacyBatchStatus');
+    const dateKey=document.getElementById('privacyDateSelect').value;
+    const batch=nodes.filter(n=>dateKey==='all'||(n.dateKey||'undated')===dateKey);
+    if(!batch.length){status.textContent='No images available for this date.';return;}
+    privacyBatchCancelled=false;btn.disabled=true;document.getElementById('privacyCancelBatchBtn').style.display='inline-flex';
+    const progress=document.getElementById('privacyBatchProgress'),bar=document.getElementById('privacyBatchProgressBar');progress.style.display='block';bar.style.width='0%';
+    const changedDates=new Set();let completed=0,failed=0,totalMasks=0;
+    try{
+      await ensurePrivacyWorker();
+      for(let i=0;i<batch.length;i++){
+        if(privacyBatchCancelled)break;
+        const node=batch[i];
+        status.textContent=`Detecting image ${i+1} of ${batch.length}: ${node.sourceFileName||node.title}`;
+        try{
+          const src=getPrivacySourceUrl(node);let blob;
+          if(src.startsWith('data:'))blob=dataUrlToBlob(src);else {const r=await fetch(src);blob=await r.blob();}
+          const boxes=await runPrivacyDetection(blob);
+          node.privacyMasks=(node.privacyMasks||[]).filter(m=>m.source!=='auto');
+          node.privacyRedactionPending=true;
+          node.privacyReviewed=false;
+          const bitmap=await createImageBitmap(blob);
+          const iw=bitmap.width,ih=bitmap.height;bitmap.close();
+          boxes.forEach((b,j)=>node.privacyMasks.push({id:'auto_'+Date.now()+'_'+i+'_'+j,source:'auto',kind:b.kind,shape:'rect',x:b.x0/iw,y:b.y0/ih,w:(b.x1-b.x0)/iw,h:(b.y1-b.y0)/ih,score:b.score}));
+          await generatePrivacyRedactedPreview(node);
+          changedDates.add(node.dateKey||'undated');totalMasks+=boxes.length;completed++;
+        }catch(err){console.warn('Privacy detection failed for',node.title,err);failed++;}
+        bar.style.width=Math.round(((i+1)/batch.length)*100)+'%';
+        await new Promise(r=>setTimeout(r,0));
+      }
+      for(const key of changedDates) if(savedDatasetKeys.has(key)) await persistDataset(key);
+      status.textContent=`${completed} image${completed===1?'':'s'} processed · ${totalMasks} face/plate area${totalMasks===1?'':'s'} detected${failed?` · ${failed} failed`:''}${privacyBatchCancelled?' · cancelled':''}. Review the results before exporting.`;
+      if(changedDates.size && Array.from(changedDates).some(k=>!savedDatasetKeys.has(k))) status.textContent+=' Unsaved datasets must be saved locally to retain changes after refresh.';
+      if(nodes.some(n=>n.id===selectedNodeId))renderViewers();
+    }catch(err){console.error(err);status.textContent='Privacy processing failed: '+(err.message||err);if(privacyWorker){try{privacyWorker.terminate();}catch(e){}privacyWorker=null;privacyWorkerReady=null;}alert('Privacy processing failed: '+(err.message||err));}
+    finally{btn.disabled=false;document.getElementById('privacyCancelBatchBtn').style.display='none';}
+  }
+
+  function privacyCurrentNode(){return nodes.find(n=>n.id===privacyEditorNodeId)||null;}
+  function setPrivacyDrawMode(mode){privacyDrawMode=mode;['select','rect','poly'].forEach(k=>{const id={select:'privacySelectMode',rect:'privacyRectMode',poly:'privacyPolyMode'}[k];document.getElementById(id).classList.toggle('active',mode===k);});}
+  function syncPrivacyCanvasSize(){
+    const img=document.getElementById('privacyEditorImage'),canvas=document.getElementById('privacyEditorCanvas');
+    if(!img.naturalWidth||!img.clientWidth)return;
+    canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;
+    canvas.style.width=img.clientWidth+'px';canvas.style.height=img.clientHeight+'px';
+    redrawPrivacyCanvas();
+  }
+  function redrawPrivacyCanvas(){
+    const node=privacyCurrentNode(),img=document.getElementById('privacyEditorImage'),canvas=document.getElementById('privacyEditorCanvas');if(!node||!canvas.width)return;
+    const ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,canvas.height);
+    (node.privacyMasks||[]).forEach(m=>{
+      ctx.save();ctx.lineWidth=Math.max(3,canvas.width/1800);ctx.strokeStyle=m.id===privacySelectedMaskId?'#6ee7b7':(m.source==='auto'?'#fb7185':'#facc15');ctx.fillStyle=m.source==='auto'?'rgba(251,113,133,.16)':'rgba(250,204,21,.13)';
+      if(m.shape==='polygon'&&m.points&&m.points.length){ctx.beginPath();m.points.forEach((p,i)=>i?ctx.lineTo(p.x*canvas.width,p.y*canvas.height):ctx.moveTo(p.x*canvas.width,p.y*canvas.height));ctx.closePath();ctx.fill();ctx.stroke();}
+      else {ctx.fillRect(m.x*canvas.width,m.y*canvas.height,m.w*canvas.width,m.h*canvas.height);ctx.strokeRect(m.x*canvas.width,m.y*canvas.height,m.w*canvas.width,m.h*canvas.height);}
+      ctx.restore();
+    });
+    if(privacyDragStart&&privacyDraftPoint){ctx.save();ctx.strokeStyle='#38bdf8';ctx.setLineDash([8,5]);ctx.lineWidth=Math.max(3,canvas.width/1800);ctx.strokeRect(Math.min(privacyDragStart.x,privacyDraftPoint.x)*canvas.width,Math.min(privacyDragStart.y,privacyDraftPoint.y)*canvas.height,Math.abs(privacyDraftPoint.x-privacyDragStart.x)*canvas.width,Math.abs(privacyDraftPoint.y-privacyDragStart.y)*canvas.height);ctx.restore();}
+    if(privacyPolygonPoints.length){ctx.save();ctx.strokeStyle='#38bdf8';ctx.lineWidth=Math.max(3,canvas.width/1800);ctx.beginPath();privacyPolygonPoints.forEach((p,i)=>i?ctx.lineTo(p.x*canvas.width,p.y*canvas.height):ctx.moveTo(p.x*canvas.width,p.y*canvas.height));ctx.stroke();ctx.restore();}
+    const status=document.getElementById('privacyEditorStatus');status.textContent=`${(node.privacyMasks||[]).length} mask(s) · ${(node.privacyMasks||[]).filter(m=>m.source==='auto').length} automatically detected · ${(node.privacyMasks||[]).filter(m=>m.source!=='auto').length} manual`;
+  }
+  function privacyCanvasPoint(e){const c=document.getElementById('privacyEditorCanvas'),r=c.getBoundingClientRect();return{x:Math.max(0,Math.min(1,(e.clientX-r.left)/r.width)),y:Math.max(0,Math.min(1,(e.clientY-r.top)/r.height))};}
+  function finishPrivacyPolygon(){if(privacyPolygonPoints.length>=3){const n=privacyCurrentNode();n.privacyReviewed=false;n.privacyMasks=n.privacyMasks||[];n.privacyMasks.push({id:'manual_'+Date.now(),source:'manual',kind:'manual',shape:'polygon',points:privacyPolygonPoints.map(p=>({...p}))});n.privacyRedactionPending=true;privacySelectedMaskId=n.privacyMasks[n.privacyMasks.length-1].id;}privacyPolygonPoints=[];redrawPrivacyCanvas();}
+  function loadPrivacyEditorNode(node){
+    if(!node)return;privacyEditorNodeId=node.id;privacySelectedMaskId=null;privacyPolygonPoints=[];privacyDragStart=null;privacyDraftPoint=null;
+    const img=document.getElementById('privacyEditorImage');img.onload=()=>requestAnimationFrame(syncPrivacyCanvasSize);img.src=getPrivacySourceUrl(node);if(img.complete&&img.naturalWidth)requestAnimationFrame(syncPrivacyCanvasSize);
+    document.getElementById('privacyImageSelect').value=node.id;
+    const remaining=privacyReviewQueue.filter(id=>{const item=nodes.find(n=>n.id===id);return item&&!item.privacyReviewed;}).length;
+    const reviewed=privacyReviewQueue.length-remaining;
+    document.getElementById('privacyReviewProgress').textContent=`${reviewed} reviewed · ${remaining} remaining in this review batch`;
+    document.getElementById('privacyApplyBtn').disabled=false;
+    document.getElementById('privacyApplyBtn').textContent='Apply & next image';
+    redrawPrivacyCanvas();
+  }
+  function openPrivacyEditor(node){
+    if(!nodes.length)return;updatePrivacyDateOptions();
+    const selectedDate=document.getElementById('privacyDateSelect').value||'all';
+    const reviewSet=nodes.filter(n=>selectedDate==='all'||(n.dateKey||'undated')===selectedDate);
+    privacyReviewQueue=reviewSet.filter(n=>!n.privacyReviewed).map(n=>n.id);
+    const select=document.getElementById('privacyImageSelect');select.innerHTML=nodes.map(n=>`<option value="${escapeHtml(n.id)}">${escapeHtml(n.dateKeyLabel||n.dateKey||'Undated')} · ${escapeHtml(n.sourceFileName||n.title)}${n.privacyReviewed?' · reviewed':''}</option>`).join('');
+    document.getElementById('privacyEditorModal').style.display='flex';
+    const start=node&&!node.privacyReviewed?node:(nodes.find(n=>privacyReviewQueue.includes(n.id))||node||nodes[0]);
+    loadPrivacyEditorNode(start);setPrivacyDrawMode('select');
+  }
+  async function applyPrivacyReviewAndAdvance(){
+    const node=privacyCurrentNode();if(!node)return;
+    const btn=document.getElementById('privacyApplyBtn');btn.disabled=true;btn.textContent='Applying…';
+    try{
+      await generatePrivacyRedactedPreview(node);
+      node.privacyReviewed=true;
+      await persistPrivacyNode(node);
+      if(node.id===selectedNodeId)renderViewers();
+      const currentIndex=privacyReviewQueue.indexOf(node.id);
+      const candidates=currentIndex>=0?privacyReviewQueue.slice(currentIndex+1):privacyReviewQueue.slice();
+      const next=candidates.map(id=>nodes.find(n=>n.id===id)).find(n=>n&&!n.privacyReviewed);
+      if(next){loadPrivacyEditorNode(next);showToast('Image reviewed. Moving to the next image.');}
+      else{
+        const remaining=privacyReviewQueue.filter(id=>{const n=nodes.find(x=>x.id===id);return n&&!n.privacyReviewed;}).length;
+        document.getElementById('privacyReviewProgress').textContent=`Review complete · ${privacyReviewQueue.length} image(s) in this batch`;
+        document.getElementById('privacyEditorStatus').textContent='All images in this review batch have been reviewed.';
+        btn.disabled=true;btn.textContent='Review complete';
+        showToast('Privacy review complete.');
+      }
+    }catch(err){alert('Could not apply privacy redaction: '+(err.message||err));btn.disabled=false;btn.textContent='Apply & next image';}
+  }
+
+  document.getElementById('privacyBatchDetectBtn').addEventListener('click',runPrivacyBatch);
+  document.getElementById('privacyCancelBatchBtn').addEventListener('click',()=>{privacyBatchCancelled=true;document.getElementById('privacyBatchStatus').textContent='Cancelling after the current image…';});
+  document.getElementById('privacyEditCurrentBtn').addEventListener('click',()=>openPrivacyEditor());
+  document.getElementById('privacyImageSelect').addEventListener('change',e=>{const n=nodes.find(x=>x.id===e.target.value);if(n){if(!privacyReviewQueue.includes(n.id))privacyReviewQueue.push(n.id);loadPrivacyEditorNode(n);}});
+  document.getElementById('privacySelectMode').addEventListener('click',()=>setPrivacyDrawMode('select'));
+  document.getElementById('privacyRectMode').addEventListener('click',()=>setPrivacyDrawMode('rect'));
+  document.getElementById('privacyPolyMode').addEventListener('click',()=>setPrivacyDrawMode('poly'));
+  document.getElementById('privacyFinishPolygon').addEventListener('click',finishPrivacyPolygon);
+  document.getElementById('privacyRemoveMask').addEventListener('click',()=>{const n=privacyCurrentNode();if(!n||!privacySelectedMaskId)return;n.privacyReviewed=false;n.privacyMasks=(n.privacyMasks||[]).filter(m=>m.id!==privacySelectedMaskId);n.privacyRedactionPending=true;privacySelectedMaskId=null;redrawPrivacyCanvas();});
+  document.getElementById('privacyClearMasks').addEventListener('click',()=>{const n=privacyCurrentNode();if(!n)return;if(!confirm('Remove all privacy masks from this image?'))return;n.privacyReviewed=false;n.privacyMasks=[];n.privacyRedactionPending=true;privacySelectedMaskId=null;redrawPrivacyCanvas();});
+  const privacyCanvas=document.getElementById('privacyEditorCanvas');
+  privacyCanvas.addEventListener('pointerdown',e=>{const p=privacyCanvasPoint(e),n=privacyCurrentNode();if(!n)return;
+    if(privacyDrawMode==='rect'){privacyDragStart=p;privacyDraftPoint=p;privacyCanvas.setPointerCapture(e.pointerId);redrawPrivacyCanvas();}
+    else if(privacyDrawMode==='poly'){privacyPolygonPoints.push(p);redrawPrivacyCanvas();}
+    else {const masks=n.privacyMasks||[];privacySelectedMaskId=null;for(let i=masks.length-1;i>=0;i--){const b=privacyMaskBounds(masks[i]);if(b&&p.x>=b.x0&&p.x<=b.x1&&p.y>=b.y0&&p.y<=b.y1){privacySelectedMaskId=masks[i].id;break;}}redrawPrivacyCanvas();}
+  });
+  privacyCanvas.addEventListener('pointermove',e=>{if(!privacyDragStart)return;privacyDraftPoint=privacyCanvasPoint(e);redrawPrivacyCanvas();});
+  privacyCanvas.addEventListener('pointerup',e=>{if(!privacyDragStart)return;const p=privacyCanvasPoint(e),a=privacyDragStart;privacyDragStart=null;privacyDraftPoint=null;if(Math.abs(p.x-a.x)>.003&&Math.abs(p.y-a.y)>.003){const n=privacyCurrentNode();n.privacyReviewed=false;n.privacyMasks=n.privacyMasks||[];const m={id:'manual_'+Date.now(),source:'manual',kind:'manual',shape:'rect',x:Math.min(a.x,p.x),y:Math.min(a.y,p.y),w:Math.abs(p.x-a.x),h:Math.abs(p.y-a.y)};n.privacyMasks.push(m);n.privacyRedactionPending=true;privacySelectedMaskId=m.id;}redrawPrivacyCanvas();});
+  privacyCanvas.addEventListener('dblclick',e=>{e.preventDefault();finishPrivacyPolygon();});
+  document.getElementById('privacyApplyBtn').addEventListener('click',applyPrivacyReviewAndAdvance);
+  function closePrivacyEditor(){document.getElementById('privacyEditorModal').style.display='none';}
+  document.getElementById('privacyEditorClose').addEventListener('click',closePrivacyEditor);
+  document.getElementById('privacyEditorCancel').addEventListener('click',closePrivacyEditor);
+  window.addEventListener('resize',()=>{if(document.getElementById('privacyEditorModal').style.display==='flex')syncPrivacyCanvasSize();});
+
   function refreshCorrectedExportPanel() {
+    updatePrivacyDateOptions();
     const list = document.getElementById('correctedExportList');
     const count = document.getElementById('correctedExportCount');
     if (!list || !count) return;
@@ -4787,14 +5198,14 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
   }
 
   function getExportImageSource(node) {
-    const candidates = [node && node.url, node && node.previewUrl, node && node.sourceDataUrl];
+    const candidates = [node && node.privacyRedactedDataUrl, node && node.url, node && node.previewUrl, node && node.sourceDataUrl];
     return candidates.find(value => typeof value === 'string' && /^data:image\//i.test(value)) || null;
   }
 
   function shouldPreserveOriginalSource(node, percentage) {
     const source = node && node.sourceDataUrl;
     const viewer = getExportImageSource(node);
-    return percentage === 100 && isHeicFile(node) && typeof source === 'string' &&
+    return !node.privacyRedactedDataUrl && percentage === 100 && isHeicFile(node) && typeof source === 'string' &&
       /^data:image\//i.test(source) && source !== viewer;
   }
 
@@ -4810,7 +5221,8 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
     // and HEIC inputs stored the viewer JPEG a second time in previewUrl. Drop
     // those duplicates. At 100%, preserve a distinct original HEIC payload; if
     // the user chooses a smaller scale, the scaled JPEG is the exported source.
-    copy.sourceDataUrl = originalSourceUrl || null;
+    copy.sourceDataUrl = node.privacyRedactedDataUrl ? null : (originalSourceUrl || null);
+    copy.privacyRedactedDataUrl = null;
     copy.previewUrl = null;
     copy.annotations = keepAnnotations ? (node.annotations || []).map(a => ({ ...a })) : [];
     normaliseNodeHeading(copy);
@@ -5025,6 +5437,15 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
 
   document.getElementById('confirmExportConfigBtn').addEventListener('click', async () => {
     if (exportInProgress) return;
+    const privacyPendingNodes = nodes.filter(n => n.privacyRedactionPending || ((n.privacyMasks || []).length && !n.privacyRedactedDataUrl));
+    if (privacyPendingNodes.length) {
+      if (!confirm(`${privacyPendingNodes.length} image(s) have unapplied privacy masks. Apply them before creating the field record?`)) return;
+      for (let i = 0; i < privacyPendingNodes.length; i++) {
+        const n = privacyPendingNodes[i]; showToast(`Applying privacy masks ${i + 1}/${privacyPendingNodes.length}…`, 1200);
+        await generatePrivacyRedactedPreview(n);
+      }
+      for (const key of new Set(privacyPendingNodes.map(n => n.dateKey || 'undated'))) if (savedDatasetKeys.has(key)) await persistDataset(key);
+    }
     let filename = document.getElementById('exportFilename').value.trim() || 'Field_Record_360.html';
     filename = safeFilename(filename, 'Field_Record_360.html');
     if (!/\.html$/i.test(filename)) filename += '.html';
@@ -5472,7 +5893,7 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
 
     const getExportImage = async (node, targetPrefix) => {
       if (node.is360 && use360Viewport) return capture360Viewport(targetPrefix, true);
-      return { dataUrl: node.url, sourceWidth: null, sourceHeight: null, pins: [] };
+      return { dataUrl: getNodeDisplayUrl(node), sourceWidth: null, sourceHeight: null, pins: [] };
     };
 
     showToast('Rendering comparison export…');

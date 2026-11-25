@@ -1244,6 +1244,11 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
         <div class="date-chip-row" id="dateChipRow">
           <button class="date-chip active" data-date="all">All Dates</button>
         </div>
+        <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:9px;">
+          <button type="button" class="anno-action-btn" id="saveDatasetBtn">Save dataset to this browser</button>
+          <button type="button" class="anno-action-btn" id="deleteDatasetBtn" style="border-color:#9b4545;color:#fca5a5;">Delete saved dataset</button>
+          <span id="datasetStorageStatus" style="font-size:10px;color:var(--parchment-dim);align-self:center;">Datasets are stored locally in this browser.</span>
+        </div>
       </div>
       <div class="filter-bar">
         <button class="filter-btn active" data-filter="all">All</button>
@@ -1361,6 +1366,22 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
         </div>
 
         <div class="export-status" id="correctedExportProgress">Ready.</div>
+      </section>
+
+      <section class="export-section" id="advancedRiverExportSection">
+        <div class="export-section-head">
+          <div>
+            <div class="export-section-title">Advanced export · group by Welsh main river</div>
+            <div class="export-count">Matches each image GPS position to the nearest NRW Main Rivers line from DataMapWales, then creates one ZIP with a folder per river.</div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--parchment-dim);line-height:1.5;margin:8px 0 12px;">
+          Images without GPS or outside the river dataset are placed in <b>Unmatched</b>. A JSON sidecar is included beside each image with the river name, nearest-line distance, coordinates and dataset attribution.
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <button type="button" id="exportByRiverBtn" class="upload-btn">Export images grouped by main river (ZIP)</button>
+          <span id="riverExportStatus" class="export-status" aria-live="polite">Ready.</span>
+        </div>
       </section>
 
       <section class="export-section">
@@ -1678,6 +1699,101 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
 
   let projectTitle = "360° Field Record";
   let nodes = [];
+  // Browser-local dataset persistence. Images are stored as data URLs in IndexedDB,
+  // avoiding localStorage's small quota and keeping the project available after refresh.
+  const DATASET_DB_NAME = 'field-record-360-datasets';
+  const DATASET_DB_VERSION = 1;
+  let datasetDbPromise = null;
+  const savedDatasetKeys = new Set();
+  function openDatasetDb() {
+    if (datasetDbPromise) return datasetDbPromise;
+    datasetDbPromise = new Promise((resolve, reject) => {
+      if (!('indexedDB' in window)) return reject(new Error('IndexedDB is not supported by this browser.'));
+      const req = indexedDB.open(DATASET_DB_NAME, DATASET_DB_VERSION);
+      req.onupgradeneeded = () => { const db = req.result; if (!db.objectStoreNames.contains('datasets')) db.createObjectStore('datasets', { keyPath: 'key' }); };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error || new Error('Could not open browser dataset storage.'));
+    });
+    return datasetDbPromise;
+  }
+  function serialisableDatasetNode(n) {
+    const copy = { ...n };
+    delete copy.marker; delete copy.sourceFile;
+    return copy;
+  }
+  async function persistDataset(key) {
+    const group = nodes.filter(n => (n.dateKey || 'undated') === key);
+    if (!group.length) throw new Error('There are no images in this dataset.');
+    const db = await openDatasetDb();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction('datasets', 'readwrite');
+      tx.objectStore('datasets').put({ key, label: prettifyDateKey(key), savedAt: new Date().toISOString(), nodes: group.map(serialisableDatasetNode) });
+      tx.oncomplete = resolve; tx.onerror = () => reject(tx.error || new Error('Dataset could not be saved.'));
+      tx.onabort = () => reject(tx.error || new Error('Dataset save was cancelled.'));
+    });
+    savedDatasetKeys.add(key);
+    updateDatasetStorageStatus();
+  }
+  async function removePersistedDataset(key) {
+    const db = await openDatasetDb();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction('datasets', 'readwrite'); tx.objectStore('datasets').delete(key);
+      tx.oncomplete = resolve; tx.onerror = () => reject(tx.error || new Error('Dataset could not be deleted.'));
+    });
+    savedDatasetKeys.delete(key);
+  }
+  async function restoreSavedDatasets() {
+    try {
+      const db = await openDatasetDb();
+      const records = await new Promise((resolve, reject) => {
+        const tx = db.transaction('datasets', 'readonly'), req = tx.objectStore('datasets').getAll();
+        req.onsuccess = () => resolve(req.result || []); req.onerror = () => reject(req.error);
+      });
+      records.forEach(record => {
+        savedDatasetKeys.add(record.key);
+        (record.nodes || []).forEach(n => { if (!nodes.some(existing => existing.id === n.id)) addNode(n); });
+      });
+      updateDatasetStorageStatus();
+      if (records.length) showToast(`Restored ${records.length} saved dataset${records.length === 1 ? '' : 's'} from this browser.`);
+    } catch (err) {
+      console.warn('Browser dataset restore unavailable:', err);
+      const el = document.getElementById('datasetStorageStatus'); if (el) el.textContent = 'Browser storage unavailable';
+    }
+  }
+  function currentDatasetKey() {
+    if (activeDateKey !== 'all') return activeDateKey;
+    const selected = nodes.find(n => n.id === selectedNodeId);
+    return selected ? (selected.dateKey || 'undated') : null;
+  }
+  function updateDatasetStorageStatus() {
+    const el = document.getElementById('datasetStorageStatus');
+    if (!el) return;
+    const key = currentDatasetKey();
+    el.textContent = key ? (savedDatasetKeys.has(key) ? `Saved locally · ${prettifyDateKey(key)}` : `Not saved · ${prettifyDateKey(key)}`) : `${savedDatasetKeys.size} saved dataset${savedDatasetKeys.size === 1 ? '' : 's'} · select a date to manage`;
+  }
+  document.getElementById('saveDatasetBtn').addEventListener('click', async () => {
+    const key = currentDatasetKey();
+    if (!key) { alert('Select a survey date or an image first.'); return; }
+    const btn = document.getElementById('saveDatasetBtn'); btn.disabled = true;
+    try { await persistDataset(key); showToast(`Saved ${prettifyDateKey(key)} to this browser.`); }
+    catch (e) { alert(`Could not save dataset. ${e.message || e}`); }
+    finally { btn.disabled = false; }
+  });
+  document.getElementById('deleteDatasetBtn').addEventListener('click', async () => {
+    const key = currentDatasetKey();
+    if (!key || !savedDatasetKeys.has(key)) { alert('Select a saved survey date first.'); return; }
+    if (!confirm(`Delete the saved dataset “${prettifyDateKey(key)}” from this browser and remove its images from the current view?`)) return;
+    try {
+      await removePersistedDataset(key);
+      const removed = nodes.filter(n => (n.dateKey || 'undated') === key);
+      removed.forEach(n => { if (n.marker) map.removeLayer(n.marker); });
+      nodes = nodes.filter(n => (n.dateKey || 'undated') !== key);
+      if (removed.some(n => n.id === selectedNodeId)) selectedNodeId = nodes[0]?.id || null;
+      if (removed.some(n => n.id === secondaryNodeId)) secondaryNodeId = null;
+      activeDateKey = 'all'; applyFilterAndRender(); updateMapBounds(); updateDatasetStorageStatus();
+      showToast(`Deleted saved dataset ${prettifyDateKey(key)}.`);
+    } catch (e) { alert(`Could not delete dataset. ${e.message || e}`); }
+  });
   let selectedNodeId = null;
   let secondaryNodeId = null;
   
@@ -2374,6 +2490,7 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
   function addPinToNode(targetPrefix, node, pinData) {
     node.annotations = node.annotations || [];
     node.annotations.push(pinData);
+    if (savedDatasetKeys.has(node.dateKey || 'undated')) persistDataset(node.dateKey || 'undated').catch(console.warn);
     renderAllPins(targetPrefix);
     openPinEditor(targetPrefix, pinData.id, true);
   }
@@ -2382,6 +2499,7 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
     const node = getNodeForTargetPrefix(targetPrefix);
     if (!node) return;
     node.annotations = (node.annotations || []).filter(p => p.id !== pinId);
+    if (savedDatasetKeys.has(node.dateKey || 'undated')) persistDataset(node.dateKey || 'undated').catch(console.warn);
     if (activePinIds[targetPrefix] === pinId) {
       activePinIds[targetPrefix] = null;
       update360PinVisual(targetPrefix);
@@ -2620,6 +2738,7 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
         pin.color = color;
       }
       refreshNodeMarker(node);
+      if (savedDatasetKeys.has(node.dateKey || 'undated')) persistDataset(node.dateKey || 'undated').catch(console.warn);
     }
     closePinEditor();
     renderAllPins(targetPrefix);
@@ -3312,6 +3431,8 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
 
     applyFilterAndRender();
     updateMapBounds();
+    const datasetKey = nodeData.dateKey || 'undated';
+    if (savedDatasetKeys.has(datasetKey)) persistDataset(datasetKey).catch(console.warn);
 
     if (nodes.length === 1) handleNodeClick(nodeData.id);
   }
@@ -3396,6 +3517,11 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
 
     applyFilterAndRender();
     updateMapBounds();
+    if (savedDatasetKeys.has(deleted.dateKey || 'undated')) {
+      const key = deleted.dateKey || 'undated';
+      if (nodes.some(n => (n.dateKey || 'undated') === key)) persistDataset(key).catch(console.warn);
+      else removePersistedDataset(key).catch(console.warn);
+    }
   }
 
   async function readImageMetadata(file, arrayBuffer, xmpData) {
@@ -3739,6 +3865,7 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
 
   function applyFilterAndRender() {
     renderDateChips();
+    updateDatasetStorageStatus();
     const container = document.getElementById('nodeContainer');
     container.innerHTML = '';
 
@@ -3979,6 +4106,7 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
     const node = getEditorCurrentNode();
     if (!node) return;
 
+    const oldDatasetKey = node.dateKey || 'undated';
     const title = document.getElementById('editTitle').value.trim();
     const device = document.getElementById('editDevice').value.trim();
     const dateTime = localInputToExifDate(document.getElementById('editDateTime').value);
@@ -4011,6 +4139,13 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
     document.getElementById('editModal').style.display = 'none';
     selectNode(node.id);
     refreshCorrectedExportPanel();
+    if (savedDatasetKeys.has(oldDatasetKey) || savedDatasetKeys.has(node.dateKey || 'undated')) {
+      if (oldDatasetKey !== (node.dateKey || 'undated')) {
+        if (nodes.some(n => (n.dateKey || 'undated') === oldDatasetKey)) persistDataset(oldDatasetKey).catch(console.warn);
+        else removePersistedDataset(oldDatasetKey).catch(console.warn);
+      }
+      if (savedDatasetKeys.has(node.dateKey || 'undated')) persistDataset(node.dateKey || 'undated').catch(console.warn);
+    }
     showToast('Project metadata updated. Export a corrected copy to write the image metadata.');
   });
 
@@ -4395,6 +4530,124 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
     link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 30000);
   }
+
+  /* ---------- Advanced export: nearest Welsh main river ---------- */
+  const NRW_MAIN_RIVERS_WFS = 'https://datamap.gov.wales/geoserver/ows';
+  const NRW_MAIN_RIVERS_TYPE = 'inspire-nrw:NRW_MAIN_RIVERS';
+  let mainRiversGeoJsonPromise = null;
+  function safeFolderName(value) { return safeFilename(String(value || 'Unmatched').replace(/[\\/:*?"<>|]/g, '-')).replace(/\s+/g, '_') || 'Unmatched'; }
+  async function loadMainRiversGeoJson(bounds) {
+    if (mainRiversGeoJsonPromise) return mainRiversGeoJsonPromise;
+    const [minLon, minLat, maxLon, maxLat] = bounds;
+    const params = new URLSearchParams({
+      service: 'WFS', version: '1.0.0', request: 'GetFeature', typeName: NRW_MAIN_RIVERS_TYPE,
+      outputFormat: 'application/json', srsName: 'EPSG:4326', maxFeatures: '10000',
+      bbox: `${minLon},${minLat},${maxLon},${maxLat},EPSG:4326`
+    });
+    mainRiversGeoJsonPromise = fetch(`${NRW_MAIN_RIVERS_WFS}?${params.toString()}`).then(async response => {
+      if (!response.ok) throw new Error(`DataMapWales returned HTTP ${response.status}.`);
+      const data = await response.json();
+      if (!data || !Array.isArray(data.features)) throw new Error('The Main Rivers service did not return GeoJSON features.');
+      return data;
+    }).catch(err => { mainRiversGeoJsonPromise = null; throw err; });
+    return mainRiversGeoJsonPromise;
+  }
+  function pointSegmentDistanceMeters(lat, lon, a, b) {
+    const cos = Math.cos(lat * Math.PI / 180), mx = 111320 * cos, my = 110574;
+    const ax = (a[0] - lon) * mx, ay = (a[1] - lat) * my;
+    const bx = (b[0] - lon) * mx, by = (b[1] - lat) * my;
+    const dx = bx - ax, dy = by - ay;
+    const t = Math.max(0, Math.min(1, -(ax * dx + ay * dy) / (dx * dx + dy * dy || 1)));
+    return Math.hypot(ax + t * dx, ay + t * dy);
+  }
+  function nearestPointOnRiver(lat, lon, features) {
+    let best = null;
+    function inspectLine(coords, props) {
+      for (let i = 1; i < coords.length; i++) {
+        const distance = pointSegmentDistanceMeters(lat, lon, coords[i - 1], coords[i]);
+        if (!best || distance < best.distance) best = { distance, name: props.WCRS_NAME || props.ALT_NAME || props.NAME || 'Unnamed main river', alternativeName: props.ALT_NAME || '', id: props.OBJECTID || props.WCRS_REF || null };
+      }
+    }
+    (features || []).forEach(f => {
+      const g = f.geometry, props = f.properties || {};
+      if (!g) return;
+      if (g.type === 'LineString') inspectLine(g.coordinates, props);
+      else if (g.type === 'MultiLineString') g.coordinates.forEach(line => inspectLine(line, props));
+    });
+    return best;
+  }
+  document.getElementById('exportByRiverBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('exportByRiverBtn'), status = document.getElementById('riverExportStatus');
+    const located = nodes.filter(n => n.hasGps && Number.isFinite(Number(n.lat)) && Number.isFinite(Number(n.lon)) && (Number(n.lat) || Number(n.lon)));
+    if (!nodes.length) { status.textContent = 'No images loaded.'; return; }
+    if (!located.length) { status.textContent = 'No GPS-tagged images to match to rivers.'; return; }
+    btn.disabled = true;
+    try {
+      status.textContent = 'Loading NRW Main Rivers from DataMapWales…';
+      const lats = located.map(n => Number(n.lat)), lons = located.map(n => Number(n.lon));
+      const pad = 0.12;
+      const data = await loadMainRiversGeoJson([Math.min(...lons)-pad, Math.min(...lats)-pad, Math.max(...lons)+pad, Math.max(...lats)+pad]);
+      if (!data.features.length) throw new Error('No Main Rivers features intersect the image area.');
+      const riverGroups = new Map(), unmatched = [];
+      const matched = nodes.map(n => {
+        const river = n.hasGps ? nearestPointOnRiver(Number(n.lat), Number(n.lon), data.features) : null;
+        // A 15 km threshold avoids assigning remote photos to an unrelated river.
+        const hit = river && river.distance <= 15000 ? river : null;
+        const riverName = hit ? hit.name : 'Unmatched';
+        if (!riverGroups.has(riverName)) riverGroups.set(riverName, []);
+        riverGroups.get(riverName).push({ node: n, river: hit });
+        return { node: n, river: hit };
+      });
+      const zipFiles = [];
+      let done = 0;
+      for (const [riverName, entries] of riverGroups.entries()) {
+        const folder = safeFolderName(riverName);
+        for (const entry of entries) {
+          done++;
+          status.textContent = `Preparing ${done} of ${nodes.length}: ${entry.node.sourceFileName || entry.node.title}`;
+          const file = await nodeToSourceFile(entry.node);
+          const bytes = new Uint8Array(await file.arrayBuffer());
+          const filename = safeFilename(entry.node.sourceFileName || entry.node.title || `image_${done}.jpg`);
+          zipFiles.push({ name: `${folder}/${filename}`, data: bytes });
+          const sidecar = {
+            image: filename,
+            surveyDate: entry.node.dateKey || 'undated',
+            latitude: Number.isFinite(Number(entry.node.lat)) ? Number(entry.node.lat) : null,
+            longitude: Number.isFinite(Number(entry.node.lon)) ? Number(entry.node.lon) : null,
+            mainRiver: entry.river ? entry.river.name : null,
+            alternativeRiverName: entry.river ? (entry.river.alternativeName || null) : null,
+            distanceToMainRiverMetres: entry.river ? Math.round(entry.river.distance * 10) / 10 : null,
+            riverFeatureId: entry.river ? entry.river.id : null,
+            matchingMethod: 'Nearest point on NRW Main Rivers polyline; local metric approximation',
+            sourceDataset: 'Natural Resources Wales Main Rivers via DataMapWales',
+            sourceUrl: 'https://datamap.gov.wales/layers/inspire-nrw:NRW_MAIN_RIVERS',
+            attribution: 'Contains Natural Resources Wales information © Natural Resources Wales and Database Right. Contains Ordnance Survey Data. Crown Copyright and Database Right.',
+            licence: 'Open Government Licence for Public Sector Information (OGL)'
+          };
+          const jsonBytes = new TextEncoder().encode(JSON.stringify(sidecar, null, 2));
+          zipFiles.push({ name: `${folder}/${stripExtension(filename)}.metadata.json`, data: jsonBytes });
+        }
+      }
+      const summary = {
+        sourceDataset: 'NRW Main Rivers · DataMapWales',
+        sourceUrl: 'https://datamap.gov.wales/layers/inspire-nrw:NRW_MAIN_RIVERS',
+        exportedAt: new Date().toISOString(),
+        imageCount: nodes.length,
+        riverGroups: Array.from(riverGroups.entries()).map(([name, entries]) => ({ mainRiver: name === 'Unmatched' ? null : name, imageCount: entries.length })),
+        matchingThresholdMetres: 15000,
+        attribution: 'Contains Natural Resources Wales information © Natural Resources Wales and Database Right. Contains Ordnance Survey Data. Crown Copyright and Database Right.',
+        licence: 'Open Government Licence for Public Sector Information (OGL)'
+      };
+      zipFiles.push({ name: 'export_metadata/river_grouping_summary.json', data: new TextEncoder().encode(JSON.stringify(summary, null, 2)) });
+      downloadBlob(buildZipBlob(zipFiles), 'Images_Grouped_By_Welsh_Main_River.zip');
+      const groups = riverGroups.size;
+      status.textContent = `Exported ${nodes.length} images into ${groups} folders (${matched.filter(x => x.river).length} matched to a main river).`;
+    } catch (err) {
+      console.error(err);
+      status.textContent = `Export failed: ${err.message || err}`;
+      alert(`Advanced river export failed. ${err.message || err}\n\nIf the DataMapWales service blocks browser requests, try again later or use a locally downloaded GeoJSON dataset.`);
+    } finally { btn.disabled = false; }
+  });
 
   function refreshCorrectedExportPanel() {
     const list = document.getElementById('correctedExportList');
@@ -5401,6 +5654,7 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
     if (SAVED_BASE_NODES && SAVED_BASE_NODES.length) {
       SAVED_BASE_NODES.forEach(n => addNode(n));
     }
+    restoreSavedDatasets();
   });
 </script>
 
@@ -5792,7 +6046,8 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
   function drawPin(ctx, x, y, r, num, color, active) {
     const ink = inkFor(hexToRgb(color));
     ctx.save();
-    ctx.globalAlpha = active ? 1 : 0.5;
+    // Report snapshots use one consistent marker opacity; selection only affects the live UI.
+    ctx.globalAlpha = 0.62;
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.shadowColor = 'rgba(0,0,0,0.55)';
@@ -5852,8 +6107,9 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
 
     const k = img.naturalWidth / r.width;                       // source px per screen px
     const sx = (x0 - r.left) * k, sy = (y0 - r.top) * k, sw = vw * k, sh = vh * k;
-    const f = Math.min(1, 2600 / Math.max(sw, sh));
-    const W = Math.max(1, Math.round(sw * f)), H = Math.max(1, Math.round(sh * f));
+    // Keep the crop at the source image's native pixel dimensions. The old 2600px
+    // cap caused tall/portrait flat images to be resampled during viewport snapshots.
+    const W = Math.max(1, Math.round(sw)), H = Math.max(1, Math.round(sh));
 
     const c = document.createElement('canvas');
     c.width = W; c.height = H;

@@ -1749,12 +1749,27 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
         const tx = db.transaction('datasets', 'readonly'), req = tx.objectStore('datasets').getAll();
         req.onsuccess = () => resolve(req.result || []); req.onerror = () => reject(req.error);
       });
+      // Restore in bulk. Individual addNode() calls must not render, fit the map,
+      // or write the dataset back to IndexedDB: doing that for every image makes
+      // startup progressively slower as datasets grow.
+      const existingIds = new Set(nodes.map(n => n.id));
+      let restoredNodeCount = 0;
       records.forEach(record => {
         savedDatasetKeys.add(record.key);
-        (record.nodes || []).forEach(n => { if (!nodes.some(existing => existing.id === n.id)) addNode(n); });
+        (record.nodes || []).forEach(n => {
+          if (existingIds.has(n.id)) return;
+          existingIds.add(n.id);
+          addNode(n, { render: false, updateBounds: false, persist: false, addToMap: false, selectFirst: false });
+          restoredNodeCount++;
+        });
       });
+
+      // Build the visible list and map layers once, after every record is in memory.
+      if (!selectedNodeId && nodes.length) selectNode(nodes[0].id);
+      else applyFilterAndRender();
+      updateMapBounds();
       updateDatasetStorageStatus();
-      if (records.length) showToast(`Restored ${records.length} saved dataset${records.length === 1 ? '' : 's'} from this browser.`);
+      if (records.length) showToast(`Restored ${records.length} saved dataset${records.length === 1 ? '' : 's'} (${restoredNodeCount} images) from this browser.`);
     } catch (err) {
       console.warn('Browser dataset restore unavailable:', err);
       const el = document.getElementById('datasetStorageStatus'); if (el) el.textContent = 'Browser storage unavailable';
@@ -3399,7 +3414,9 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
     });
   }
 
-  function addNode(nodeData) {
+  function addNode(nodeData, options = {}) {
+    // Options allow startup restoration to add many nodes without repeatedly
+    // rebuilding the interface, fitting the map, or persisting the same dataset.
     normaliseNodeHeading(nodeData);
     if (!nodeData.dateKey) nodeData.dateKey = 'undated';
     if (!nodeData.dateKeyLabel) nodeData.dateKeyLabel = prettifyDateKey(nodeData.dateKey);
@@ -3421,7 +3438,8 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
     const marker = L.marker([nodeData.lat, nodeData.lon], {
       icon: createMarkerIcon(nodeData, false, false),
       draggable: false
-    }).addTo(map);
+    });
+    if (options.addToMap !== false) marker.addTo(map);
 
     bindHoverInfo(marker, nodeData);
     marker.on('click', () => handleNodeClick(nodeData.id));
@@ -3429,12 +3447,12 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
     nodeData.marker = marker;
     nodes.push(nodeData);
 
-    applyFilterAndRender();
-    updateMapBounds();
+    if (options.render !== false) applyFilterAndRender();
+    if (options.updateBounds !== false) updateMapBounds();
     const datasetKey = nodeData.dateKey || 'undated';
-    if (savedDatasetKeys.has(datasetKey)) persistDataset(datasetKey).catch(console.warn);
+    if (options.persist !== false && savedDatasetKeys.has(datasetKey)) persistDataset(datasetKey).catch(console.warn);
 
-    if (nodes.length === 1) handleNodeClick(nodeData.id);
+    if (options.selectFirst !== false && nodes.length === 1) handleNodeClick(nodeData.id);
   }
 
   function handleNodeClick(id) {
@@ -3885,9 +3903,10 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
 
     document.getElementById('nodeCountLabel').innerText = `${filtered.length} / ${nodes.length} Nodes`;
 
+    const filteredSet = new Set(filtered);
     nodes.forEach(n => {
       if (!n.marker) return;
-      const isVisible = filtered.includes(n);
+      const isVisible = filteredSet.has(n);
       if (isVisible) {
         if (!map.hasLayer(n.marker)) map.addLayer(n.marker);
         let viewingBearing = undefined;

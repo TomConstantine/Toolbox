@@ -1371,15 +1371,11 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
       <section class="export-section" id="advancedRiverExportSection">
         <div class="export-section-head">
           <div>
-            <div class="export-section-title">Advanced export · group by Welsh main river</div>
-            <div class="export-count">Matches each image GPS position to the nearest NRW Main Rivers line from DataMapWales, then creates one ZIP with a folder per river.</div>
+            <div class="export-section-title">Advanced export · group by nearby river</div>
           </div>
         </div>
-        <div style="font-size:11px;color:var(--parchment-dim);line-height:1.5;margin:8px 0 12px;">
-          Images without GPS or outside the river dataset are placed in <b>Unmatched</b>. A JSON sidecar is included beside each image with the river name, nearest-line distance, coordinates and dataset attribution.
-        </div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-          <button type="button" id="exportByRiverBtn" class="upload-btn">Export images grouped by main river (ZIP)</button>
+          <button type="button" id="exportByRiverBtn" class="upload-btn">Export images grouped by river (ZIP)</button>
           <span id="riverExportStatus" class="export-status" aria-live="polite">Ready.</span>
         </div>
       </section>
@@ -3306,14 +3302,18 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
     const dotClasses = `custom-marker ${typeClass} ${activeClass}`;
     let headingHtml = '';
 
-    if (node.hasHeading && typeof node.heading === 'number') {
-      // For the selected 360 image, the arrow follows the centre of the
-      // current Pannellum viewport. Otherwise it shows the stored camera heading.
-      const bearing = (is360 && isActive && typeof viewingBearing === 'number')
-        ? viewingBearing
-        : node.heading;
+    if (!is360 && node.hasHeading && Number.isFinite(Number(node.heading))) {
+      // Flat-photo heading is a fixed capture direction, so show it on the map.
       headingHtml = `
-        <div class="heading-pivot" style="transform: rotate(${bearing}deg);">
+        <div class="heading-pivot" style="transform: rotate(${Number(node.heading)}deg);">
+          <div class="heading-arrow"></div>
+        </div>`;
+    } else if (is360 && node.hasHeading && typeof node.heading === 'number' &&
+        (isActive || isSecondary) && Number.isFinite(viewingBearing)) {
+      // For 360° images, show direction only while actively displayed;
+      // the bearing follows the centre of the live panorama viewport.
+      headingHtml = `
+        <div class="heading-pivot" style="transform: rotate(${viewingBearing}deg);">
           <div class="heading-arrow"></div>
         </div>`;
     }
@@ -4550,21 +4550,21 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
     setTimeout(() => URL.revokeObjectURL(url), 30000);
   }
 
-  /* ---------- Advanced export: nearest Welsh main river ---------- */
-  const NRW_MAIN_RIVERS_WFS = 'https://datamap.gov.wales/geoserver/ows';
-  const NRW_MAIN_RIVERS_TYPE = 'inspire-nrw:NRW_MAIN_RIVERS';
+  /* ---------- Advanced export: nearest river grouping ---------- */
+  const RIVER_LAYER_WFS = 'https://datamap.gov.wales/geoserver/ows';
+  const RIVER_LAYER_TYPE = 'inspire-nrw:NRW_MAIN_RIVERS';
   let mainRiversGeoJsonPromise = null;
   function safeFolderName(value) { return safeFilename(String(value || 'Unmatched').replace(/[\\/:*?"<>|]/g, '-')).replace(/\s+/g, '_') || 'Unmatched'; }
   async function loadMainRiversGeoJson(bounds) {
     if (mainRiversGeoJsonPromise) return mainRiversGeoJsonPromise;
     const [minLon, minLat, maxLon, maxLat] = bounds;
     const params = new URLSearchParams({
-      service: 'WFS', version: '1.0.0', request: 'GetFeature', typeName: NRW_MAIN_RIVERS_TYPE,
+      service: 'WFS', version: '1.0.0', request: 'GetFeature', typeName: RIVER_LAYER_TYPE,
       outputFormat: 'application/json', srsName: 'EPSG:4326', maxFeatures: '10000',
       bbox: `${minLon},${minLat},${maxLon},${maxLat},EPSG:4326`
     });
-    mainRiversGeoJsonPromise = fetch(`${NRW_MAIN_RIVERS_WFS}?${params.toString()}`).then(async response => {
-      if (!response.ok) throw new Error(`DataMapWales returned HTTP ${response.status}.`);
+    mainRiversGeoJsonPromise = fetch(`${RIVER_LAYER_WFS}?${params.toString()}`).then(async response => {
+      if (!response.ok) throw new Error(`River data service returned HTTP ${response.status}.`);
       const data = await response.json();
       if (!data || !Array.isArray(data.features)) throw new Error('The Main Rivers service did not return GeoJSON features.');
       return data;
@@ -4599,72 +4599,49 @@ footer{font-family:Arial,Helvetica,sans-serif;letter-spacing:0;background:var(--
     const btn = document.getElementById('exportByRiverBtn'), status = document.getElementById('riverExportStatus');
     const located = nodes.filter(n => n.hasGps && Number.isFinite(Number(n.lat)) && Number.isFinite(Number(n.lon)) && (Number(n.lat) || Number(n.lon)));
     if (!nodes.length) { status.textContent = 'No images loaded.'; return; }
-    if (!located.length) { status.textContent = 'No GPS-tagged images to match to rivers.'; return; }
+    if (!located.length) { status.textContent = 'No GPS-tagged images available for grouping.'; return; }
     btn.disabled = true;
     try {
-      status.textContent = 'Loading NRW Main Rivers from DataMapWales…';
+      status.textContent = 'Finding nearby rivers…';
       const lats = located.map(n => Number(n.lat)), lons = located.map(n => Number(n.lon));
       const pad = 0.12;
       const data = await loadMainRiversGeoJson([Math.min(...lons)-pad, Math.min(...lats)-pad, Math.max(...lons)+pad, Math.max(...lats)+pad]);
-      if (!data.features.length) throw new Error('No Main Rivers features intersect the image area.');
-      const riverGroups = new Map(), unmatched = [];
-      const matched = nodes.map(n => {
+      if (!data.features.length) throw new Error('No river features were found for the image area.');
+
+      const riverGroups = new Map();
+      nodes.forEach(n => {
         const river = n.hasGps ? nearestPointOnRiver(Number(n.lat), Number(n.lon), data.features) : null;
-        // A 15 km threshold avoids assigning remote photos to an unrelated river.
+        // Avoid assigning remote photos to an unrelated river.
         const hit = river && river.distance <= 15000 ? river : null;
         const riverName = hit ? hit.name : 'Unmatched';
-        if (!riverGroups.has(riverName)) riverGroups.set(riverName, []);
-        riverGroups.get(riverName).push({ node: n, river: hit });
-        return { node: n, river: hit };
+        const captureDate = (n.dateKey && n.dateKey !== 'undated') ? String(n.dateKey) : 'Undated';
+        const groupKey = `${captureDate}\u0000${riverName}`;
+        if (!riverGroups.has(groupKey)) riverGroups.set(groupKey, { captureDate, riverName, entries: [] });
+        riverGroups.get(groupKey).entries.push({ node: n, river: hit });
       });
+
       const zipFiles = [];
       let done = 0;
-      for (const [riverName, entries] of riverGroups.entries()) {
-        const folder = safeFolderName(riverName);
-        for (const entry of entries) {
+      for (const group of riverGroups.values()) {
+        const dateFolder = safeFolderName(group.captureDate);
+        const riverFolder = safeFolderName(group.riverName);
+        for (const entry of group.entries) {
           done++;
-          status.textContent = `Preparing ${done} of ${nodes.length}: ${entry.node.sourceFileName || entry.node.title}`;
-          const file = await nodeToSourceFile(entry.node);
-          const bytes = new Uint8Array(await file.arrayBuffer());
-          const filename = safeFilename(entry.node.sourceFileName || entry.node.title || `image_${done}.jpg`);
-          zipFiles.push({ name: `${folder}/${filename}`, data: bytes });
-          const sidecar = {
-            image: filename,
-            surveyDate: entry.node.dateKey || 'undated',
-            latitude: Number.isFinite(Number(entry.node.lat)) ? Number(entry.node.lat) : null,
-            longitude: Number.isFinite(Number(entry.node.lon)) ? Number(entry.node.lon) : null,
-            mainRiver: entry.river ? entry.river.name : null,
-            alternativeRiverName: entry.river ? (entry.river.alternativeName || null) : null,
-            distanceToMainRiverMetres: entry.river ? Math.round(entry.river.distance * 10) / 10 : null,
-            riverFeatureId: entry.river ? entry.river.id : null,
-            matchingMethod: 'Nearest point on NRW Main Rivers polyline; local metric approximation',
-            sourceDataset: 'Natural Resources Wales Main Rivers via DataMapWales',
-            sourceUrl: 'https://datamap.gov.wales/layers/inspire-nrw:NRW_MAIN_RIVERS',
-            attribution: 'Contains Natural Resources Wales information © Natural Resources Wales and Database Right. Contains Ordnance Survey Data. Crown Copyright and Database Right.',
-            licence: 'Open Government Licence for Public Sector Information (OGL)'
-          };
-          const jsonBytes = new TextEncoder().encode(JSON.stringify(sidecar, null, 2));
-          zipFiles.push({ name: `${folder}/${stripExtension(filename)}.metadata.json`, data: jsonBytes });
+          status.textContent = `Preparing corrected image ${done} of ${nodes.length}: ${entry.node.sourceFileName || entry.node.title}`;
+          const corrected = await prepareCorrectedExport(entry.node);
+          const bytes = new Uint8Array(await corrected.file.arrayBuffer());
+          zipFiles.push({ name: `${dateFolder}/${riverFolder}/${corrected.filename}`, data: bytes });
         }
       }
-      const summary = {
-        sourceDataset: 'NRW Main Rivers · DataMapWales',
-        sourceUrl: 'https://datamap.gov.wales/layers/inspire-nrw:NRW_MAIN_RIVERS',
-        exportedAt: new Date().toISOString(),
-        imageCount: nodes.length,
-        riverGroups: Array.from(riverGroups.entries()).map(([name, entries]) => ({ mainRiver: name === 'Unmatched' ? null : name, imageCount: entries.length })),
-        matchingThresholdMetres: 15000,
-        attribution: 'Contains Natural Resources Wales information © Natural Resources Wales and Database Right. Contains Ordnance Survey Data. Crown Copyright and Database Right.',
-        licence: 'Open Government Licence for Public Sector Information (OGL)'
-      };
-      zipFiles.push({ name: 'export_metadata/river_grouping_summary.json', data: new TextEncoder().encode(JSON.stringify(summary, null, 2)) });
-      downloadBlob(buildZipBlob(zipFiles), 'Images_Grouped_By_Welsh_Main_River.zip');
-      const groups = riverGroups.size;
-      status.textContent = `Exported ${nodes.length} images into ${groups} folders (${matched.filter(x => x.river).length} matched to a main river).`;
+      downloadBlob(buildZipBlob(zipFiles), 'Images_Grouped_By_River.zip');
+      const dateCount = new Set(Array.from(riverGroups.values()).map(g => g.captureDate)).size;
+      const riverCount = new Set(Array.from(riverGroups.values()).map(g => `${g.captureDate}\u0000${g.riverName}`)).size;
+      const matchedCount = Array.from(riverGroups.values()).filter(g => g.riverName !== 'Unmatched').reduce((sum, g) => sum + g.entries.length, 0);
+      status.textContent = `Exported ${nodes.length} corrected images across ${dateCount} capture-date folder${dateCount === 1 ? '' : 's'} and ${riverCount} river groups (${matchedCount} matched).`;
     } catch (err) {
       console.error(err);
       status.textContent = `Export failed: ${err.message || err}`;
-      alert(`Advanced river export failed. ${err.message || err}\n\nIf the DataMapWales service blocks browser requests, try again later or use a locally downloaded GeoJSON dataset.`);
+      alert(`Advanced export failed. ${err.message || err}`);
     } finally { btn.disabled = false; }
   });
 
